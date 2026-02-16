@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import SwiftData
 import GoogleMobileAds
 
 @main
@@ -15,10 +16,20 @@ struct NaaPaataApp: App {
     @StateObject var songsViewModel = SongsViewModel() // Initialize here
     @ObservedObject var tabState = TabState()
     @StateObject private var storeKitManager = StoreManager()
+    @StateObject private var sleepTimerManager = SleepTimerManager.shared
+    
     @AppStorage("hasCompletedOnboarding") var hasCompletedOnboarding = false
+    
+    let container: ModelContainer
+    
     init() {
         MobileAds.shared.start(completionHandler: nil)
-       }
+        do {
+            container = try ModelContainer(for: SleepTimerModel.self)
+        } catch {
+            fatalError("Failed to initialize ModelContainer: \(error)")
+        }
+    }
 
     var body: some Scene {
         WindowGroup {
@@ -29,14 +40,17 @@ struct NaaPaataApp: App {
                     .environmentObject(songsViewModel) // Inject into environment
                     .environmentObject(tabState)
                     .environmentObject(storeKitManager)
+                    .environmentObject(sleepTimerManager)
                     .onAppear {
                         songsViewModel.loadSongs() // Load songs on app launch
+                        sleepTimerManager.setup(modelContext: container.mainContext)
                     }
             } else {
                 OnboardingView()
                     .environmentObject(musicPlayerManager)
             }
         }
+        .modelContainer(container)
         .onChange(of: scenePhase) { oldPhase, newPhase in
             if newPhase == .background {
                 // Save playback state when app goes to background
