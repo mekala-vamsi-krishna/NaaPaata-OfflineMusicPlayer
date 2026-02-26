@@ -52,6 +52,9 @@
 		ACD23E2B2E9286E70054344D /* AddSongsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = ACD23E2A2E9286E70054344D /* AddSongsView.swift */; };
 		ACD23E2D2E92871D0054344D /* EditPlaylistView.swift in Sources */ = {isa = PBXBuildFile; fileRef = ACD23E2C2E92871D0054344D /* EditPlaylistView.swift */; };
 		ACD767E02EC6503D00895236 /* SafariView.swift in Sources */ = {isa = PBXBuildFile; fileRef = ACD767DF2EC6503D00895236 /* SafariView.swift */; };
+		ACEB86962F4329DB007DA2D8 /* SleepTimerManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = ACEB86952F4329DB007DA2D8 /* SleepTimerManager.swift */; };
+		ACEB86982F4329EF007DA2D8 /* SleepTimerModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = ACEB86972F4329EF007DA2D8 /* SleepTimerModel.swift */; };
+		ACEB869A2F4329FD007DA2D8 /* SleepTimerPickerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = ACEB86992F4329FD007DA2D8 /* SleepTimerPickerView.swift */; };
 		ACFFFD292ED75D5600A338D6 /* SongCacheService.swift in Sources */ = {isa = PBXBuildFile; fileRef = ACFFFD282ED75D5600A338D6 /* SongCacheService.swift */; };
 		CD63CE544952496DAE492533 /* PurchaseError.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5663AB6C319A4DD894CFE9E3 /* PurchaseError.swift */; };
 		CE090E5A2F26365800B45930 /* GoogleMobileAds in Frameworks */ = {isa = PBXBuildFile; productRef = CE090E592F26365800B45930 /* GoogleMobileAds */; };
@@ -111,6 +114,9 @@
 		ACD23E2A2E9286E70054344D /* AddSongsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddSongsView.swift; sourceTree = "<group>"; };
 		ACD23E2C2E92871D0054344D /* EditPlaylistView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EditPlaylistView.swift; sourceTree = "<group>"; };
 		ACD767DF2EC6503D00895236 /* SafariView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SafariView.swift; sourceTree = "<group>"; };
+		ACEB86952F4329DB007DA2D8 /* SleepTimerManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SleepTimerManager.swift; sourceTree = "<group>"; };
+		ACEB86972F4329EF007DA2D8 /* SleepTimerModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SleepTimerModel.swift; sourceTree = "<group>"; };
+		ACEB86992F4329FD007DA2D8 /* SleepTimerPickerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SleepTimerPickerView.swift; sourceTree = "<group>"; };
 		ACFFFD282ED75D5600A338D6 /* SongCacheService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SongCacheService.swift; sourceTree = "<group>"; };
 		CE090E5C2F26374900B45930 /* BannerAdView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BannerAdView.swift; sourceTree = "<group>"; };
 		CE090E5F2F2637AD00B45930 /* AddsKeys.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddsKeys.swift; sourceTree = "<group>"; };
@@ -201,6 +207,7 @@
 				ACAB2BA92EBFC80B005F84D8 /* PlaybackStateModel.swift */,
 				ACCBA9362EDB70AF00531C3A /* EqualizerSettings.swift */,
 				5663AB6C319A4DD894CFE9E3 /* PurchaseError.swift */,
+				ACEB86972F4329EF007DA2D8 /* SleepTimerModel.swift */,
 			);
 			path = Model;
 			sourceTree = "<group>";
@@ -240,6 +247,7 @@
 				AC6F41882E7FD29A00B5BE35 /* MusicPlayerManager.swift */,
 				CE7907E12E92F01B006D517C /* PlaylistManager.swift */,
 				AC2CBA6F2ECA027B005DD432 /* HapticManager.swift */,
+				ACEB86952F4329DB007DA2D8 /* SleepTimerManager.swift */,
 			);
 			path = Managers;
 			sourceTree = "<group>";
@@ -249,6 +257,7 @@
 			children = (
 				AC6F41862E7FD26300B5BE35 /* MiniPlayerView.swift */,
 				AC6F41742E7FD05F00B5BE35 /* MusicPlayerView.swift */,
+				ACEB86992F4329FD007DA2D8 /* SleepTimerPickerView.swift */,
 			);
 			path = Player;
 			sourceTree = "<group>";
@@ -464,6 +473,7 @@
 			files = (
 				AC6F417C2E7FD05F00B5BE35 /* AlbumsView.swift in Sources */,
 				AC6774092EA2CAA70059C86C /* AlbumModel.swift in Sources */,
+				ACEB86962F4329DB007DA2D8 /* SleepTimerManager.swift in Sources */,
 				AC6F417D2E7FD05F00B5BE35 /* AppColors.swift in Sources */,
 				AC6774072EA2CA260059C86C /* AlbumsViewModel.swift in Sources */,
 				AC6F417E2E7FD05F00B5BE35 /* DocumentPicker.swift in Sources */,
@@ -482,12 +492,14 @@
 				AC6F41802E7FD05F00B5BE35 /* MP3FileCell.swift in Sources */,
 				AC6F41812E7FD05F00B5BE35 /* MusicPlayerView.swift in Sources */,
 				AC8269A82EB6751C00722433 /* ButtonStyleViewModifier.swift in Sources */,
+				ACEB869A2F4329FD007DA2D8 /* SleepTimerPickerView.swift in Sources */,
 				AC6773F72EA2A4110059C86C /* MetaDataService.swift in Sources */,
 				AC5B78A62EA58F41004AD706 /* ActivityViewController.swift in Sources */,
 				AC5B4AB52E982764006190E4 /* VolumeControlView.swift in Sources */,
 				CE7907E52E92F591006D517C /* PlaylistViewModel.swift in Sources */,
 				AC6F41822E7FD05F00B5BE35 /* NaaPaataApp.swift in Sources */,
 				ACCBA9332EDB5FFE00531C3A /* EqualizerViewModel.swift in Sources */,
+				ACEB86982F4329EF007DA2D8 /* SleepTimerModel.swift in Sources */,
 				ACCBA9422EDC290D00531C3A /* SubscriptionsView.swift in Sources */,
 				ACCBA9392EDC1E5E00531C3A /* StoreManager.swift in Sources */,
 				AC8269AB2EB678D400722433 /* OnboardingView.swift in Sources */,

@@ -15,11 +15,15 @@ struct MusicPlayerView: View {
     
     @EnvironmentObject var musicPlayerManager: MusicPlayerManager
     @EnvironmentObject var playlistsVM: PlaylistsViewModel
+    @EnvironmentObject var sleepTimerManager: SleepTimerManager
     
     // Create Playlist
     @State private var showCreatePlaylistSheet = false
     @State private var newPlaylistName = ""
     @State private var newPlaylistDescription = ""
+    
+    // Sleep Timer
+    @State private var showSleepTimerSheet = false
     
     // Song Info
     @State private var showSongInfoSheet = false
@@ -115,7 +119,7 @@ struct MusicPlayerView: View {
                                         .overlay (
                                             BannerAdView(adUnitID: AddsKeys.addUnitId.rawValue)
                                                 .frame(width:layout.albumArtSize - 18 ,height: 50)
-                                                .clipShape(RoundedRectangle(cornerRadius: 20))
+                                                .clipShape(RoundedRectangle(cornerRadius: 16))
                                                 .shadow(color: .black.opacity(0.3), radius: 20, x: 0, y: 10)
                                                 .offset(y:-8)
                                             ,alignment:.bottom
@@ -133,7 +137,7 @@ struct MusicPlayerView: View {
                                         .overlay (
                                             BannerAdView(adUnitID: AddsKeys.addUnitId.rawValue)
                                                 .frame(width:layout.albumArtSize - 18 ,height: 50)
-                                                .clipShape(RoundedRectangle(cornerRadius: 20))
+                                                .clipShape(RoundedRectangle(cornerRadius: 16))
                                                 .shadow(color: .black.opacity(0.3), radius: 20, x: 0, y: 10)
                                                 .offset(y:-8)
                                             ,alignment:.bottom
@@ -303,6 +307,28 @@ struct MusicPlayerView: View {
                                 .foregroundColor(musicPlayerManager.currentRepeatMode == .all ? .white : .white)
                         }
                     }
+                    
+                    // Sleep Timer Button
+                    Button(action: {
+                        showSleepTimerSheet = true
+                    }) {
+                        ZStack {
+                            Circle()
+                                .fill(sleepTimerManager.isTimerActive ? AppColors.primary : Color.black.opacity(0.1))
+                                .frame(width: 50, height: 50)
+                            VStack(spacing: 2) {
+                                Image(systemName: sleepTimerManager.isTimerActive ? "moon.fill" : "moon")
+                                    .font(.system(size: 18, weight: .bold))
+                                    .foregroundColor(.white)
+                                
+                                if sleepTimerManager.isTimerActive {
+                                    Text(sleepTimerManager.formattedTimeRemaining)
+                                        .font(.system(size: 8, weight: .bold))
+                                        .foregroundColor(.white)
+                                }
+                            }
+                        }
+                    }
                 }
                 .padding(.bottom, 20)
                 
@@ -383,6 +409,12 @@ struct MusicPlayerView: View {
             }
             .presentationDetents([.fraction(0.7)])
             .presentationDragIndicator(.visible)
+        }
+        // Sleep Timer Sheet
+        .sheet(isPresented: $showSleepTimerSheet) {
+            SleepTimerPickerView()
+                .presentationDetents([.medium, .large])
+                .presentationDragIndicator(.visible)
         }
     }
     

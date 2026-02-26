@@ -421,6 +421,14 @@ final class MusicPlayerManager: NSObject, ObservableObject {
         updateNowPlayingInfo()
     }
     
+    func pause() {
+        if isPlaying {
+            playerNode.pause()
+            isPlaying = false
+            updateNowPlayingInfo()
+        }
+    }
+    
     func stop() {
         playbackToken = nil // Invalidate token so completion handlers don't fire
         playerNode.stop()
