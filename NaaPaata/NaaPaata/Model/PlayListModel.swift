@@ -13,7 +13,6 @@ struct Playlist: Identifiable, Hashable, Codable {
     var songs: [Song]
     var coverImageData: Data? // store cover image data
     var description: String
-    var isPrivate: Bool
     var dateCreated: Date
     var folderName: String
     
@@ -23,7 +22,6 @@ struct Playlist: Identifiable, Hashable, Codable {
         songs: [Song] = [],
         coverImage: UIImage? = nil,
         description: String = "",
-        isPrivate: Bool = false,
         dateCreated: Date = Date()
     ) {
         self.id = id
@@ -31,7 +29,6 @@ struct Playlist: Identifiable, Hashable, Codable {
         self.songs = songs
         self.coverImageData = coverImage?.jpegData(compressionQuality: 0.9)
         self.description = description
-        self.isPrivate = isPrivate
         self.dateCreated = dateCreated
         self.folderName = name
     }

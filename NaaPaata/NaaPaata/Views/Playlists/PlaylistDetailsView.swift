@@ -105,10 +105,6 @@ struct PlaylistDetailsView: View {
             ToolbarItemGroup(placement: .navigationBarTrailing) {
                 Menu {
                     Button(action: { showEditPlaylist = true }) { Label("Edit Playlist", systemImage: "pencil") }
-                    Button(action: { playlist.isPrivate.toggle(); onUpdate(playlist) }) {
-                        Label(playlist.isPrivate ? "Make Public" : "Make Private",
-                              systemImage: playlist.isPrivate ? "eye" : "eye.slash")
-                    }
                     Divider()
                     Button(role: .destructive, action: { showDeletePlaylistConfirmation = true }) {
                         Label("Delete Playlist", systemImage: "trash")
@@ -206,10 +202,6 @@ struct PlaylistDetailsView: View {
                     if !playlist.songs.isEmpty {
                         Text("•")
                         Label(totalDuration, systemImage: "clock")
-                    }
-                    if playlist.isPrivate {
-                        Text("•")
-                        Label("Private", systemImage: "lock.fill")
                     }
                 }
                 .font(.system(size: 13, weight: .medium))

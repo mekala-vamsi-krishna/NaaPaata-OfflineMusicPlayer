@@ -70,7 +70,6 @@ final class PlaylistsViewModel: ObservableObject {
                     songs: validSongs,
                     coverImage: savedPlaylist.coverImage,
                     description: savedPlaylist.description,
-                    isPrivate: savedPlaylist.isPrivate,
                     dateCreated: savedPlaylist.dateCreated
                 )
                 
@@ -148,7 +147,6 @@ final class PlaylistsViewModel: ObservableObject {
             songs: [],
             coverImage: UIImage(systemName: "music.note.list"),
             description: description,
-            isPrivate: false,
             dateCreated: Date()
         )
         
@@ -217,7 +215,6 @@ final class PlaylistsViewModel: ObservableObject {
                 songs: [song],
                 coverImage: UIImage(systemName: "heart.fill"),
                 description: "Your favorite songs",
-                isPrivate: false,
                 dateCreated: Date()
             )
             playlistManager.savePlaylist(newFavPlaylist)

@@ -30,7 +30,6 @@ final class PlaylistManager {
             name: name,
             songs: [],
             description: "",
-            isPrivate: false,
             dateCreated: Date()
         )
         savePlaylist(playlist)

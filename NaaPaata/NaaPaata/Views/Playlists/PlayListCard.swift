@@ -93,10 +93,6 @@ struct PlaylistCard: View {
                     .lineLimit(1)
                 
                 HStack(spacing: 4) {
-                    if playlist.isPrivate {
-                        Image(systemName: "lock.fill")
-                            .font(.system(size: 10))
-                    }
                     Text(playlist.songs.isEmpty ? "Empty" : "\(playlist.songs.count) song\(playlist.songs.count == 1 ? "" : "s")")
                         .font(.system(size: 13, weight: .medium))
                 }

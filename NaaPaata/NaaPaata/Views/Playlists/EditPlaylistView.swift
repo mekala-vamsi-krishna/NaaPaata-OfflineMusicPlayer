@@ -11,14 +11,12 @@ struct EditPlaylistView: View {
     @Environment(\.dismiss) var dismiss
     @Binding var playlist: Playlist
     @State private var name: String
-    @State private var description: String
-    @State private var isPrivate: Bool
+//    @State private var description: String
+//    @State private var isPrivate: Bool
     
     init(playlist: Binding<Playlist>) {
         _playlist = playlist
         _name = State(initialValue: playlist.wrappedValue.name)
-        _description = State(initialValue: playlist.wrappedValue.description)
-        _isPrivate = State(initialValue: playlist.wrappedValue.isPrivate)
     }
     
     var body: some View {
@@ -80,39 +78,6 @@ struct EditPlaylistView: View {
                                     .clipShape(RoundedRectangle(cornerRadius: 12))
                                     .foregroundColor(AppColors.textPrimary)
                             }
-                            
-                            VStack(alignment: .leading, spacing: 8) {
-                                Text("Description")
-                                    .font(.system(size: 14, weight: .semibold))
-                                    .foregroundColor(AppColors.textSecondary)
-                                
-                                TextField("Add a description", text: $description, axis: .vertical)
-                                    .lineLimit(3...6)
-                                    .padding()
-                                    .background(.ultraThinMaterial)
-                                    .clipShape(RoundedRectangle(cornerRadius: 12))
-                                    .foregroundColor(AppColors.textPrimary)
-                            }
-                            
-                            HStack {
-                                VStack(alignment: .leading, spacing: 4) {
-                                    Text("Private Playlist")
-                                        .font(.system(size: 16, weight: .semibold))
-                                        .foregroundColor(AppColors.textPrimary)
-                                    
-                                    Text("Only you can see this playlist")
-                                        .font(.system(size: 13))
-                                        .foregroundColor(AppColors.textSecondary)
-                                }
-                                
-                                Spacer()
-                                
-                                Toggle("", isOn: $isPrivate)
-                                    .tint(AppColors.primary)
-                            }
-                            .padding()
-                            .background(.ultraThinMaterial)
-                            .clipShape(RoundedRectangle(cornerRadius: 12))
                         }
                         .padding(.horizontal, 20)
                     }
@@ -131,8 +96,6 @@ struct EditPlaylistView: View {
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button("Save") {
                         playlist.name = name
-                        playlist.description = description
-                        playlist.isPrivate = isPrivate
                         dismiss()
                     }
                     .font(.system(size: 16, weight: .semibold))

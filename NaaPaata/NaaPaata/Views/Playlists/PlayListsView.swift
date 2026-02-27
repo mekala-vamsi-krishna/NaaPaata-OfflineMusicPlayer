@@ -14,16 +14,6 @@ struct PlayListsView: View {
     @State private var showAddPlaylistSheet = false
     @State private var newPlaylistName = ""
     @State private var newPlaylistDescription = ""
-    @State private var searchText = ""
-    
-    var filteredPlaylists: [Playlist] {
-        if searchText.isEmpty {
-            return viewModel.playlists
-        }
-        return viewModel.playlists.filter {
-            $0.name.localizedCaseInsensitiveContains(searchText)
-        }
-    }
     
     var body: some View {
         GeometryReader { geometry in
@@ -61,7 +51,6 @@ struct PlayListsView: View {
                             }
                         } else {
                             VStack(spacing: 24) {
-                                searchBar(layout: layout)
                                 playlistsGrid(columns: columns, layout: layout)
                                 emptyState
                             }
@@ -105,35 +94,9 @@ struct PlayListsView: View {
 
 // MARK: - Subviews
 private extension PlayListsView {
-    func searchBar(layout: AdaptiveLayout) -> some View {
-        if viewModel.playlists.isEmpty { return AnyView(EmptyView()) }
-        return AnyView(
-            HStack(spacing: 12) {
-                Image(systemName: "magnifyingglass")
-                    .foregroundColor(AppColors.textSecondary)
-                
-                TextField("Search playlists...", text: $searchText)
-                    .foregroundColor(AppColors.textPrimary)
-                
-                if !searchText.isEmpty {
-                    Button { searchText = "" } label: {
-                        Image(systemName: "xmark.circle.fill")
-                            .foregroundColor(AppColors.textSecondary)
-                    }
-                }
-            }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 12)
-            .background(.ultraThinMaterial)
-            .clipShape(RoundedRectangle(cornerRadius: 12))
-            .padding(.horizontal, layout.horizontalPadding)
-            .padding(.top, 8)
-        )
-    }
-    
     func playlistsGrid(columns: [GridItem], layout: AdaptiveLayout) -> some View {
         LazyVGrid(columns: columns, spacing: layout.gridSpacing) {
-            ForEach(filteredPlaylists) { playlist in
+            ForEach(viewModel.playlists) { playlist in
                 NavigationLink(destination: PlaylistDetailsView(
                     playlist: playlist,
                     onUpdate: viewModel.updatePlaylist,
