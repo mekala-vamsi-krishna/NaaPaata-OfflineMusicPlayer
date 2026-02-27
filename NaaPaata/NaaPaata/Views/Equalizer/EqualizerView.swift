@@ -273,9 +273,8 @@ extension EqualizerView {
                             .padding(.horizontal)
                             .padding(.top, 10)
                         }
-                        .padding(.bottom, 40)
+                        .padding(.bottom, 80)
                     }
-                    .padding(.bottom, 80)
                 }
             }
             .navigationBarHidden(true)
