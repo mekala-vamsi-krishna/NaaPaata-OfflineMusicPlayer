@@ -17,14 +17,8 @@ struct PlaylistCard: View {
             ZStack {
                 // Glow effect
                 RoundedRectangle(cornerRadius: 16)
-                    .fill(
-                        RadialGradient(
-                            colors: [AppColors.primary.opacity(0.3), .clear],
-                            center: .center,
-                            startRadius: 60,
-                            endRadius: 90
-                        )
-                    )
+                    .fill(RadialGradient(colors: [AppColors.primary.opacity(0.3), .clear],
+                                         center: .center, startRadius: 60, endRadius: 90))
                     .frame(height: cardHeight)
                     .blur(radius: 20)
                 
@@ -33,53 +27,51 @@ struct PlaylistCard: View {
                     .fill(.ultraThinMaterial)
                     .frame(height: cardHeight)
                     .overlay(
-                        ZStack {
-                            // Single placeholder icon
-                            Image(systemName: "music.note.list")
-                                .resizable()
-                                .scaledToFit()
-                                .frame(width: cardHeight * 0.25, height: cardHeight * 0.25)
-                                .foregroundStyle(
-                                    LinearGradient(
-                                        colors: [AppColors.primary, AppColors.primary.opacity(0.6)],
-                                        startPoint: .topLeading,
-                                        endPoint: .bottomTrailing
-                                    )
-                                )
-                            
-                            // Song count badge
-                            VStack {
-                                HStack {
-                                    Spacer()
-                                    
-                                    HStack(spacing: 4) {
-                                        Image(systemName: "music.note")
-                                            .font(.system(size: 10, weight: .semibold))
-                                        Text("\(playlist.songs.count)")
-                                            .font(.system(size: 12, weight: .bold))
-                                    }
-                                    .foregroundColor(.white)
-                                    .padding(.horizontal, 10)
-                                    .padding(.vertical, 6)
-                                    .background(
-                                        Capsule().fill(AppColors.primary.opacity(0.9))
-                                    )
-                                    .padding(10)
+                        GeometryReader { geometry in
+                            ZStack {
+                                // Cover image – fills the whole card exactly
+                                if let image = playlist.coverImage {
+                                    Image(uiImage: image)
+                                        .resizable()
+                                        .scaledToFill()
+                                        .frame(width: geometry.size.width, height: geometry.size.height)
+                                        .clipped()
+                                } else {
+                                    Image("default_playlist_cover")
+                                        .resizable()
+                                        .scaledToFill()
+                                        .frame(width: geometry.size.width, height: geometry.size.height)
+                                        .clipped()
                                 }
-                                Spacer()
+                                
+                                // Song count badge
+                                VStack {
+                                    HStack {
+                                        Spacer()
+                                        HStack(spacing: 4) {
+                                            Image(systemName: "music.note")
+                                                .font(.system(size: 10, weight: .semibold))
+                                            Text("\(playlist.songs.count)")
+                                                .font(.system(size: 12, weight: .bold))
+                                        }
+                                        .foregroundColor(.white)
+                                        .padding(.horizontal, 10)
+                                        .padding(.vertical, 6)
+                                        .background(Capsule().fill(AppColors.primary.opacity(0.9)))
+                                        .padding(10)
+                                    }
+                                    Spacer()
+                                }
                             }
                         }
                     )
-
-
+                    .clipShape(RoundedRectangle(cornerRadius: 16))
                     .overlay(
                         RoundedRectangle(cornerRadius: 16)
                             .strokeBorder(
-                                LinearGradient(
-                                    colors: [.white.opacity(0.2), .clear],
-                                    startPoint: .topLeading,
-                                    endPoint: .bottomTrailing
-                                ),
+                                LinearGradient(colors: [.white.opacity(0.2), .clear],
+                                               startPoint: .topLeading,
+                                               endPoint: .bottomTrailing),
                                 lineWidth: 1
                             )
                     )

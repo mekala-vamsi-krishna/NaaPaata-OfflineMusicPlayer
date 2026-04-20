@@ -14,6 +14,8 @@ final class SongsViewModel: ObservableObject {
     
     @Published var searchText: String = ""
     @Published var songs: [Song] = []
+    @Published var loadingProgress: Double = 0.0
+    @Published var isLoading: Bool = false
     var totalSongs: Int { songs.count }
     
     enum SortKey: String, CaseIterable {
@@ -29,8 +31,6 @@ final class SongsViewModel: ObservableObject {
             $0.artist.localizedCaseInsensitiveContains(searchText)
         }
     }
-
-    @Published var isLoading: Bool = false
     
     init() {
         NotificationCenter.default.addObserver(self, selector: #selector(handleSongDeleted), name: .songDeleted, object: nil)
@@ -51,80 +51,52 @@ final class SongsViewModel: ObservableObject {
         
         DispatchQueue.main.async {
             // Remove the song from the list
-            if let index = self.songs.firstIndex(where: { $0.url == song.url }) {
+            if let index = self.songs.firstIndex(where: { $0.urlString == song.urlString }) {
                 self.songs.remove(at: index)
             }
         }
     }
 
-    func loadSongs() {
-        // 1. Load from cache first for instant UI
-        if songs.isEmpty {
-            if let cachedSongs = SongCacheService.shared.loadSongs(), !cachedSongs.isEmpty {
-                self.songs = cachedSongs
-                self.sortSongs(by: self.currentSort)
-                // Don't set isLoading = true if we have cached data
-            } else {
-                isLoading = true
-            }
+    func loadSongs() async {
+        guard !isLoading else { return }
+        
+        await MainActor.run {
+            isLoading = true
+            loadingProgress = 0.0
         }
         
-        // 2. Perform background sync to check for file changes
-        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
-            guard let self = self else { return }
-            
+        do {
             let loader = LoadAllSongsFromDocuments()
             let urls = loader.loadSongsFromDocuments()
             
-            let loadedSongs = urls.map { url -> Song in
-                let asset = AVAsset(url: url)
-                let metadata = asset.commonMetadata
-                
-                // Extract title
-                let title = AVMetadataItem.metadataItems(from: metadata, withKey: AVMetadataKey.commonKeyTitle, keySpace: .common).first?.stringValue ?? url.lastPathComponent
-                
-                // Extract artist
-                let artist = AVMetadataItem.metadataItems(from: metadata, withKey: AVMetadataKey.commonKeyArtist, keySpace: .common).first?.stringValue ?? "Unknown Artist"
-                
-                // Extract duration
-                let duration = CMTimeGetSeconds(asset.duration)
-                
-                // Extract artwork
-                var artwork: UIImage? = nil
-                if let data = AVMetadataItem.metadataItems(from: metadata, withKey: AVMetadataKey.commonKeyArtwork, keySpace: .common).first?.dataValue {
-                    artwork = UIImage(data: data)
+            guard !urls.isEmpty else {
+                await MainActor.run {
+                    songs = []
+                    isLoading = false
+                    loadingProgress = 1.0
                 }
-                
-                // Extract file creation date for dateAdded
-                let attributes = try? FileManager.default.attributesOfItem(atPath: url.path)
-                let dateAdded = attributes?[.creationDate] as? Date ?? Date()
-
-                return Song(
-                    url: url,
-                    title: title,
-                    artist: artist,
-                    duration: duration,
-                    artworkImage: artwork,
-                    dateAdded: dateAdded
-                )
+                return
             }
             
-            DispatchQueue.main.async {
-                // Check if the loaded songs are different from current songs
-                // We compare counts or sets of URLs to decide if update is needed
-                // For simplicity and correctness, we'll update if the list is different
-                
-                let currentURLs = Set(self.songs.map { $0.url })
-                let newURLs = Set(loadedSongs.map { $0.url })
-                
-                if currentURLs != newURLs || self.songs.isEmpty {
-                    self.songs = loadedSongs
-                    self.sortSongs(by: self.currentSort)
-                    // Save to cache
-                    SongCacheService.shared.saveSongs(loadedSongs)
+            // Use the concurrent metadata service
+            let loadedSongs = try await ConcurrentMetadataService.shared.loadSongsMetadata(urls: urls) { progress in
+                Task { @MainActor in
+                    self.loadingProgress = progress
                 }
-                
-                self.isLoading = false
+            }
+            
+            await MainActor.run {
+                songs = loadedSongs
+                sortSongs(by: currentSort)
+                isLoading = false
+                loadingProgress = 1.0
+            }
+            
+        } catch {
+            print("Error loading songs: \(error.localizedDescription)")
+            await MainActor.run {
+                isLoading = false
+                loadingProgress = 1.0
             }
         }
     }
@@ -167,6 +139,8 @@ final class SongsViewModel: ObservableObject {
     
     // Call this after delete or whenever manager changes
     func refresh() {
-        loadSongs()
+        Task {
+            await loadSongs()
+        }
     }
 }

@@ -6,10 +6,13 @@
 //
 
 import SwiftUI
+import SwiftData
 
 struct PlayListsView: View {
     @EnvironmentObject private var viewModel: PlaylistsViewModel
     @Environment(\.horizontalSizeClass) var sizeClass
+    
+    @Query(sort: \Playlist.dateCreated, order: .reverse) var playlists: [Playlist]
     
     @State private var showAddPlaylistSheet = false
     @State private var newPlaylistName = ""
@@ -40,20 +43,9 @@ struct PlayListsView: View {
                     .ignoresSafeArea()
                     
                     ScrollView {
-                        if viewModel.isLoading {
-                            VStack {
-                                Spacer()
-                                    .frame(height: 100)
-                                ProgressView("Loading Playlists...")
-                                    .tint(AppColors.primary)
-                                    .foregroundColor(AppColors.textSecondary)
-                                Spacer()
-                            }
-                        } else {
-                            VStack(spacing: 24) {
-                                playlistsGrid(columns: columns, layout: layout)
-                                emptyState
-                            }
+                        VStack(spacing: 24) {
+                            playlistsGrid(columns: columns, layout: layout)
+                            emptyState
                         }
                     }
                 }
@@ -61,7 +53,7 @@ struct PlayListsView: View {
                 .navigationBarTitleDisplayMode(.large)
                 .toolbar {
                     ToolbarItem(placement: .navigationBarTrailing) {
-                        if !viewModel.playlists.isEmpty {
+                        if !playlists.isEmpty {
                             Button {
                                 showAddPlaylistSheet = true
                             } label: {
@@ -76,16 +68,18 @@ struct PlayListsView: View {
                     CreatePlaylistSheet(
                         name: $newPlaylistName,
                         description: $newPlaylistDescription,
-                        onCreate: {
-                            viewModel.addPlaylist(name: newPlaylistName, description: newPlaylistDescription)
+                        onCreate: { coverImage in
+                            viewModel.addPlaylist(
+                                name: newPlaylistName,
+                                description: newPlaylistDescription,
+                                coverImage: coverImage,
+                                playlists: playlists
+                            )
                             newPlaylistName = ""
                             newPlaylistDescription = ""
                             showAddPlaylistSheet = false
                         }
                     )
-                }
-                .onAppear {
-                    viewModel.loadPlaylists()
                 }
             }
         }
@@ -96,7 +90,7 @@ struct PlayListsView: View {
 private extension PlayListsView {
     func playlistsGrid(columns: [GridItem], layout: AdaptiveLayout) -> some View {
         LazyVGrid(columns: columns, spacing: layout.gridSpacing) {
-            ForEach(viewModel.playlists) { playlist in
+            ForEach(playlists) { playlist in
                 NavigationLink(destination: PlaylistDetailsView(
                     playlist: playlist,
                     onUpdate: viewModel.updatePlaylist,
@@ -112,7 +106,7 @@ private extension PlayListsView {
     }
     
     var emptyState: some View {
-        if !viewModel.playlists.isEmpty { return AnyView(EmptyView()) }
+        if !playlists.isEmpty { return AnyView(EmptyView()) }
         return AnyView(
             VStack(spacing: 20) {
                 Image(systemName: "music.note.list")
@@ -161,6 +155,7 @@ private extension PlayListsView {
         )
     }
 }
+
 #Preview {
     PlayListsView()
 }

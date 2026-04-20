@@ -13,7 +13,14 @@ struct SongInfoView: View {
     let song: Song
     
     // MARK: - Helper Computed Properties
-    private var asset: AVAsset { AVAsset(url: song.url) }
+    private var asset: AVAsset {
+        if let url = song.url {
+            return AVAsset(url: url)
+        } else {
+            // Return an empty asset or handle gracefully
+            return AVAsset()
+        }
+    }
     
     private var title: String { song.title }
     
@@ -44,7 +51,7 @@ struct SongInfoView: View {
     }
     
     private var mimeType: String {
-        let ext = song.url.pathExtension.lowercased()
+        let ext = song.url?.pathExtension.lowercased()
         switch ext {
         case "mp3": return "audio/mpeg"
         case "m4a": return "audio/mp4"
@@ -53,7 +60,7 @@ struct SongInfoView: View {
         }
     }
     
-    private var filePath: String { song.url.path }
+    private var filePath: String { song.url?.path ?? "" }
     
     private var artwork: UIImage? {
         song.artworkImage ?? metadataData(for: .commonKeyArtwork).flatMap { UIImage(data: $0) }
@@ -134,3 +141,4 @@ struct SongInfoView: View {
         .padding(.vertical, 4)
     }
 }
+

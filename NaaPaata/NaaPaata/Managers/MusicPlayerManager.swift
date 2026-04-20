@@ -599,7 +599,7 @@ final class MusicPlayerManager: NSObject, ObservableObject {
     }
     
     func loadArtworkAsync(for song: Song) async -> UIImage {
-        let key = song.url.absoluteString as NSString
+        let key = NSString(string: song.urlString)
         if let cached = artworkCache.object(forKey: key) { return cached }
         if let artwork = song.artworkImage {
             artworkCache.setObject(artwork, forKey: key)
@@ -607,12 +607,12 @@ final class MusicPlayerManager: NSObject, ObservableObject {
         }
         return await Task.detached(priority: .userInitiated) { [weak self] in
             guard let self = self else { return UIImage(systemName: "music.note")! }
-            guard let fileURL = song.resolvedURL ?? song.url as URL? else {
+            guard let fileURL = song.resolvedURL ?? song.url else {
                 return self.generateDefaultArtwork()
             }
             let asset = AVAsset(url: fileURL)
             var image: UIImage?
-            let metadata = try? await asset.load(.commonMetadata)
+            let metadata: [AVMetadataItem]? = try? await asset.load(.commonMetadata)
             if let metadata = metadata {
                 for meta in metadata {
                     if meta.commonKey?.rawValue == "artwork",
@@ -672,8 +672,12 @@ final class MusicPlayerManager: NSObject, ObservableObject {
         }
         allSongs.removeAll { $0 == song }
         playQueue.removeAll { $0 == song }
+        guard let fileURL = song.resolvedURL ?? song.url else {
+            print("Failed to delete file: invalid song URL")
+            return
+        }
         do {
-            try FileManager.default.removeItem(at: song.url)
+            try FileManager.default.removeItem(at: fileURL)
             NotificationCenter.default.post(name: .songDeleted, object: nil, userInfo: ["song": song])
         } catch { print("Failed to delete file: \(error.localizedDescription)") }
         if !allSongs.isEmpty { playNext() }

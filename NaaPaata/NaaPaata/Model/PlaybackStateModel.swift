@@ -26,7 +26,7 @@ struct PlaybackState: Codable {
     }
     
     init(song: Song, position: TimeInterval, isPlaying: Bool) {
-        self.songURL = song.url.absoluteString
+        self.songURL = song.url?.absoluteString ?? ""
         self.songTitle = song.title
         self.songArtist = song.artist
         self.playbackPosition = position

@@ -24,10 +24,24 @@ struct NaaPaataApp: App {
     
     init() {
         MobileAds.shared.start(completionHandler: nil)
+        let config = ModelConfiguration()
         do {
-            container = try ModelContainer(for: SleepTimerModel.self)
+            // Initialize SwiftData with Song, Playlist, and SleepTimerModel
+            container = try ModelContainer(for: Song.self, Playlist.self, SleepTimerModel.self, configurations: config)
+            PlaylistManager.shared.setModelContainer(container)
         } catch {
-            fatalError("Failed to initialize ModelContainer: \(error)")
+            print("SwiftData init failed, attempting reset: \(error)")
+            let storeURL = config.url
+            let urlsToRemove = [storeURL, storeURL.appendingPathExtension("shm"), storeURL.appendingPathExtension("wal")]
+            for url in urlsToRemove {
+                try? FileManager.default.removeItem(at: url)
+            }
+            do {
+                container = try ModelContainer(for: Song.self, Playlist.self, SleepTimerModel.self, configurations: config)
+                PlaylistManager.shared.setModelContainer(container)
+            } catch {
+                fatalError("Failed to initialize ModelContainer after reset: \(error)")
+            }
         }
     }
 
@@ -42,7 +56,9 @@ struct NaaPaataApp: App {
                     .environmentObject(storeKitManager)
                     .environmentObject(sleepTimerManager)
                     .onAppear {
-                        songsViewModel.loadSongs() // Load songs on app launch
+                        Task {
+                            await songsViewModel.loadSongs() // Load songs on app launch
+                        }
                         sleepTimerManager.setup(modelContext: container.mainContext)
                     }
             } else {

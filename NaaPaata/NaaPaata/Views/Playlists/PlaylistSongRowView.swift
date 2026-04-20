@@ -48,16 +48,30 @@ struct PlaylistSongRowView: View {
                     .fill(.ultraThinMaterial)
                     .frame(width: 56, height: 56)
                 
-                Image(uiImage: song.artworkImage ?? loadArtwork(from: song.url) ?? UIImage(systemName: "music.note")!)
-                    .resizable()
-                    .scaledToFill()
-                    .frame(width: 50, height: 50)
-                    .cornerRadius(8)
+                if let artworkImage = song.artworkImage {
+                    Image(uiImage: artworkImage)
+                        .resizable()
+                        .scaledToFill()
+                        .frame(width: 50, height: 50)
+                        .cornerRadius(8)
+                } else if let url = song.url, let loadedArtwork = loadArtwork(from: url) {
+                    Image(uiImage: loadedArtwork)
+                        .resizable()
+                        .scaledToFill()
+                        .frame(width: 50, height: 50)
+                        .cornerRadius(8)
+                } else {
+                    Image(systemName: "music.note")
+                        .resizable()
+                        .scaledToFill()
+                        .frame(width: 50, height: 50)
+                        .cornerRadius(8)
+                }
             }
             
             // Song title and artist
             VStack(alignment: .leading, spacing: 4) {
-                Text(song.title.isEmpty ? song.url.lastPathComponent : song.title)
+                Text(song.title.isEmpty ? (song.url?.lastPathComponent ?? "") : song.title)
                     .font(.system(size: 16, weight: .semibold))
                     .foregroundColor(AppColors.textPrimary)
                     .lineLimit(1)

@@ -6,36 +6,45 @@
 //
 
 import SwiftUI
+import SwiftData
 
-struct Playlist: Identifiable, Hashable, Codable {
-    let id: UUID
-    var name: String
-    var songs: [Song]
-    var coverImageData: Data? // store cover image data
-    var description: String
-    var dateCreated: Date
-    var folderName: String
+@Model
+final class Playlist: Identifiable {
+    @Attribute(.unique) var id: UUID
     
+    var name: String
+    
+    /// Many-to-many relationship with Song
+    @Relationship(deleteRule: .cascade) var songs: [Song] = []
+    
+    var coverImageData: Data?
+    var desc: String
+    var dateCreated: Date
+
     init(
         id: UUID = UUID(),
         name: String,
         songs: [Song] = [],
         coverImage: UIImage? = nil,
-        description: String = "",
+        desc: String = "",
         dateCreated: Date = Date()
     ) {
         self.id = id
         self.name = name
         self.songs = songs
         self.coverImageData = coverImage?.jpegData(compressionQuality: 0.9)
-        self.description = description
+        self.desc = desc
         self.dateCreated = dateCreated
-        self.folderName = name
     }
     
     var coverImage: UIImage? {
         guard let data = coverImageData else { return nil }
         return UIImage(data: data)
+    }
+    
+    /// Check if this is the Favorites playlist
+    var isFavoritesPlaylist: Bool {
+        name == "Favorites"
     }
 }
 
