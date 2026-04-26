@@ -43,9 +43,12 @@ struct AlbumDetailsView: View {
                             .clipShape(RoundedRectangle(cornerRadius: 24))
                             .shadow(radius: 10)
                     } else {
-                        RoundedRectangle(cornerRadius: 24)
-                            .fill(.ultraThinMaterial)
+                        Image("default_playlist_cover")
+                            .resizable()
+                            .scaledToFill()
                             .frame(width: 200, height: 200)
+                            .clipShape(RoundedRectangle(cornerRadius: 24))
+                            .shadow(radius: 10)
                     }
                     
                     Text(title)

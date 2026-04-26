@@ -2,111 +2,239 @@
 //  PlaylistManager.swift
 //  NaaPaata
 //
-//  Created by User on 05/10/25.
+//  Created by Mekala Vamsi Krishna on 05/10/25.
 //
-/*
- * This shared PlaylistManager class does all thing it fetch al
- */
+
 import Foundation
+import SwiftUI
+import SwiftData
+
+enum AddSongResult: Equatable {
+    case added
+    case exists
+    case error(String)
+}
 
 final class PlaylistManager {
     static let shared = PlaylistManager()
-    private let fileManager = FileManager.default
+    private var sharedModelContainer: ModelContainer?
     
     private init() {}
     
-    private var playlistsDir: URL {
-        let docs = fileManager.urls(for: .documentDirectory, in: .userDomainMask).first!
-        let dir = docs.appendingPathComponent("Playlists", isDirectory: true)
-        if !fileManager.fileExists(atPath: dir.path) {
-            try? fileManager.createDirectory(at: dir, withIntermediateDirectories: true)
-        }
-        return dir
+    /// Set up the shared model container (call from NaaPaataApp.init())
+    func setModelContainer(_ container: ModelContainer) {
+        self.sharedModelContainer = container
     }
     
-    // MARK: - Create Playlist (Deprecated - use savePlaylist directly)
+    private var modelContext: ModelContext {
+        guard let container = sharedModelContainer else {
+            fatalError("ModelContainer not set in PlaylistManager. Call setModelContainer() first.")
+        }
+        return ModelContext(container)
+    }
+    
+    // MARK: - Create Playlist
     func createPlaylist(name: String) {
         let playlist = Playlist(
             name: name,
             songs: [],
-            description: "",
-            isPrivate: false,
+            desc: "",
             dateCreated: Date()
         )
         savePlaylist(playlist)
     }
     
-    // MARK: - Save Playlist to JSON
+    // MARK: - Save Playlist
     func savePlaylist(_ playlist: Playlist) {
-        // Use the playlist's name as the identifier to ensure there's only one file per playlist
-        // Sanitize the name to make it a valid filename
-        let sanitizedName = sanitizeFileName(playlist.name)
-        let url = playlistsDir.appendingPathComponent("\(sanitizedName).json")
+        let context = modelContext
         do {
-            let data = try JSONEncoder().encode(playlist)
-            try data.write(to: url)
+            let id = playlist.id
+            // Check if playlist already exists by ID
+            let existingPlaylist = try context.fetch(
+                FetchDescriptor<Playlist>(
+                    predicate: #Predicate { $0.id == id }
+                )
+            ).first
+            
+            if existingPlaylist != nil {
+                // Update existing playlist
+                existingPlaylist?.name = playlist.name
+                existingPlaylist?.songs = playlist.songs
+                existingPlaylist?.coverImageData = playlist.coverImageData
+                existingPlaylist?.desc = playlist.desc
+            } else {
+                // Insert new playlist
+                context.insert(playlist)
+            }
+            
+            try context.save()
+            NotificationCenter.default.post(name: .playlistUpdated, object: nil, userInfo: ["playlistId": playlist.id.uuidString])
         } catch {
             print("Error saving playlist \(playlist.name): \(error.localizedDescription)")
         }
     }
     
-    // Helper to sanitize playlist names for use as filenames
-    private func sanitizeFileName(_ name: String) -> String {
-        // Replace invalid characters for filenames with underscores
-        let invalidChars = CharacterSet(charactersIn: "/\\:*?\"<>|")
-        var sanitizedName = ""
-        for char in name.unicodeScalars {
-            if invalidChars.contains(char) {
-                sanitizedName += "_"
-            } else {
-                sanitizedName += String(char)
-            }
+    // MARK: - Load All Playlists
+    func getAllPlaylists() -> [Playlist] {
+        let context = modelContext
+        do {
+            let descriptor = FetchDescriptor<Playlist>(
+                sortBy: [SortDescriptor(\.dateCreated, order: .reverse)]
+            )
+            return try context.fetch(descriptor)
+        } catch {
+            print("Error fetching playlists: \(error.localizedDescription)")
+            return []
         }
-        // Remove any trailing spaces or periods that might cause issues
-        sanitizedName = sanitizedName.trimmingCharacters(in: .whitespacesAndNewlines)
-        return sanitizedName.isEmpty ? "unnamed_playlist" : sanitizedName
     }
     
-    // MARK: - Load All Playlist Names
-    func getAllPlaylists() -> [String] {
-        guard let files = try? fileManager.contentsOfDirectory(at: playlistsDir, includingPropertiesForKeys: nil)
-        else { return [] }
+    // MARK: - Get Playlist By Name
+    func loadPlaylist(name: String) -> Playlist? {
+        let context = modelContext
+        do {
+            let descriptor = FetchDescriptor<Playlist>(
+                predicate: #Predicate { $0.name == name }
+            )
+            return try context.fetch(descriptor).first
+        } catch {
+            print("Error loading playlist \(name): \(error.localizedDescription)")
+            return nil
+        }
+    }
+    
+    // MARK: - Get Playlist By ID
+    func getPlaylist(id: UUID) -> Playlist? {
+        let context = modelContext
+        do {
+            let idValue = id
+            let descriptor = FetchDescriptor<Playlist>(
+                predicate: #Predicate { $0.id == idValue }
+            )
+            return try context.fetch(descriptor).first
+        } catch {
+            print("Error loading playlist with id \(id): \(error.localizedDescription)")
+            return nil
+        }
+    }
+    
+    // MARK: - Get Songs in Playlist (Concurrent)
+    func getSongsInPlaylist(playlistName: String) async -> [Song] {
+        guard let playlist = loadPlaylist(name: playlistName) else { return [] }
+        return await loadPlaylistSongsConcurrently(playlist.songs)
+    }
+    
+    // MARK: - Load Playlist Songs Concurrently
+    private func loadPlaylistSongsConcurrently(_ songs: [Song]) async -> [Song] {
+        guard !songs.isEmpty else { return [] }
         
-        // For each JSON file, load the playlist to get its name
-        var playlistNames: [String] = []
-        for fileURL in files {
-            if fileURL.pathExtension.lowercased() == "json" {
-                if let playlist = try? JSONDecoder().decode(Playlist.self, from: Data(contentsOf: fileURL)) {
-                    playlistNames.append(playlist.name)
+        return await withTaskGroup(of: Song?.self) { group in
+            for song in songs {
+                group.addTask {
+                    // Validate that the song file still exists
+                    if let url = song.resolvedURL,
+                       FileManager.default.fileExists(atPath: url.path) {
+                        return song
+                    }
+                    return nil
                 }
             }
+            
+            var validSongs: [Song] = []
+            for await song in group {
+                if let song = song {
+                    validSongs.append(song)
+                }
+            }
+            return validSongs
         }
-        return Array(Set(playlistNames)) // Use Set to ensure unique names only
-    }
-    
-    // MARK: - Get Songs in Playlist
-    func getSongsInPlaylist(playlistName: String) -> [URL] {
-        guard let playlist = loadPlaylist(name: playlistName) else { return [] }
-        return playlist.songs.map { $0.url }
-    }
-    
-    // MARK: - Load Playlist
-    func loadPlaylist(name: String) -> Playlist? {
-        // Use the playlist name to load the specific file
-        let sanitizedName = sanitizeFileName(name)
-        let url = playlistsDir.appendingPathComponent("\(sanitizedName).json")
-        guard let data = try? Data(contentsOf: url) else { return nil }
-        return try? JSONDecoder().decode(Playlist.self, from: data)
     }
     
     // MARK: - Delete Playlist
     func deletePlaylist(name: String) {
-        let sanitizedName = sanitizeFileName(name)
-        let url = playlistsDir.appendingPathComponent("\(sanitizedName).json")
-        
-        // Check if the file exists before attempting to remove
-        if fileManager.fileExists(atPath: url.path) {
-            try? fileManager.removeItem(at: url)
+        let context = modelContext
+        do {
+            guard let playlist = try context.fetch(
+                FetchDescriptor<Playlist>(
+                    predicate: #Predicate { $0.name == name }
+                )
+            ).first else { return }
+            
+            context.delete(playlist)
+            try context.save()
+        } catch {
+            print("Error deleting playlist \(name): \(error.localizedDescription)")
+        }
+    }
+    
+    // MARK: - Delete Playlist By ID
+    func deletePlaylistById(id: UUID) {
+        let context = modelContext
+        do {
+            let idValue = id
+            guard let playlist = try context.fetch(
+                FetchDescriptor<Playlist>(
+                    predicate: #Predicate { $0.id == idValue }
+                )
+            ).first else { return }
+            
+            context.delete(playlist)
+            try context.save()
+        } catch {
+            print("Error deleting playlist with id \(id): \(error.localizedDescription)")
+        }
+    }
+    
+    // MARK: - Add Song to Playlist
+    @discardableResult
+    func addSongToPlaylist(_ song: Song, playlist: Playlist) -> AddSongResult {
+        let context = modelContext
+        do {
+            let playlistId = playlist.id
+            // Fetch fresh playlist reference
+            guard let currentPlaylist = try context.fetch(
+                FetchDescriptor<Playlist>(
+                    predicate: #Predicate { $0.id == playlistId }
+                )
+            ).first else { return .error("Playlist not found") }
+            
+            // Check if song already exists by relative file path (stable across sessions)
+            if !currentPlaylist.songs.contains(where: { $0.relativePath == song.relativePath }) {
+                currentPlaylist.songs.append(song)
+                try context.save()
+                NotificationCenter.default.post(name: .playlistUpdated, object: nil, userInfo: ["playlistId": playlistId.uuidString])
+                return .added
+            } else {
+                return .exists
+            }
+        } catch {
+            print("Error adding song to playlist: \(error.localizedDescription)")
+            return .error(error.localizedDescription)
+        }
+    }
+    
+    // MARK: - Remove Song from Playlist
+    func removeSongFromPlaylist(_ song: Song, from playlist: Playlist) {
+        let context = modelContext
+        do {
+            let playlistId = playlist.id
+            // Fetch fresh playlist reference
+            guard let currentPlaylist = try context.fetch(
+                FetchDescriptor<Playlist>(
+                    predicate: #Predicate { $0.id == playlistId }
+                )
+            ).first else { return }
+            
+            // Remove song from playlist (but don't delete the song itself)
+            currentPlaylist.songs.removeAll { $0.relativePath == song.relativePath }
+            try context.save()
+            NotificationCenter.default.post(name: .playlistUpdated, object: nil, userInfo: ["playlistId": playlistId.uuidString])
+        } catch {
+            print("Error removing song from playlist: \(error.localizedDescription)")
         }
     }
 }
+
+extension Notification.Name {
+    static let playlistUpdated = Notification.Name("playlistUpdated")
+}
+

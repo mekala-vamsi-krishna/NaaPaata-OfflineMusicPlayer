@@ -27,6 +27,7 @@ struct MP3FileCell: View {
     
     // Delete Alert
     @State private var showDeleteAlert = false
+    @State private var playlists: [Playlist] = []
     
     // Async Artwork
     @State private var artwork: UIImage?
@@ -91,8 +92,10 @@ struct MP3FileCell: View {
                 }
 
                 Button {
-                    shareItems = [song.url]
-                    showShareSheet = true
+                    if let shareURL = song.resolvedURL ?? song.url {
+                        shareItems = [shareURL]
+                        showShareSheet = true
+                    }
                 } label: {
                     Label("Share", systemImage: "square.and.arrow.up")
                 }
@@ -100,16 +103,20 @@ struct MP3FileCell: View {
                 Divider()
 
                 // Add to playlist options
-                ForEach(playlistsVM.playlists) { playlist in
+                ForEach(playlists) { playlist in
                     Button {
-                        var updatedPlaylist = playlist
-                        // Avoid duplicates
-                        if !updatedPlaylist.songs.contains(where: { $0.id == song.id }) {
-                            updatedPlaylist.songs.append(song)
-                            playlistsVM.updatePlaylist(updatedPlaylist) // update Published array and save JSON
+                        // Add only if not already present; view model handles toast
+                        if !playlist.songs.contains(where: { $0.relativePath == song.relativePath }) {
+                            playlistsVM.addSongToPlaylist(song, to: playlist)
+                            loadPlaylists()
                         }
                     } label: {
-                        Label(playlist.name, systemImage: "music.note.list")
+                        // Show checkmark if the song is already in this playlist
+                        if playlist.songs.contains(where: { $0.relativePath == song.relativePath }) {
+                            Label(playlist.name, systemImage: "checkmark")
+                        } else {
+                            Label(playlist.name, systemImage: "music.note.list")
+                        }
                     }
                 }
 
@@ -145,16 +152,15 @@ struct MP3FileCell: View {
             CreatePlaylistSheet(
                 name: $newPlaylistName,
                 description: $newPlaylistDescription,
-                onCreate: {
-                    playlistsVM.addPlaylist(name: newPlaylistName, description: newPlaylistDescription)
-                    if let newPlayList = playlistsVM.playlists.first {
-                        var updatedPlaylist = newPlayList
-                        updatedPlaylist.songs.append(song)
-                        playlistsVM.updatePlaylist(updatedPlaylist) // Update the playlist with the added song
+                onCreate: { coverImage in
+                    playlistsVM.addPlaylist(name: newPlaylistName, description: newPlaylistDescription, coverImage: coverImage)
+                    if let newPlayList = PlaylistManager.shared.loadPlaylist(name: newPlaylistName) {
+                        playlistsVM.addSongToPlaylist(song, to: newPlayList)
                     }
                     newPlaylistName = ""
                     newPlaylistDescription = ""
                     showCreatePlaylistSheet = false
+                    loadPlaylists()
                 }
             )
         }
@@ -180,6 +186,13 @@ struct MP3FileCell: View {
         } message: {
             Text("Are you sure you want to delete \"\(song.title)\" from your device?")
         }
+        .onAppear {
+            loadPlaylists()
+        }
+    }
+
+    private func loadPlaylists() {
+        playlists = PlaylistManager.shared.getAllPlaylists()
     }
 }
 

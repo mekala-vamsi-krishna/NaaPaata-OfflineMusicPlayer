@@ -6,13 +6,16 @@
 //
 
 import SwiftUI
+import PhotosUI
 
 struct CreatePlaylistSheet: View {
     @Environment(\.dismiss) var dismiss
     @Binding var name: String
     @Binding var description: String
-    let onCreate: () -> Void
+    let onCreate: (UIImage?) -> Void
     
+    @State private var selectedItem: PhotosPickerItem?
+    @State private var selectedCoverImage: UIImage?
     @FocusState private var isNameFocused: Bool
     
     var body: some View {
@@ -22,40 +25,53 @@ struct CreatePlaylistSheet: View {
                 
                 ScrollView {
                     VStack(spacing: 24) {
-                        // Icon
-                        ZStack {
-                            Circle()
-                                .fill(
-                                    RadialGradient(
-                                        colors: [
-                                            AppColors.primary.opacity(0.2),
-                                            AppColors.primary.opacity(0.05)
-                                        ],
-                                        center: .center,
-                                        startRadius: 40,
-                                        endRadius: 80
+                        // MARK: - Cover Image Picker
+                        VStack(spacing: 12) {
+                            ZStack {
+                                RoundedRectangle(cornerRadius: 20)
+                                    .fill(.ultraThinMaterial)
+                                    .frame(width: 160, height: 160)
+                                    .overlay(
+                                        Group {
+                                            if let image = selectedCoverImage {
+                                                Image(uiImage: image)
+                                                    .resizable()
+                                                    .scaledToFill()
+                                                    .frame(width: 160, height: 160)
+                                                    .clipShape(RoundedRectangle(cornerRadius: 20))
+                                            } else {
+                                                Image("default_playlist_cover")
+                                                    .resizable()
+                                                    .scaledToFill()
+                                                    .frame(width: 160, height: 160)
+                                                    .clipShape(RoundedRectangle(cornerRadius: 20))
+                                            }
+                                        }
                                     )
-                                )
-                                .frame(width: 140, height: 140)
+                            }
                             
-                            RoundedRectangle(cornerRadius: 24)
-                                .fill(.ultraThinMaterial)
-                                .frame(width: 120, height: 120)
-                                .overlay(
-                                    Image(systemName: "music.note.list")
-                                        .font(.system(size: 50))
-                                        .foregroundStyle(
-                                            LinearGradient(
-                                                colors: [AppColors.primary, AppColors.primary.opacity(0.6)],
-                                                startPoint: .topLeading,
-                                                endPoint: .bottomTrailing
-                                            )
-                                        )
-                                )
+                            PhotosPicker(selection: $selectedItem, matching: .images) {
+                                HStack {
+                                    Image(systemName: "photo")
+                                    Text("Choose Cover Image")
+                                }
+                                .font(.system(size: 14, weight: .semibold))
+                                .foregroundColor(AppColors.primary)
+                            }
+                            .onChange(of: selectedItem) { newItem in
+                                Task {
+                                    if let data = try? await newItem?.loadTransferable(type: Data.self),
+                                       let image = UIImage(data: data) {
+                                        await MainActor.run {
+                                            selectedCoverImage = image
+                                        }
+                                    }
+                                }
+                            }
                         }
-                        .padding(.top, 40)
+                        .padding(.top, 20)
                         
-                        // Form
+                        // MARK: - Name & Description (unchanged)
                         VStack(spacing: 20) {
                             VStack(alignment: .leading, spacing: 8) {
                                 Text("Playlist Name")
@@ -95,15 +111,13 @@ struct CreatePlaylistSheet: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
-                    Button("Cancel") {
-                        dismiss()
-                    }
-                    .foregroundColor(AppColors.textSecondary)
+                    Button("Cancel") { dismiss() }
+                        .foregroundColor(AppColors.textSecondary)
                 }
                 
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button("Create") {
-                        onCreate()
+                        onCreate(selectedCoverImage)
                         dismiss()
                     }
                     .font(.system(size: 16, weight: .semibold))
@@ -111,9 +125,7 @@ struct CreatePlaylistSheet: View {
                     .disabled(name.trimmingCharacters(in: .whitespaces).isEmpty)
                 }
             }
-            .onAppear {
-                isNameFocused = true
-            }
+            .onAppear { isNameFocused = true }
         }
     }
 }

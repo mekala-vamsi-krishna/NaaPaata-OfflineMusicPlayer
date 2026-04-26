@@ -13,6 +13,7 @@ struct PlaylistDetailsView: View {
     private let playlistManager = PlaylistManager.shared
     
     @State private var playlist: Playlist
+    @State private var refreshID = UUID()
     let onUpdate: (Playlist) -> Void
     let onDelete: () -> Void
     
@@ -24,10 +25,9 @@ struct PlaylistDetailsView: View {
     @State private var currentSortOption: SortOption = .dateAdded
     @State private var isAscending = true
     @State private var searchText = ""
-    @State private var editMode: EditMode = .inactive
     
     init(playlist: Playlist, onUpdate: @escaping (Playlist) -> Void, onDelete: @escaping () -> Void) {
-        _playlist = State(initialValue: playlist)
+        self._playlist = State(initialValue: playlist)
         self.onUpdate = onUpdate
         self.onDelete = onDelete
     }
@@ -88,6 +88,7 @@ struct PlaylistDetailsView: View {
                     songsListSection
                 }
             }
+            .id(refreshID)
         }
         .navigationBarTitleDisplayMode(.inline)
         .navigationBarBackButtonHidden(true)
@@ -105,10 +106,6 @@ struct PlaylistDetailsView: View {
             ToolbarItemGroup(placement: .navigationBarTrailing) {
                 Menu {
                     Button(action: { showEditPlaylist = true }) { Label("Edit Playlist", systemImage: "pencil") }
-                    Button(action: { playlist.isPrivate.toggle(); onUpdate(playlist) }) {
-                        Label(playlist.isPrivate ? "Make Public" : "Make Private",
-                              systemImage: playlist.isPrivate ? "eye" : "eye.slash")
-                    }
                     Divider()
                     Button(role: .destructive, action: { showDeletePlaylistConfirmation = true }) {
                         Label("Delete Playlist", systemImage: "trash")
@@ -124,13 +121,22 @@ struct PlaylistDetailsView: View {
         .sheet(isPresented: $showEditPlaylist) {
             EditPlaylistView(playlist: $playlist)
         }
-        .alert("Delete Song", isPresented: .constant(selectedSong != nil), presenting: selectedSong) { song in
+        .onReceive(NotificationCenter.default.publisher(for: .playlistUpdated)) { notification in
+            guard let userInfo = notification.userInfo,
+                  let playlistId = userInfo["playlistId"] as? String,
+                  playlistId == playlist.id.uuidString,
+                  let updatedPlaylist = playlistManager.getPlaylist(id: playlist.id)
+            else { return }
+            playlist = updatedPlaylist
+            refreshID = UUID()
+        }
+        .alert("Remove Song", isPresented: .constant(selectedSong != nil), presenting: selectedSong) { song in
             Button("Cancel", role: .cancel) { selectedSong = nil }
-            Button("Delete", role: .destructive) {
-                // Use URL-based comparison instead of ID comparison since Song IDs change when loaded from JSON
-                if let index = playlist.songs.firstIndex(where: { $0.url == song.url }) {
+            Button("Remove", role: .destructive) {
+                // Use URL-based comparison to remove the song
+                if let index = playlist.songs.firstIndex(where: { $0.urlString == song.urlString }) {
                     withAnimation { playlist.songs.remove(at: index) }
-                    onUpdate(playlist) // Update parent view immediately (includes saving)
+                    onUpdate(playlist) // Update parent view immediately (includes saving to SwiftData)
                 }
                 selectedSong = nil
             }
@@ -150,74 +156,54 @@ struct PlaylistDetailsView: View {
     
     // MARK: - Playlist Header
     private var playlistHeader: some View {
-        VStack(spacing: 16) {
-            ZStack {
-                RoundedRectangle(cornerRadius: 20)
-                    .fill(RadialGradient(colors: [AppColors.primary.opacity(0.3), .clear],
-                                         center: .center,
-                                         startRadius: 100, endRadius: 150))
-                    .frame(width: 220, height: 220)
-                    .blur(radius: 30)
-                
-                RoundedRectangle(cornerRadius: 20)
-                    .fill(Color.black.opacity(0.1))
-                    .frame(width: 200, height: 200)
-                    .overlay(
-                        Image(systemName: "music.note.list")
-                            .resizable()
-                            .scaledToFit()
-                            .frame(width: 100, height: 100)
-                            .foregroundStyle(
-                                LinearGradient(
-                                    colors: [AppColors.primary, AppColors.primary.opacity(0.6)],
-                                    startPoint: .topLeading,
-                                    endPoint: .bottomTrailing
-                                )
-                            )
-                    )
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 20)
-                            .strokeBorder(
-                                LinearGradient(colors: [.white.opacity(0.3), .clear],
-                                               startPoint: .topLeading,
-                                               endPoint: .bottomTrailing),
-                                lineWidth: 1
-                            )
-                    )
-                    .shadow(color: .black.opacity(0.2), radius: 20, x: 0, y: 10)
+        HStack(spacing: 20) {
+            // Cover Image (left)
+            Group {
+                if let image = playlist.coverImage {
+                    Image(uiImage: image)
+                        .resizable()
+                        .scaledToFill()
+                } else {
+                    Image("default_playlist_cover")
+                        .resizable()
+                        .scaledToFill()
+                }
             }
-            .padding(.top, 40)
+            .frame(width: 120, height: 120)
+            .clipShape(RoundedRectangle(cornerRadius: 16))
+            .shadow(color: .black.opacity(0.2), radius: 8, x: 0, y: 4)
             
-            VStack(spacing: 8) {
+            // Text Content (right)
+            VStack(alignment: .leading, spacing: 8) {
                 Text(playlist.name)
-                    .font(.system(size: 28, weight: .bold, design: .rounded))
+                    .font(.system(size: 24, weight: .bold, design: .rounded))
                     .foregroundColor(AppColors.textPrimary)
+                    .lineLimit(2)
                 
-                if !playlist.description.isEmpty {
-                    Text(playlist.description)
-                        .font(.system(size: 14))
+                if !playlist.desc.isEmpty {
+                    Text(playlist.desc)
+                        .font(.system(size: 13))
                         .foregroundColor(AppColors.textSecondary)
-                        .multilineTextAlignment(.center)
-                        .padding(.horizontal, 40)
+                        .lineLimit(2)
                 }
                 
-                HStack(spacing: 16) {
+                HStack(spacing: 12) {
                     Label("\(playlist.songs.count) songs", systemImage: "music.note.list")
+                        .font(.system(size: 12, weight: .medium))
+                    
                     if !playlist.songs.isEmpty {
                         Text("•")
+                            .font(.system(size: 12))
                         Label(totalDuration, systemImage: "clock")
-                    }
-                    if playlist.isPrivate {
-                        Text("•")
-                        Label("Private", systemImage: "lock.fill")
+                            .font(.system(size: 12, weight: .medium))
                     }
                 }
-                .font(.system(size: 13, weight: .medium))
                 .foregroundColor(AppColors.textSecondary)
-                .padding(.top, 4)
             }
-            .padding(.horizontal, 20)
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
+        .padding(.horizontal, 20)
+        .padding(.vertical, 16)
     }
     
     // MARK: - Action Buttons
@@ -259,31 +245,38 @@ struct PlaylistDetailsView: View {
         VStack(spacing: 12) {
             if !playlist.songs.isEmpty {
                 HStack(spacing: 12) {
-                    Image(systemName: "magnifyingglass").foregroundColor(AppColors.textSecondary)
-                    TextField("Search songs...", text: $searchText)
-                        .foregroundColor(AppColors.textPrimary)
-                    if !searchText.isEmpty {
-                        Button(action: { searchText = "" }) {
-                            Image(systemName: "xmark.circle.fill").foregroundColor(AppColors.textSecondary)
+                    
+                    // MARK: - Search Bar (Capsule)
+                    HStack(spacing: 8) {
+                        Image(systemName: "magnifyingglass")
+                            .foregroundColor(AppColors.textSecondary)
+                        
+                        TextField("Search songs...", text: $searchText)
+                            .foregroundColor(AppColors.textPrimary)
+                        
+                        if !searchText.isEmpty {
+                            Button(action: { searchText = "" }) {
+                                Image(systemName: "xmark.circle.fill")
+                                    .foregroundColor(AppColors.textSecondary)
+                            }
                         }
                     }
-                }
-                .padding(.horizontal, 16).padding(.vertical, 12)
-                .background(.ultraThinMaterial).clipShape(RoundedRectangle(cornerRadius: 12))
-                
-                HStack {
-                    Button(action: { showSortOptions = true }) {
-                        HStack(spacing: 8) {
-                            Image(systemName: "arrow.up.arrow.down").font(.system(size: 14, weight: .semibold))
-                            Text("Sort: \(currentSortOption.rawValue)").font(.system(size: 14, weight: .medium))
-                            Image(systemName: isAscending ? "chevron.up" : "chevron.down")
-                                .font(.system(size: 12, weight: .bold))
-                        }
-                        .foregroundColor(AppColors.primary)
-                        .padding(.horizontal, 14)
-                        .padding(.vertical, 8)
-                        .background(.ultraThinMaterial)
-                        .clipShape(Capsule())
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 12)
+                    .background(.ultraThinMaterial)
+                    .clipShape(Capsule())
+                    
+                    
+                    // MARK: - Sort Button (Circular Icon Only)
+                    Button(action: {
+                        showSortOptions = true
+                    }) {
+                        Image(systemName: "arrow.up.arrow.down")
+                            .font(.system(size: 16, weight: .semibold))
+                            .foregroundColor(AppColors.primary)
+                            .frame(width: 44, height: 44)
+                            .background(.ultraThinMaterial)
+                            .clipShape(Circle())
                     }
                     .confirmationDialog("Sort by", isPresented: $showSortOptions) {
                         ForEach(SortOption.allCases, id: \.self) { option in
@@ -298,22 +291,7 @@ struct PlaylistDetailsView: View {
                                 }
                             }
                         }
-                        Button("Cancel", role: .cancel) {}
-                    }
-                    
-                    Spacer()
-                    
-                    Button(action: {
-                        withAnimation { editMode = editMode == .active ? .inactive : .active }
-                    }) {
-                        HStack(spacing: 8) {
-                            Image(systemName: editMode == .active ? "checkmark" : "pencil")
-                                .font(.system(size: 14, weight: .semibold))
-                            Text(editMode == .active ? "Done" : "Edit").font(.system(size: 14, weight: .medium))
-                        }
-                        .foregroundColor(editMode == .active ? .green : AppColors.primary)
-                        .padding(.horizontal, 14).padding(.vertical, 8)
-                        .background(.ultraThinMaterial).clipShape(Capsule())
+                        Button("Cancel", role: .cancel) { }
                     }
                 }
             }
@@ -331,7 +309,7 @@ struct PlaylistDetailsView: View {
                 ForEach(sortedSongs) { song in
                     PlaylistSongRowView(
                         song: song,
-                        editMode: editMode,
+                        editMode: .inactive,
                         onPlay: { 
                             // Play from the full playlist context, starting with this song
                             MusicPlayerManager.shared.playFromAllSongs(playlist.songs, startAt: song, fromPlaylist: playlist.name)
@@ -400,3 +378,4 @@ struct PlaylistDetailsView: View {
     }
     .preferredColorScheme(.dark)
 }
+

@@ -203,7 +203,9 @@ struct AlbumsView: View {
                 .navigationTitle("Albums")
                 .searchable(text: $viewModel.searchText, placement: .navigationBarDrawer(displayMode: .automatic), prompt: "Search albums...")
                 .onAppear {
-                    viewModel.loadAlbums()
+                    Task {
+                        await viewModel.loadAlbums()
+                    }
                 }
                 .sheet(isPresented: $showingOnboarding) {
                     OnboardingView()
@@ -228,17 +230,12 @@ struct AlbumCellView: View {
                         .cornerRadius(16)
                         .shadow(radius: 10)
                 } else {
-                    Image(systemName: "opticaldisc")
+                    Image("default_playlist_cover")
                         .resizable()
-                        .scaledToFit()
-                        .frame(width: imageSize * 0.75, height: imageSize * 0.75)
-                        .padding()
-                        .foregroundColor(.gray.opacity(0.6))
-                        .background(
-                            RoundedRectangle(cornerRadius: 16)
-                                .fill(Color(.systemGray6))
-                                .frame(width: imageSize, height: imageSize)
-                        )
+                        .scaledToFill()
+                        .frame(width: imageSize, height: imageSize)
+                        .cornerRadius(16)
+                        .shadow(radius: 10)
                 }
             }
             

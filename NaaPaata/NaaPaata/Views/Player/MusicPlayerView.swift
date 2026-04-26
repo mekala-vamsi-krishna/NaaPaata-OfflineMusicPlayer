@@ -8,6 +8,7 @@
 import SwiftUI
 import AVFoundation
 import MediaPlayer
+import SwiftData
 
 struct MusicPlayerView: View {
     @Environment(\.dismiss) var dismiss
@@ -16,6 +17,8 @@ struct MusicPlayerView: View {
     @EnvironmentObject var musicPlayerManager: MusicPlayerManager
     @EnvironmentObject var playlistsVM: PlaylistsViewModel
     @EnvironmentObject var sleepTimerManager: SleepTimerManager
+    
+    @Query(sort: \Playlist.dateCreated, order: .reverse) var playlists: [Playlist]
     
     // Create Playlist
     @State private var showCreatePlaylistSheet = false
@@ -170,30 +173,6 @@ struct MusicPlayerView: View {
                         
                         Spacer()
                         
-                        Button(action: {
-                            if let currentSong = musicPlayerManager.currentSong {
-                                playlistsVM.toggleFavoriteSong(currentSong)
-                            }
-                        }) {
-                            ZStack {
-                                Circle()
-                                    .fill(Color.black.opacity(0.1))
-                                    .frame(width: 44, height: 44)
-                                Group {
-                                    if let currentSong = musicPlayerManager.currentSong,
-                                       playlistsVM.isSongInFavorites(currentSong) {
-                                        Image(systemName: "heart.fill")
-                                            .font(.system(size: 18, weight: .semibold))
-                                            .foregroundStyle(AppColors.primary)
-                                    } else {
-                                        Image(systemName: "heart")
-                                            .font(.system(size: 18, weight: .semibold))
-                                            .foregroundStyle(.white)
-                                    }
-                                }
-                            }
-                        }
-                        
                         Menu {
                             Button {
                                 showSongInfoSheet = true
@@ -204,16 +183,20 @@ struct MusicPlayerView: View {
                             Divider()
                             
                             // Add to playlist options
-                            ForEach(playlistsVM.playlists) { playlist in
+                            ForEach(playlists) { playlist in
                                 Button {
-                                    var updatedPlaylist = playlist
-                                    // Avoid duplicates
-                                    if !updatedPlaylist.songs.contains(where: { $0.id == musicPlayerManager.currentSong?.id }) {
-                                        updatedPlaylist.songs.append(musicPlayerManager.currentSong!)
-                                        playlistsVM.updatePlaylist(updatedPlaylist) // update Published array and save JSON
+                                    if let currentSong = musicPlayerManager.currentSong {
+                                        // Add only if not already present; PlaylistViewModel will handle toast
+                                        playlistsVM.addSongToPlaylist(currentSong, to: playlist)
                                     }
                                 } label: {
-                                    Label(playlist.name, systemImage: "music.note.list")
+                                    // Show checkmark if current song already in playlist
+                                    if let currentSong = musicPlayerManager.currentSong,
+                                       playlist.songs.contains(where: { $0.relativePath == currentSong.relativePath }) {
+                                        Label(playlist.name, systemImage: "checkmark")
+                                    } else {
+                                        Label(playlist.name, systemImage: "music.note.list")
+                                    }
                                 }
                             }
                             
@@ -261,6 +244,30 @@ struct MusicPlayerView: View {
                 }
                 .padding(.bottom, 20)
                 
+                // Playback controls
+                HStack(spacing: 50) {
+                    Button(action: {
+                        HapticManager.shared.light()
+                        musicPlayerManager.playPrevious()
+                    }) {
+                        Image(systemName: "backward.fill").font(.system(size: 28))
+                            .foregroundStyle(.white)
+                    }
+                    
+                    PlayPauseButton(isPlaying: musicPlayerManager.isPlaying) {
+                        musicPlayerManager.togglePlayPause()
+                    }
+                    
+                    Button(action: {
+                        HapticManager.shared.light()
+                        musicPlayerManager.playNext()
+                    }) {
+                        Image(systemName: "forward.fill").font(.system(size: 28))
+                            .foregroundStyle(.white)
+                    }
+                }
+                .padding(.bottom, 30)
+                
                 // Additional controls (Shuffle, Play All, etc.)
                 HStack(spacing: 30) {
                     // Shuffle Button
@@ -293,7 +300,7 @@ struct MusicPlayerView: View {
                         }
                     }
                     
-                    // Repeat All Button  
+                    // Repeat All Button
                     Button(action: {
                         // Toggle repeat all mode
                         musicPlayerManager.toggleRepeatAll()
@@ -331,31 +338,7 @@ struct MusicPlayerView: View {
                     }
                 }
                 .padding(.bottom, 20)
-                
-                // Playback controls
-                HStack(spacing: 50) {
-                    Button(action: {
-                        HapticManager.shared.light()
-                        musicPlayerManager.playPrevious()
-                    }) {
-                        Image(systemName: "backward.fill").font(.system(size: 28))
-                            .foregroundStyle(.white)
-                    }
-                    
-                    PlayPauseButton(isPlaying: musicPlayerManager.isPlaying) {
-                        musicPlayerManager.togglePlayPause()
-                    }
-                    
-                    Button(action: {
-                        HapticManager.shared.light()
-                        musicPlayerManager.playNext()
-                    }) {
-                        Image(systemName: "forward.fill").font(.system(size: 28))
-                            .foregroundStyle(.white)
-                    }
-                }
-                .padding(.bottom, 30)
-                
+
                 Spacer()
             }
             .offset(y: dragOffset) // Apply drag offset for smooth movement
@@ -389,12 +372,11 @@ struct MusicPlayerView: View {
             CreatePlaylistSheet(
                 name: $newPlaylistName,
                 description: $newPlaylistDescription,
-                onCreate: {
-                    playlistsVM.addPlaylist(name: newPlaylistName, description: newPlaylistDescription)
-                    if let newPlayList = playlistsVM.playlists.first {
-                        var updatedPlaylist = newPlayList
-                        updatedPlaylist.songs.append(musicPlayerManager.currentSong!)
-                        playlistsVM.updatePlaylist(updatedPlaylist) // Update the playlist with the added song
+                onCreate: { coverImage in
+                    playlistsVM.addPlaylist(name: newPlaylistName, description: newPlaylistDescription, coverImage: coverImage, playlists: playlists)
+                    if let currentSong = musicPlayerManager.currentSong,
+                       let newPlayList = PlaylistManager.shared.loadPlaylist(name: newPlaylistName) {
+                        playlistsVM.addSongToPlaylist(currentSong, to: newPlayList)
                     }
                     newPlaylistName = ""
                     newPlaylistDescription = ""
@@ -594,3 +576,4 @@ struct DraggableProgressBar: View {
 #Preview {
     MusicPlayerView()
 }
+

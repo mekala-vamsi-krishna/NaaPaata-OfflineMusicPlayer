@@ -133,14 +133,6 @@ extension AddSongsView {
     }
     
     func loadAvailableSongs() {
-        // Use SongCacheService for instant load
-        if let cachedSongs = SongCacheService.shared.loadSongs(), !cachedSongs.isEmpty {
-            self.availableSongs = cachedSongs
-            print("✅ Loaded \(cachedSongs.count) songs from cache.")
-            return
-        }
-        
-        // Fallback to background load if cache is empty
         DispatchQueue.global(qos: .userInitiated).async {
             let urls = LoadAllSongsFromDocuments().loadSongsFromDocuments()
             var loadedSongs: [Song] = []
@@ -153,8 +145,6 @@ extension AddSongsView {
             DispatchQueue.main.async {
                 self.availableSongs = loadedSongs
                 print("✅ Finished loading \(loadedSongs.count) songs from disk.")
-                // Save to cache for next time
-                SongCacheService.shared.saveSongs(loadedSongs)
             }
         }
     }
@@ -192,13 +182,26 @@ extension AddSongsView {
         // Filter only selected songs
         let songsToAdd = availableSongs.filter { selectedSongs.contains($0.id) }
         
-        // Update playlist in memory immediately for UI responsiveness
-        playlist.songs.append(contentsOf: songsToAdd)
+        var addedCount = 0
+        var existsCount = 0
         
-        // Persist playlist JSON in background
-        let playlistToSave = playlist
-        DispatchQueue.global(qos: .background).async {
-            PlaylistManager.shared.savePlaylist(playlistToSave)
+        // Add each song to playlist using PlaylistManager and keep UI state in sync
+        for song in songsToAdd {
+            let result = playlistManager.addSongToPlaylist(song, playlist: playlist)
+            if result == .added {
+                addedCount += 1
+                if !playlist.songs.contains(where: { $0.urlString == song.urlString }) {
+                    playlist.songs.append(song)
+                }
+            } else if result == .exists {
+                existsCount += 1
+            }
+        }
+        
+        if addedCount > 0 {
+            ToastManager.shared.showToast(message: "song added to \(playlist.name) playlist")
+        } else if existsCount > 0 {
+            ToastManager.shared.showToast(message: "song already exists!")
         }
     }
     
