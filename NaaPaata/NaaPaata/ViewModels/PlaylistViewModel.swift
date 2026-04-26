@@ -68,30 +68,6 @@ final class PlaylistsViewModel: ObservableObject {
         playlistManager.removeSongFromPlaylist(song, from: playlist)
     }
     
-    // MARK: - Favorites Management
-    
-    func toggleFavoriteSong(_ song: Song) async -> Bool {
-        return await playlistManager.toggleFavoriteSong(song)
-    }
-    
-    func isSongFavorite(_ song: Song) -> Bool {
-        return playlistManager.isSongFavorite(song)
-    }
-    
-    func getFavoritesPlaylist() async -> Playlist? {
-        guard let playlist = playlistManager.loadPlaylist(name: "Favorites") else { return nil }
-        // Load songs concurrently to validate they still exist
-        let validSongs = await playlistManager.getSongsInPlaylist(playlistName: "Favorites")
-        return Playlist(
-            id: playlist.id,
-            name: playlist.name,
-            songs: validSongs,
-            coverImage: playlist.coverImage,
-            desc: playlist.desc,
-            dateCreated: playlist.dateCreated
-        )
-    }
-    
     // MARK: - Load All Playlists with Songs Concurrently
     func loadAllPlaylistsConcurrently() async -> [Playlist] {
         let playlists = playlistManager.getAllPlaylists()

@@ -41,11 +41,6 @@ final class Playlist: Identifiable {
         guard let data = coverImageData else { return nil }
         return UIImage(data: data)
     }
-    
-    /// Check if this is the Favorites playlist
-    var isFavoritesPlaylist: Bool {
-        name == "Favorites"
-    }
 }
 
 enum SortOption: String, CaseIterable {

@@ -28,9 +28,6 @@ struct MusicPlayerView: View {
     // Sleep Timer
     @State private var showSleepTimerSheet = false
     
-    // Optimistic Favorite State
-    @State private var optimisticFavoriteState: [UUID: Bool] = [:]
-    
     // Song Info
     @State private var showSongInfoSheet = false
     
@@ -175,45 +172,6 @@ struct MusicPlayerView: View {
                         }
                         
                         Spacer()
-                        
-                        Button(action: {
-                            if let currentSong = musicPlayerManager.currentSong {
-                                // Optimistic UI update
-                                let currentState = optimisticFavoriteState[currentSong.id] ?? playlistsVM.isSongFavorite(currentSong)
-                                optimisticFavoriteState[currentSong.id] = !currentState
-                                
-                                Task {
-                                    HapticManager.shared.light()
-                                    let result = await playlistsVM.toggleFavoriteSong(currentSong)
-                                    // Update optimistic state with actual result
-                                    optimisticFavoriteState[currentSong.id] = result
-                                }
-                            }
-                        }) {
-                            ZStack {
-                                Circle()
-                                    .fill(Color.black.opacity(0.1))
-                                    .frame(width: 44, height: 44)
-                                Group {
-                                    if let currentSong = musicPlayerManager.currentSong {
-                                        let isFavorite = optimisticFavoriteState[currentSong.id] ?? playlistsVM.isSongFavorite(currentSong)
-                                        if isFavorite {
-                                            Image(systemName: "heart.fill")
-                                                .font(.system(size: 18, weight: .semibold))
-                                                .foregroundStyle(AppColors.primary)
-                                        } else {
-                                            Image(systemName: "heart")
-                                                .font(.system(size: 18, weight: .semibold))
-                                                .foregroundStyle(.white)
-                                        }
-                                    } else {
-                                        Image(systemName: "heart")
-                                            .font(.system(size: 18, weight: .semibold))
-                                            .foregroundStyle(.white)
-                                    }
-                                }
-                            }
-                        }
                         
                         Menu {
                             Button {
@@ -403,23 +361,6 @@ struct MusicPlayerView: View {
                 .animation(.easeOut(duration: 0.2), value: dragOffset)
         }
         .preferredColorScheme(.dark)
-        .onAppear {
-            // Initialize optimistic state for the current song when view appears
-            if let currentSong = musicPlayerManager.currentSong {
-                let isFavorite = playlistsVM.isSongFavorite(currentSong)
-                optimisticFavoriteState[currentSong.id] = isFavorite
-            }
-        }
-        .onChange(of: musicPlayerManager.currentSong?.id) { _, newSongId in
-            // Clear optimistic favorite state when song changes
-            optimisticFavoriteState.removeAll()
-            
-            // Initialize optimistic state with actual favorite status for the new song
-            if let currentSong = musicPlayerManager.currentSong {
-                let isFavorite = playlistsVM.isSongFavorite(currentSong)
-                optimisticFavoriteState[currentSong.id] = isFavorite
-            }
-        }
         // Sheet to create playlist and immediately add the song
         .sheet(isPresented: $showCreatePlaylistSheet) {
             CreatePlaylistSheet(

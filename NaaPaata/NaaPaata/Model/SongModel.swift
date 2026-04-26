@@ -21,9 +21,6 @@ final class Song: Identifiable {
     var artworkData: Data?
     var dateAdded: Date
     var bookmarkData: Data?
-    
-    // Transient - not persisted
-    @Transient var isFavorite: Bool = false
 
     init(
         id: UUID = UUID(),
