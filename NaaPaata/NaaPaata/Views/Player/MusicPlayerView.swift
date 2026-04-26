@@ -185,12 +185,18 @@ struct MusicPlayerView: View {
                             // Add to playlist options
                             ForEach(playlists) { playlist in
                                 Button {
-                                    if let currentSong = musicPlayerManager.currentSong,
-                                       !playlist.songs.contains(where: { $0.id == currentSong.id }) {
+                                    if let currentSong = musicPlayerManager.currentSong {
+                                        // Add only if not already present; PlaylistViewModel will handle toast
                                         playlistsVM.addSongToPlaylist(currentSong, to: playlist)
                                     }
                                 } label: {
-                                    Label(playlist.name, systemImage: "music.note.list")
+                                    // Show checkmark if current song already in playlist
+                                    if let currentSong = musicPlayerManager.currentSong,
+                                       playlist.songs.contains(where: { $0.relativePath == currentSong.relativePath }) {
+                                        Label(playlist.name, systemImage: "checkmark")
+                                    } else {
+                                        Label(playlist.name, systemImage: "music.note.list")
+                                    }
                                 }
                             }
                             

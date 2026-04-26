@@ -89,4 +89,17 @@ final class Song: Identifiable {
         // Fallback to URL from string
         return url
     }
+    
+    /// Stable relative path from Documents directory (e.g. "Music/song.mp3").
+    /// The full urlString contains the sandbox container UUID which changes across
+    /// app sessions, so this is the only reliable way to identify the same file.
+    var relativePath: String {
+        // urlString looks like: file:///var/.../Application/<UUID>/Documents/Music/song.mp3
+        // We extract everything after "Documents/"
+        if let range = urlString.range(of: "Documents/") {
+            return String(urlString[range.upperBound...])
+        }
+        // Fallback: use the last path component (filename)
+        return URL(string: urlString)?.lastPathComponent ?? urlString
+    }
 }

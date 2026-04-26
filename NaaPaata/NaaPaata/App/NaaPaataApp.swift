@@ -47,24 +47,27 @@ struct NaaPaataApp: App {
 
     var body: some Scene {
         WindowGroup {
-            if hasCompletedOnboarding {
-                MainTabView()
-                    .environmentObject(musicPlayerManager)
-                    .environmentObject(playlistsViewModel)
-                    .environmentObject(songsViewModel) // Inject into environment
-                    .environmentObject(tabState)
-                    .environmentObject(storeKitManager)
-                    .environmentObject(sleepTimerManager)
-                    .onAppear {
-                        Task {
-                            await songsViewModel.loadSongs() // Load songs on app launch
+            Group {
+                if hasCompletedOnboarding {
+                    MainTabView()
+                        .environmentObject(musicPlayerManager)
+                        .environmentObject(playlistsViewModel)
+                        .environmentObject(songsViewModel) // Inject into environment
+                        .environmentObject(tabState)
+                        .environmentObject(storeKitManager)
+                        .environmentObject(sleepTimerManager)
+                        .onAppear {
+                            Task {
+                                await songsViewModel.loadSongs() // Load songs on app launch
+                            }
+                            sleepTimerManager.setup(modelContext: container.mainContext)
                         }
-                        sleepTimerManager.setup(modelContext: container.mainContext)
-                    }
-            } else {
-                OnboardingView()
-                    .environmentObject(musicPlayerManager)
+                } else {
+                    OnboardingView()
+                        .environmentObject(musicPlayerManager)
+                }
             }
+            .withToast()
         }
         .modelContainer(container)
         .onChange(of: scenePhase) { oldPhase, newPhase in

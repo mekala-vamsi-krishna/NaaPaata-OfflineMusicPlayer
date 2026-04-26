@@ -9,6 +9,11 @@ import Foundation
 import SwiftUI
 import SwiftData
 
+enum AddSongResult: Equatable {
+    case added
+    case exists
+    case error(String)
+}
 
 final class PlaylistManager {
     static let shared = PlaylistManager()
@@ -180,7 +185,8 @@ final class PlaylistManager {
     }
     
     // MARK: - Add Song to Playlist
-    func addSongToPlaylist(_ song: Song, playlist: Playlist) {
+    @discardableResult
+    func addSongToPlaylist(_ song: Song, playlist: Playlist) -> AddSongResult {
         let context = modelContext
         do {
             let playlistId = playlist.id
@@ -189,16 +195,20 @@ final class PlaylistManager {
                 FetchDescriptor<Playlist>(
                     predicate: #Predicate { $0.id == playlistId }
                 )
-            ).first else { return }
+            ).first else { return .error("Playlist not found") }
             
-            // Check if song already exists
-            if !currentPlaylist.songs.contains(where: { $0.id == song.id }) {
+            // Check if song already exists by relative file path (stable across sessions)
+            if !currentPlaylist.songs.contains(where: { $0.relativePath == song.relativePath }) {
                 currentPlaylist.songs.append(song)
                 try context.save()
                 NotificationCenter.default.post(name: .playlistUpdated, object: nil, userInfo: ["playlistId": playlistId.uuidString])
+                return .added
+            } else {
+                return .exists
             }
         } catch {
             print("Error adding song to playlist: \(error.localizedDescription)")
+            return .error(error.localizedDescription)
         }
     }
     
@@ -215,7 +225,7 @@ final class PlaylistManager {
             ).first else { return }
             
             // Remove song from playlist (but don't delete the song itself)
-            currentPlaylist.songs.removeAll { $0.id == song.id }
+            currentPlaylist.songs.removeAll { $0.relativePath == song.relativePath }
             try context.save()
             NotificationCenter.default.post(name: .playlistUpdated, object: nil, userInfo: ["playlistId": playlistId.uuidString])
         } catch {

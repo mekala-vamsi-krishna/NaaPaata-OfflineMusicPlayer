@@ -61,7 +61,15 @@ final class PlaylistsViewModel: ObservableObject {
     // MARK: - Song Management in Playlist
     
     func addSongToPlaylist(_ song: Song, to playlist: Playlist) {
-        playlistManager.addSongToPlaylist(song, playlist: playlist)
+        let result = playlistManager.addSongToPlaylist(song, playlist: playlist)
+        switch result {
+        case .added:
+            ToastManager.shared.showToast(message: "song added to \(playlist.name) playlist")
+        case .exists:
+            ToastManager.shared.showToast(message: "song already exissts!")
+        case .error(let msg):
+            print("Error: \(msg)")
+        }
     }
     
     func removeSongFromPlaylist(_ song: Song, from playlist: Playlist) {

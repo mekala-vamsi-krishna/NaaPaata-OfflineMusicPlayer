@@ -182,12 +182,26 @@ extension AddSongsView {
         // Filter only selected songs
         let songsToAdd = availableSongs.filter { selectedSongs.contains($0.id) }
         
+        var addedCount = 0
+        var existsCount = 0
+        
         // Add each song to playlist using PlaylistManager and keep UI state in sync
         for song in songsToAdd {
-            if !playlist.songs.contains(where: { $0.id == song.id }) {
-                playlist.songs.append(song)
+            let result = playlistManager.addSongToPlaylist(song, playlist: playlist)
+            if result == .added {
+                addedCount += 1
+                if !playlist.songs.contains(where: { $0.urlString == song.urlString }) {
+                    playlist.songs.append(song)
+                }
+            } else if result == .exists {
+                existsCount += 1
             }
-            playlistManager.addSongToPlaylist(song, playlist: playlist)
+        }
+        
+        if addedCount > 0 {
+            ToastManager.shared.showToast(message: "song added to \(playlist.name) playlist")
+        } else if existsCount > 0 {
+            ToastManager.shared.showToast(message: "song already exists!")
         }
     }
     

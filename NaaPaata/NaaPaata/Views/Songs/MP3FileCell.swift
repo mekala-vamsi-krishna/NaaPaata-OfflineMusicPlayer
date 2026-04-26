@@ -105,12 +105,18 @@ struct MP3FileCell: View {
                 // Add to playlist options
                 ForEach(playlists) { playlist in
                     Button {
-                        if !playlist.songs.contains(where: { $0.id == song.id }) {
+                        // Add only if not already present; view model handles toast
+                        if !playlist.songs.contains(where: { $0.relativePath == song.relativePath }) {
                             playlistsVM.addSongToPlaylist(song, to: playlist)
                             loadPlaylists()
                         }
                     } label: {
-                        Label(playlist.name, systemImage: "music.note.list")
+                        // Show checkmark if the song is already in this playlist
+                        if playlist.songs.contains(where: { $0.relativePath == song.relativePath }) {
+                            Label(playlist.name, systemImage: "checkmark")
+                        } else {
+                            Label(playlist.name, systemImage: "music.note.list")
+                        }
                     }
                 }
 
