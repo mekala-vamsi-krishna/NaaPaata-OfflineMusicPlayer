@@ -25,7 +25,6 @@ struct PlaylistDetailsView: View {
     @State private var currentSortOption: SortOption = .dateAdded
     @State private var isAscending = true
     @State private var searchText = ""
-    @State private var editMode: EditMode = .inactive
     
     init(playlist: Playlist, onUpdate: @escaping (Playlist) -> Void, onDelete: @escaping () -> Void) {
         self._playlist = State(initialValue: playlist)
@@ -131,9 +130,9 @@ struct PlaylistDetailsView: View {
             playlist = updatedPlaylist
             refreshID = UUID()
         }
-        .alert("Delete Song", isPresented: .constant(selectedSong != nil), presenting: selectedSong) { song in
+        .alert("Remove Song", isPresented: .constant(selectedSong != nil), presenting: selectedSong) { song in
             Button("Cancel", role: .cancel) { selectedSong = nil }
-            Button("Delete", role: .destructive) {
+            Button("Remove", role: .destructive) {
                 // Use URL-based comparison to remove the song
                 if let index = playlist.songs.firstIndex(where: { $0.urlString == song.urlString }) {
                     withAnimation { playlist.songs.remove(at: index) }
@@ -246,31 +245,38 @@ struct PlaylistDetailsView: View {
         VStack(spacing: 12) {
             if !playlist.songs.isEmpty {
                 HStack(spacing: 12) {
-                    Image(systemName: "magnifyingglass").foregroundColor(AppColors.textSecondary)
-                    TextField("Search songs...", text: $searchText)
-                        .foregroundColor(AppColors.textPrimary)
-                    if !searchText.isEmpty {
-                        Button(action: { searchText = "" }) {
-                            Image(systemName: "xmark.circle.fill").foregroundColor(AppColors.textSecondary)
+                    
+                    // MARK: - Search Bar (Capsule)
+                    HStack(spacing: 8) {
+                        Image(systemName: "magnifyingglass")
+                            .foregroundColor(AppColors.textSecondary)
+                        
+                        TextField("Search songs...", text: $searchText)
+                            .foregroundColor(AppColors.textPrimary)
+                        
+                        if !searchText.isEmpty {
+                            Button(action: { searchText = "" }) {
+                                Image(systemName: "xmark.circle.fill")
+                                    .foregroundColor(AppColors.textSecondary)
+                            }
                         }
                     }
-                }
-                .padding(.horizontal, 16).padding(.vertical, 12)
-                .background(.ultraThinMaterial).clipShape(RoundedRectangle(cornerRadius: 12))
-                
-                HStack {
-                    Button(action: { showSortOptions = true }) {
-                        HStack(spacing: 8) {
-                            Image(systemName: "arrow.up.arrow.down").font(.system(size: 14, weight: .semibold))
-                            Text("Sort: \(currentSortOption.rawValue)").font(.system(size: 14, weight: .medium))
-                            Image(systemName: isAscending ? "chevron.up" : "chevron.down")
-                                .font(.system(size: 12, weight: .bold))
-                        }
-                        .foregroundColor(AppColors.primary)
-                        .padding(.horizontal, 14)
-                        .padding(.vertical, 8)
-                        .background(.ultraThinMaterial)
-                        .clipShape(Capsule())
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 12)
+                    .background(.ultraThinMaterial)
+                    .clipShape(Capsule())
+                    
+                    
+                    // MARK: - Sort Button (Circular Icon Only)
+                    Button(action: {
+                        showSortOptions = true
+                    }) {
+                        Image(systemName: "arrow.up.arrow.down")
+                            .font(.system(size: 16, weight: .semibold))
+                            .foregroundColor(AppColors.primary)
+                            .frame(width: 44, height: 44)
+                            .background(.ultraThinMaterial)
+                            .clipShape(Circle())
                     }
                     .confirmationDialog("Sort by", isPresented: $showSortOptions) {
                         ForEach(SortOption.allCases, id: \.self) { option in
@@ -285,22 +291,7 @@ struct PlaylistDetailsView: View {
                                 }
                             }
                         }
-                        Button("Cancel", role: .cancel) {}
-                    }
-                    
-                    Spacer()
-                    
-                    Button(action: {
-                        withAnimation { editMode = editMode == .active ? .inactive : .active }
-                    }) {
-                        HStack(spacing: 8) {
-                            Image(systemName: editMode == .active ? "checkmark" : "pencil")
-                                .font(.system(size: 14, weight: .semibold))
-                            Text(editMode == .active ? "Done" : "Edit").font(.system(size: 14, weight: .medium))
-                        }
-                        .foregroundColor(editMode == .active ? .green : AppColors.primary)
-                        .padding(.horizontal, 14).padding(.vertical, 8)
-                        .background(.ultraThinMaterial).clipShape(Capsule())
+                        Button("Cancel", role: .cancel) { }
                     }
                 }
             }
@@ -318,7 +309,7 @@ struct PlaylistDetailsView: View {
                 ForEach(sortedSongs) { song in
                     PlaylistSongRowView(
                         song: song,
-                        editMode: editMode,
+                        editMode: .inactive,
                         onPlay: { 
                             // Play from the full playlist context, starting with this song
                             MusicPlayerManager.shared.playFromAllSongs(playlist.songs, startAt: song, fromPlaylist: playlist.name)
