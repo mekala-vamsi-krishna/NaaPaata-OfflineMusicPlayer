@@ -240,7 +240,6 @@ struct MusicPlayerView: View {
                         dismiss()
                     }
                 }
-                .padding(.top, geometry.safeAreaInsets.top + 8)
                 
                 Spacer(minLength: 0)
                 
