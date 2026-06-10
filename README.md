@@ -2,11 +2,11 @@
 
 <p align="left">
 
-<img src="https://img.shields.io/badge/Platform-iOS%2017+-black?style=flat&logo=apple" />
+<img src="https://img.shields.io/badge/Platform-iOS%2026+-black?style=flat&logo=apple" />
 <img src="https://img.shields.io/badge/SwiftUI-Native-orange?style=flat&logo=swift" />
-<img src="https://img.shields.io/github/license/mekala-vamsi-krishna/NaaPaata-MusicPlayer" />
-<img src="https://img.shields.io/github/stars/mekala-vamsi-krishna/NaaPaata-MusicPlayer?style=social" />
-<img src="https://img.shields.io/github/forks/mekala-vamsi-krishna/NaaPaata-MusicPlayer?style=social" />
+<img src="https://img.shields.io/github/license/mekala-vamsi-krishna/NaaPaata-iOS" />
+<img src="https://img.shields.io/github/stars/mekala-vamsi-krishna/NaaPaata-iOS?style=flat&logo=github&cacheSeconds=3600" />
+<img src="https://img.shields.io/github/forks/mekala-vamsi-krishna/NaaPaata-iOS?style=flat&logo=github" />
 </p>
 
 </p>
