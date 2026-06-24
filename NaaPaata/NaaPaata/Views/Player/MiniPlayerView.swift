@@ -13,7 +13,6 @@ struct MiniPlayerView: View {
 
     var body: some View {
         HStack(spacing: 12) {
-            // Album Artwork - this is the ONLY view tagged for the hero animation
             Group {
                 if let artwork = musicPlayerManager.artworkImage {
                     Image(uiImage: artwork)
@@ -32,18 +31,18 @@ struct MiniPlayerView: View {
             }
             .frame(width: 48, height: 48)
             .clipShape(Circle())
-            .shadow(color: .black.opacity(0.1), radius: 4, x: 0, y: 2)
             .matchedGeometryEffect(id: "albumArt", in: namespace, isSource: true)
+            .shadow(color: .black.opacity(0.1), radius: 4, x: 0, y: 2)
 
             // Song Info
             VStack(alignment: .leading, spacing: 2) {
                 Text(musicPlayerManager.currentSong?.title ?? "Unknown Song")
-                    .foregroundStyle(Color.primary)
+                    .foregroundStyle(.primary)
                     .font(.subheadline)
                     .lineLimit(1)
 
                 Text(musicPlayerManager.currentSong?.artist ?? "Unknown Artist")
-                    .foregroundStyle(Color.primary)
+                    .foregroundStyle(.secondary)
                     .font(.caption)
                     .lineLimit(1)
             }
@@ -51,7 +50,7 @@ struct MiniPlayerView: View {
             Spacer(minLength: 8)
 
             // Playback Controls
-            HStack(spacing: 20) {
+            HStack(spacing: 16) {
                 Button {
                     withAnimation(.spring(response: 0.4, dampingFraction: 0.6)) {
                         musicPlayerManager.togglePlayPause()
@@ -61,7 +60,7 @@ struct MiniPlayerView: View {
                         .font(.title3)
                         .frame(width: 44, height: 44)
                         .contentTransition(.symbolEffect(.replace))
-                        .foregroundStyle(AppColors.primary)
+                        .foregroundStyle(.primary)
                 }
                 .buttonStyle(.plain)
 
@@ -70,7 +69,7 @@ struct MiniPlayerView: View {
                 } label: {
                     Image(systemName: "forward.fill")
                         .font(.title3)
-                        .foregroundStyle(AppColors.primary)
+                        .foregroundStyle(.primary)
                         .frame(width: 32, height: 32)
                         .contentShape(Rectangle())
                 }
@@ -78,19 +77,31 @@ struct MiniPlayerView: View {
             }
         }
         .padding(.horizontal, 16)
-        .padding(.vertical, 12)
+        .padding(.vertical, 10)
         .background(
             Capsule(style: .continuous)
-                .fill(.background)
-                .shadow(color: .black.opacity(0.08), radius: 8, x: 0, y: -2)
+                .fill(.ultraThinMaterial)
+                .shadow(color: .black.opacity(0.15), radius: 12, x: 0, y: 4)
+                .shadow(color: .black.opacity(0.05), radius: 4, x: 0, y: -2)
         )
         .overlay(
             Capsule(style: .continuous)
-                .stroke(.quaternary, lineWidth: 0.5),
-            alignment: .top
+                .stroke(
+                    LinearGradient(
+                        colors: [
+                            .white.opacity(0.3),
+                            .white.opacity(0.05)
+                        ],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    ),
+                    lineWidth: 0.8
+                )
         )
-        .padding(.horizontal, 8)
-        .padding(.bottom, 8)
+        .padding(.horizontal, 12)
+        .padding(.bottom, 10)
+        .scaleEffect(1.0)
+        .animation(.spring(response: 0.3, dampingFraction: 0.6), value: musicPlayerManager.isPlaying)
     }
 }
 
@@ -98,4 +109,7 @@ struct MiniPlayerView: View {
     @Namespace var animation
     MiniPlayerView(namespace: animation)
         .environmentObject(MusicPlayerManager.shared)
+        .previewLayout(.sizeThatFits)
+        .padding()
+        .background(Color(.systemBackground))
 }

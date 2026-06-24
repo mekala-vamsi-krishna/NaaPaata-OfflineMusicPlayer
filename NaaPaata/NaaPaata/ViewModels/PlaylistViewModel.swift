@@ -11,13 +11,11 @@ import AVFoundation
 
 final class PlaylistsViewModel: ObservableObject {
     let playlistManager = PlaylistManager.shared
-    
     @Published var isLoading: Bool = false
     
     init() {}
     
-    // MARK: - Playlist Management
-    
+    // MARK: - addPlaylist
     func addPlaylist(name: String, description: String = "", coverImage: UIImage? = nil, playlists: [Playlist] = []) {
         let trimmedName = name.trimmingCharacters(in: .whitespaces)
         guard !trimmedName.isEmpty else { return }
@@ -34,52 +32,52 @@ final class PlaylistsViewModel: ObservableObject {
         let newPlaylist = Playlist(
             name: uniqueName,
             songs: [],
-            coverImage: coverImage,   // 👈 use passed image
+            coverImage: coverImage,
             desc: description,
             dateCreated: Date()
         )
-        
         playlistManager.savePlaylist(newPlaylist)
     }
     
+    // MARK: - deletePlaylist
     func deletePlaylist(_ playlist: Playlist) {
         playlistManager.deletePlaylistById(id: playlist.id)
     }
     
+    // MARK: - updatePlaylist
     func updatePlaylist(_ playlist: Playlist) {
         playlistManager.savePlaylist(playlist)
     }
     
+    // MARK: - renamePlaylist
     func renamePlaylist(_ playlist: Playlist, newName: String) {
         let trimmedName = newName.trimmingCharacters(in: .whitespaces)
         guard !trimmedName.isEmpty, trimmedName != playlist.name else { return }
-        
         playlist.name = trimmedName
         playlistManager.savePlaylist(playlist)
     }
     
-    // MARK: - Song Management in Playlist
-    
+    // MARK: - addSongToPlaylist
     func addSongToPlaylist(_ song: Song, to playlist: Playlist) {
         let result = playlistManager.addSongToPlaylist(song, playlist: playlist)
         switch result {
         case .added:
-            ToastManager.shared.showToast(message: "song added to \(playlist.name) playlist")
+            ToastManager.shared.showToast(message: "Song added to \(playlist.name) playlist")
         case .exists:
-            ToastManager.shared.showToast(message: "song already exissts!")
+            ToastManager.shared.showToast(message: "Song already exists in playlist")
         case .error(let msg):
             print("Error: \(msg)")
         }
     }
     
+    // MARK: - removeSongFromPlaylist
     func removeSongFromPlaylist(_ song: Song, from playlist: Playlist) {
         playlistManager.removeSongFromPlaylist(song, from: playlist)
     }
     
-    // MARK: - Load All Playlists with Songs Concurrently
+    // MARK: - loadAllPlaylistsConcurrently
     func loadAllPlaylistsConcurrently() async -> [Playlist] {
         let playlists = playlistManager.getAllPlaylists()
-        
         return await withTaskGroup(of: Playlist?.self) { group in
             for playlist in playlists {
                 group.addTask {
@@ -94,7 +92,6 @@ final class PlaylistsViewModel: ObservableObject {
                     )
                 }
             }
-            
             var loadedPlaylists: [Playlist] = []
             for await playlist in group {
                 if let playlist = playlist {
@@ -105,4 +102,3 @@ final class PlaylistsViewModel: ObservableObject {
         }
     }
 }
-

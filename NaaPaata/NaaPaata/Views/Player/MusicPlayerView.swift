@@ -13,11 +13,13 @@ import SwiftData
 struct MusicPlayerView: View {
     // MARK: - Dependencies
     let dismissAction: (() -> Void)?
+    let miniPlayerFrame: CGRect
     let namespace: Namespace.ID
 
     @Environment(\.horizontalSizeClass) var sizeClass
+    @Environment(\.verticalSizeClass) var verticalSizeClass
     @Environment(\.colorScheme) var colorScheme
-
+    
     @EnvironmentObject var musicPlayerManager: MusicPlayerManager
     @EnvironmentObject var playlistsVM: PlaylistsViewModel
     @EnvironmentObject var sleepTimerManager: SleepTimerManager
@@ -25,14 +27,15 @@ struct MusicPlayerView: View {
     @Query(sort: \Playlist.dateCreated, order: .reverse) var playlists: [Playlist]
 
     // MARK: - State
-    @State private var showCreatePlaylistSheet = false
     @State private var newPlaylistName = ""
     @State private var newPlaylistDescription = ""
+    
+    @State private var showCreatePlaylistSheet = false
     @State private var showSleepTimerSheet = false
     @State private var showSongInfoSheet = false
-
-    @State private var dragOffset: CGFloat = 0
     @State private var isAnimatingSwipeIndicator = false
+    
+    @State private var dragOffset: CGFloat = 0
     @State private var artworkScale: CGFloat = 1.0
 
     @State private var artworkColors: (background: Color, primary: Color, secondary: Color) = (
@@ -41,29 +44,105 @@ struct MusicPlayerView: View {
         secondary: Color(red: 0.02, green: 0.02, blue: 0.06)
     )
 
-    // MARK: - Layout Helpers
-    @Environment(\.verticalSizeClass) var verticalSizeClass
     private var isLandscape: Bool {
         verticalSizeClass == .compact
     }
-
+    
     private var maxDragOffset: CGFloat {
         UIScreen.main.bounds.height * 0.25
     }
+    
+    private var dragProgress: CGFloat {
+        let progress = min(1, dragOffset / maxDragOffset)
+        return max(0, progress)
+    }
 
+    private var artworkDragScale: CGFloat {
+        let fullSize = min(UIScreen.main.bounds.width * 0.7, 320)
+        let miniSize = 48.0
+        let targetScale = miniSize / fullSize
+        return 1 - (1 - targetScale) * dragProgress
+    }
+    
+    private var artworkDragTranslation: CGSize {
+        guard miniPlayerFrame != .zero else { return .zero }
+        let fullCenter = CGPoint(x: UIScreen.main.bounds.width / 2,
+                                 y: UIScreen.main.bounds.height / 2)
+        let targetCenter = CGPoint(x: miniPlayerFrame.midX,
+                                   y: miniPlayerFrame.midY)
+        let delta = CGSize(width: (targetCenter.x - fullCenter.x) * dragProgress,
+                           height: (targetCenter.y - fullCenter.y) * dragProgress)
+        return delta
+    }
+    
     private var backgroundOpacity: CGFloat {
         let progress = min(1, dragOffset / maxDragOffset)
         return 1 - progress * 0.8
     }
 
-    private var artworkDragScale: CGFloat {
-        let progress = min(1, dragOffset / maxDragOffset)
-        return 1 - progress * 0.15
-    }
-
     private var contentOpacity: CGFloat {
         let progress = min(1, dragOffset / maxDragOffset)
         return 1 - progress * 0.7
+    }
+    
+    private var repeatIconName: String {
+        switch musicPlayerManager.currentRepeatMode {
+        case .off: return "repeat"
+        case .one: return "repeat.1"
+        case .all: return "repeat"
+        }
+    }
+
+    // MARK: - Drag Gesture
+    private var dragGesture: some Gesture {
+        DragGesture()
+            .onChanged { value in
+                let translation = value.translation.height
+                if translation < maxDragOffset {
+                    dragOffset = translation
+                } else {
+                    let extra = translation - maxDragOffset
+                    dragOffset = maxDragOffset + extra * 0.15
+                }
+                if dragOffset < -20 { dragOffset = -20 }
+            }
+            .onEnded { value in
+                let crossedThreshold = value.translation.height > maxDragOffset * 0.6
+                let flungDown = value.predictedEndTranslation.height > maxDragOffset * 1.2
+                
+                if crossedThreshold || flungDown {
+                    dismissAction?()
+                } else {
+                    withAnimation(.spring(response: 0.4, dampingFraction: 0.75)) {
+                        dragOffset = 0
+                    }
+                }
+            }
+    }
+    
+    // MARK: - Methods
+    private func extractArtworkColors() {
+        guard let artwork = musicPlayerManager.artworkImage else { return }
+        DispatchQueue.global(qos: .userInitiated).async {
+            let colors = artwork.getDominantColors()
+            DispatchQueue.main.async {
+                withAnimation(.easeInOut(duration: 0.5)) {
+                    if colorScheme == .dark {
+                        artworkColors = (
+                            background: colors.background,
+                            primary: colors.primary,
+                            secondary: colors.secondary
+                        )
+                    } else {
+                        artworkColors = (
+                            background: colors.background.opacity(0.2),
+                            primary: colors.primary.opacity(0.1),
+                            secondary: colors.secondary.opacity(0.05)
+                        )
+                    }
+                }
+            }
+        }
     }
 
     // MARK: - Body
@@ -132,6 +211,7 @@ struct MusicPlayerView: View {
                 .onChange(of: musicPlayerManager.currentSong) { _, _ in extractArtworkColors() }
             }
             .ignoresSafeArea()
+            .opacity(backgroundOpacity)
 
             // Main content – entire view moves with drag
             Group {
@@ -177,31 +257,6 @@ struct MusicPlayerView: View {
         }
     }
 
-    // MARK: - Extract Artwork Colors
-    private func extractArtworkColors() {
-        guard let artwork = musicPlayerManager.artworkImage else { return }
-        DispatchQueue.global(qos: .userInitiated).async {
-            let colors = artwork.getDominantColors()
-            DispatchQueue.main.async {
-                withAnimation(.easeInOut(duration: 0.5)) {
-                    if colorScheme == .dark {
-                        artworkColors = (
-                            background: colors.background,
-                            primary: colors.primary,
-                            secondary: colors.secondary
-                        )
-                    } else {
-                        artworkColors = (
-                            background: colors.background.opacity(0.2),
-                            primary: colors.primary.opacity(0.1),
-                            secondary: colors.secondary.opacity(0.05)
-                        )
-                    }
-                }
-            }
-        }
-    }
-
     // MARK: - Portrait Content (Artwork perfectly centered)
     private var portraitContent: some View {
         GeometryReader { geometry in
@@ -215,6 +270,7 @@ struct MusicPlayerView: View {
                         .foregroundColor(colorScheme == .dark ? .white.opacity(0.5) : .black.opacity(0.5))
                 }
                 .frame(maxWidth: .infinity)
+                .padding(.bottom, 24)
                 .offset(y: isAnimatingSwipeIndicator ? 5 : -5)
                 .animation(Animation.easeInOut(duration: 1.5).repeatForever(autoreverses: true), value: isAnimatingSwipeIndicator)
                 .onAppear { isAnimatingSwipeIndicator = true }
@@ -230,9 +286,9 @@ struct MusicPlayerView: View {
                         size: min(geometry.size.width * 0.7, 320),
                         isPlaying: musicPlayerManager.isPlaying,
                         colorScheme: colorScheme,
-                        namespace: namespace
                     )
                     .scaleEffect(artworkDragScale)
+                    .offset(artworkDragTranslation)
                     .scaleEffect(artworkScale)
 
                     VStack(spacing: 6) {
@@ -252,7 +308,7 @@ struct MusicPlayerView: View {
                 }
                 .frame(maxWidth: .infinity)
 
-                VStack(spacing: 0) {
+                VStack(spacing: 12) {
                     // Banner Ad
                     if geometry.size.width > 0 && geometry.size.width.isFinite {
                         let adWidth = min(max(geometry.size.width - 40, 200), 320)
@@ -260,9 +316,7 @@ struct MusicPlayerView: View {
                             BannerAdView(adUnitID: AddsKeys.addUnitId.rawValue)
                                 .frame(width: adWidth, height: 50)
                                 .clipShape(RoundedRectangle(cornerRadius: 12))
-                                .shadow(color: .black.opacity(0.2), radius: 8, x: 0, y: 4)
-                                .padding(.horizontal, 20)
-                                .padding(.bottom, 12)
+                                .padding(12)
                                 .opacity(contentOpacity)
                         }
                     }
@@ -431,9 +485,9 @@ struct MusicPlayerView: View {
                         size: min(geometry.size.width * 0.55, 300),
                         isPlaying: musicPlayerManager.isPlaying,
                         colorScheme: colorScheme,
-                        namespace: namespace
                     )
                     .scaleEffect(artworkDragScale)
+                    .offset(artworkDragTranslation)
                     .scaleEffect(artworkScale)
                     Spacer()
                 }
@@ -452,7 +506,6 @@ struct MusicPlayerView: View {
                                 BannerAdView(adUnitID: AddsKeys.addUnitId.rawValue)
                                     .frame(width: adWidth, height: 50)
                                     .clipShape(RoundedRectangle(cornerRadius: 12))
-                                    .shadow(color: .black.opacity(0.2), radius: 8, x: 0, y: 4)
                                     .opacity(contentOpacity)
                             }
                         }
@@ -625,354 +678,4 @@ struct MusicPlayerView: View {
             .frame(width: geometry.size.width, height: geometry.size.height)
         }
     }
-
-    private var repeatIconName: String {
-        switch musicPlayerManager.currentRepeatMode {
-        case .off: return "repeat"
-        case .one: return "repeat.1"
-        case .all: return "repeat"
-        }
-    }
-
-    // MARK: - Drag Gesture
-    private var dragGesture: some Gesture {
-        DragGesture()
-            .onChanged { value in
-                let translation = value.translation.height
-                if translation < maxDragOffset {
-                    dragOffset = translation
-                } else {
-                    let extra = translation - maxDragOffset
-                    dragOffset = maxDragOffset + extra * 0.15
-                }
-                if dragOffset < -20 { dragOffset = -20 }
-            }
-            .onEnded { value in
-                let crossedThreshold = value.translation.height > maxDragOffset * 0.6
-                let flungDown = value.predictedEndTranslation.height > maxDragOffset * 1.2
-
-                if crossedThreshold || flungDown {
-                    dismissAction?()
-                } else {
-                    withAnimation(.spring(response: 0.4, dampingFraction: 0.75)) {
-                        dragOffset = 0
-                    }
-                }
-            }
-    }
-}
-
-// MARK: - UIImage Extension for Color Extraction
-extension UIImage {
-    func getDominantColors() -> (background: Color, primary: Color, secondary: Color) {
-        guard let inputImage = CIImage(image: self) else {
-            return (
-                background: Color(red: 0.05, green: 0.05, blue: 0.12),
-                primary: AppColors.primary,
-                secondary: Color(red: 0.02, green: 0.02, blue: 0.06)
-            )
-        }
-
-        let extentVector = CIVector(x: inputImage.extent.origin.x, y: inputImage.extent.origin.y, z: inputImage.extent.size.width, w: inputImage.extent.size.height)
-
-        guard let filter = CIFilter(name: "CIAreaAverage", parameters: [kCIInputImageKey: inputImage, kCIInputExtentKey: extentVector]) else {
-            return (
-                background: Color(red: 0.05, green: 0.05, blue: 0.12),
-                primary: AppColors.primary,
-                secondary: Color(red: 0.02, green: 0.02, blue: 0.06)
-            )
-        }
-
-        guard let outputImage = filter.outputImage else {
-            return (
-                background: Color(red: 0.05, green: 0.05, blue: 0.12),
-                primary: AppColors.primary,
-                secondary: Color(red: 0.02, green: 0.02, blue: 0.06)
-            )
-        }
-
-        var bitmap = [UInt8](repeating: 0, count: 4)
-        let context = CIContext(options: [.workingColorSpace: kCFNull!])
-        context.render(outputImage, toBitmap: &bitmap, rowBytes: 4, bounds: CGRect(x: 0, y: 0, width: 1, height: 1), format: .RGBA8, colorSpace: nil)
-
-        let avgColor = Color(
-            red: Double(bitmap[0]) / 255.0,
-            green: Double(bitmap[1]) / 255.0,
-            blue: Double(bitmap[2]) / 255.0
-        )
-
-        return (
-            background: avgColor,
-            primary: avgColor.opacity(0.8),
-            secondary: avgColor.opacity(0.6)
-        )
-    }
-}
-
-// MARK: - Circular Album Artwork
-struct CircularAlbumArtwork: View {
-    let artwork: UIImage?
-    let size: CGFloat
-    let isPlaying: Bool
-    let colorScheme: ColorScheme
-    let namespace: Namespace.ID
-
-    @State private var ringVisible = false
-
-    var body: some View {
-        ZStack {
-            Circle()
-                .fill(
-                    LinearGradient(
-                        colors: [
-                            colorScheme == .dark ? Color.white.opacity(0.2) : Color.black.opacity(0.1),
-                            colorScheme == .dark ? Color.white.opacity(0.05) : Color.black.opacity(0.05)
-                        ],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    )
-                )
-                .frame(width: size + 12, height: size + 12)
-                .shadow(color: .black.opacity(0.3), radius: 20, x: 0, y: 10)
-                .opacity(ringVisible ? 1 : 0)
-
-            artworkCircle
-                .matchedGeometryEffect(id: "albumArt", in: namespace, isSource: false)
-                .transition(.identity)
-        }
-    }
-
-    @ViewBuilder
-    private var artworkCircle: some View {
-        Circle()
-            .fill(colorScheme == .dark ? Color.black.opacity(0.3) : Color.white.opacity(0.3))
-            .frame(width: size, height: size)
-            .overlay(
-                Group {
-                    if let artwork = artwork {
-                        Image(uiImage: artwork)
-                            .resizable()
-                            .scaledToFill()
-                            .frame(width: size, height: size)
-                            .clipShape(Circle())
-                    } else {
-                        Circle()
-                            .fill(.ultraThinMaterial)
-                            .overlay(
-                                Image(systemName: "music.note")
-                                    .font(.system(size: size * 0.3, weight: .thin))
-                                    .foregroundColor(colorScheme == .dark ? .white.opacity(0.5) : .black.opacity(0.5))
-                            )
-                    }
-                }
-            )
-            .overlay(
-                Circle()
-                    .stroke(
-                        LinearGradient(
-                            colors: [
-                                colorScheme == .dark ? Color.white.opacity(0.3) : Color.black.opacity(0.15),
-                                colorScheme == .dark ? Color.white.opacity(0.05) : Color.black.opacity(0.05)
-                            ],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        ),
-                        lineWidth: 1.5
-                    )
-            )
-            .shadow(color: .black.opacity(0.4), radius: 15, x: 0, y: 8)
-    }
-}
-
-// MARK: - Progress Bar
-struct ProgressBar: View {
-    @Binding var currentTime: TimeInterval
-    let duration: TimeInterval
-    let onDragChanged: (TimeInterval) -> Void
-    let colorScheme: ColorScheme
-
-    @State private var isDragging = false
-
-    var body: some View {
-        VStack(spacing: 8) {
-            GeometryReader { geometry in
-                ZStack(alignment: .leading) {
-                    Capsule()
-                        .fill((colorScheme == .dark ? Color.white : Color.black).opacity(0.12))
-                        .frame(height: 3)
-
-                    Capsule()
-                        .fill(
-                            LinearGradient(
-                                colors: [AppColors.primary, AppColors.primary.opacity(0.6)],
-                                startPoint: .leading,
-                                endPoint: .trailing
-                            )
-                        )
-                        .frame(width: progressWidth(totalWidth: geometry.size.width), height: 3)
-                        .animation(.linear(duration: 0.1), value: currentTime)
-
-                    Circle()
-                        .fill(Color.white)
-                        .frame(width: 14, height: 14)
-                        .shadow(color: AppColors.primary.opacity(0.4), radius: 4, x: 0, y: 0)
-                        .offset(x: circleXPosition(geometry: geometry), y: 0)
-                        .animation(isDragging ? nil : .linear(duration: 0.1), value: currentTime)
-                }
-                .frame(height: 30)
-                .contentShape(Rectangle())
-                .gesture(
-                    DragGesture(minimumDistance: 0)
-                        .onChanged { value in
-                            isDragging = true
-                            let newPosition = max(0, min(geometry.size.width, value.location.x))
-                            let progress = newPosition / geometry.size.width
-                            let newTime = progress * duration
-                            currentTime = newTime
-                            onDragChanged(newTime)
-                        }
-                        .onEnded { value in
-                            isDragging = false
-                            let newPosition = max(0, min(geometry.size.width, value.location.x))
-                            let progress = newPosition / geometry.size.width
-                            let newTime = progress * duration
-                            currentTime = newTime
-                            onDragChanged(newTime)
-                        }
-                )
-            }
-            .frame(height: 30)
-
-            HStack {
-                Text(formatTime(currentTime))
-                    .font(.system(size: 13, weight: .medium, design: .rounded))
-                    .monospacedDigit()
-                    .foregroundColor((colorScheme == .dark ? Color.white : Color.black).opacity(0.6))
-                Spacer()
-                Text(formatTime(duration))
-                    .font(.system(size: 13, weight: .medium, design: .rounded))
-                    .monospacedDigit()
-                    .foregroundColor((colorScheme == .dark ? Color.white : Color.black).opacity(0.6))
-            }
-        }
-    }
-
-    private func progressWidth(totalWidth: CGFloat) -> CGFloat {
-        guard duration > 0 else { return 0 }
-        return totalWidth * CGFloat(currentTime / duration)
-    }
-
-    private func circleXPosition(geometry: GeometryProxy) -> CGFloat {
-        guard duration > 0 else { return 0 }
-        let halfCircle: CGFloat = 7
-        let progress = CGFloat(currentTime / duration)
-        let position = progress * geometry.size.width - halfCircle
-        let maxOffset = geometry.size.width - 14
-        return max(0, min(maxOffset, position))
-    }
-
-    private func formatTime(_ time: TimeInterval) -> String {
-        guard time.isFinite && !time.isNaN && time >= 0 else { return "00:00" }
-        let mins = Int(time) / 60
-        let secs = Int(time) % 60
-        return String(format: "%02d:%02d", mins, secs)
-    }
-}
-
-// MARK: - PlayPauseButton
-struct PlayPauseButton: View {
-    let isPlaying: Bool
-    let size: CGFloat
-    let action: () -> Void
-    let colorScheme: ColorScheme
-
-    @State private var isPressed = false
-
-    var body: some View {
-        Button(action: {
-            withAnimation(.spring(response: 0.3, dampingFraction: 0.6)) {
-                isPressed = true
-            }
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                withAnimation(.spring(response: 0.3, dampingFraction: 0.6)) {
-                    isPressed = false
-                }
-            }
-            action()
-        }) {
-            ZStack {
-                Circle()
-                    .fill(.ultraThinMaterial)
-                    .frame(width: size, height: size)
-                    .shadow(color: .black.opacity(0.2), radius: 10, x: 0, y: 5)
-                    .overlay(
-                        Circle()
-                            .stroke(
-                                LinearGradient(
-                                    colors: [
-                                        (colorScheme == .dark ? Color.white : Color.black).opacity(0.3),
-                                        (colorScheme == .dark ? Color.white : Color.black).opacity(0.05)
-                                    ],
-                                    startPoint: .topLeading,
-                                    endPoint: .bottomTrailing
-                                ),
-                                lineWidth: 1.5
-                            )
-                    )
-                    .scaleEffect(isPressed ? 0.92 : 1.0)
-
-                Image(systemName: isPlaying ? "pause.fill" : "play.fill")
-                    .font(.system(size: size * 0.4, weight: .bold, design: .rounded))
-                    .foregroundColor(colorScheme == .dark ? .white : .black)
-                    .contentTransition(.symbolEffect(.replace))
-                    .scaleEffect(isPressed ? 0.92 : 1.0)
-            }
-        }
-        .buttonStyle(PlainButtonStyle())
-    }
-}
-
-// MARK: - ControlButton
-struct ControlButton: View {
-    let icon: String
-    let isActive: Bool
-    let action: () -> Void
-    let colorScheme: ColorScheme
-
-    @State private var isPressed = false
-
-    var body: some View {
-        Button(action: {
-            withAnimation(.spring(response: 0.3, dampingFraction: 0.6)) {
-                isPressed = true
-            }
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                withAnimation(.spring(response: 0.3, dampingFraction: 0.6)) {
-                    isPressed = false
-                }
-            }
-            action()
-        }) {
-            Image(systemName: icon)
-                .font(.system(size: 22, weight: .medium))
-                .foregroundColor(isActive ? AppColors.primary : (colorScheme == .dark ? .white.opacity(0.6) : .black.opacity(0.6)))
-                .frame(width: 44, height: 44)
-                .background(isActive ? (colorScheme == .dark ? Color.white.opacity(0.1) : Color.black.opacity(0.05)) : Color.clear)
-                .clipShape(Circle())
-                .scaleEffect(isPressed ? 0.9 : 1.0)
-                .animation(.spring(response: 0.3, dampingFraction: 0.6), value: isActive)
-        }
-    }
-}
-
-// MARK: - Visual Effect Blur
-struct VisualEffectBlur: UIViewRepresentable {
-    let blurStyle: UIBlurEffect.Style
-
-    func makeUIView(context: Context) -> UIVisualEffectView {
-        let view = UIVisualEffectView(effect: UIBlurEffect(style: blurStyle))
-        return view
-    }
-
-    func updateUIView(_ uiView: UIVisualEffectView, context: Context) {}
 }

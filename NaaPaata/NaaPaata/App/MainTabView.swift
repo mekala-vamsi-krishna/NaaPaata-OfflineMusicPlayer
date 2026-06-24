@@ -18,6 +18,7 @@ struct MainTabView: View {
     @StateObject private var sleepTimerManager = SleepTimerManager.shared
 
     @State private var showFullPlayer = false
+    @State private var miniPlayerFrame: CGRect = .zero
     @Namespace private var animation
 
     @Environment(\.horizontalSizeClass) var sizeClass
@@ -66,6 +67,16 @@ struct MainTabView: View {
                     Spacer()
                     if musicPlayerManager.currentSong != nil && !showFullPlayer {
                         MiniPlayerView(namespace: animation)
+                            .background(
+                                GeometryReader { geo in
+                                    Color.clear
+                                        .preference(key: MiniPlayerFrameKey.self,
+                                                    value: geo.frame(in: .global))
+                                }
+                            )
+                            .onPreferenceChange(MiniPlayerFrameKey.self) { frame in
+                                miniPlayerFrame = frame
+                            }
                             .onTapGesture {
                                 withAnimation(.spring(response: 0.5, dampingFraction: 0.8)) {
                                     showFullPlayer = true
@@ -78,21 +89,32 @@ struct MainTabView: View {
 
                 // Full Player Overlay
                 if showFullPlayer {
+                    Color.clear
+                        .edgesIgnoringSafeArea(.all)
+
                     MusicPlayerView(
                         dismissAction: {
                             withAnimation(.spring(response: 0.5, dampingFraction: 0.8)) {
                                 showFullPlayer = false
                             }
                         },
+                        miniPlayerFrame: miniPlayerFrame,
                         namespace: animation
                     )
                     .environmentObject(musicPlayerManager)
                     .environmentObject(playlistsViewModel)
                     .environmentObject(sleepTimerManager)
-                    .transition(.identity)
+                    .transition(.opacity)
                     .zIndex(1)
                 }
             }
         }
+    }
+}
+
+struct MiniPlayerFrameKey: PreferenceKey {
+    static var defaultValue: CGRect = .zero
+    static func reduce(value: inout CGRect, nextValue: () -> CGRect) {
+        value = nextValue()
     }
 }
