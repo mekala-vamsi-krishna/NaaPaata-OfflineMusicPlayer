@@ -10,6 +10,10 @@ import AVFoundation
 import MediaPlayer
 import Foundation
 
+#if canImport(WidgetKit)
+import WidgetKit
+#endif
+
 final class MusicPlayerManager: NSObject, ObservableObject {
     static let shared = MusicPlayerManager()
     
@@ -19,9 +23,7 @@ final class MusicPlayerManager: NSObject, ObservableObject {
     private var playQueue: [Song] = []
     
     private var currentPlaylistName: String? = nil
-    
     private var isPlayingFromPlaylist: Bool = false
-    
     private var currentIndex: Int = 0
     
     // Cache Artwork
@@ -29,24 +31,16 @@ final class MusicPlayerManager: NSObject, ObservableObject {
     
     // MARK: - Published Properties
     @Published var artworkImage: UIImage?
-    
     @Published var isPlaying: Bool = false
-    
     @Published var currentTime: TimeInterval = 0
     @Published var duration: TimeInterval = 0
-    
     @Published var currentSong: Song?
     
     @Published var shuffleIsActive: Bool = false {
-        didSet {
-            print("🔄 shuffleIsActive changed to: \(shuffleIsActive)")
-        }
+        didSet { print("🔄 shuffleIsActive changed to: \(shuffleIsActive)") }
     }
-    
     @Published var currentRepeatMode: RepeatMode = .off {
-        didSet {
-            print("🔁 currentRepeatMode changed to: \(currentRepeatMode)")
-        }
+        didSet { print("🔁 currentRepeatMode changed to: \(currentRepeatMode)") }
     }
     
     // MARK: - Audio Engine Properties
@@ -55,9 +49,7 @@ final class MusicPlayerManager: NSObject, ObservableObject {
     private var equalizer: AVAudioUnitEQ!
     private var audioFile: AVAudioFile?
     private var seekFrame: AVAudioFramePosition = 0
-    
     private var playbackToken: UUID?
-    
     private var timer: Timer?
     
     private var currentFrame: AVAudioFramePosition {
@@ -68,37 +60,28 @@ final class MusicPlayerManager: NSObject, ObservableObject {
         return seekFrame + playerTime.sampleTime
     }
     
-    // MARK: - Repeat Mode Enum
     enum RepeatMode {
-        case off      /// No repeat
-        case one      /// Repeat current song
-        case all      /// Repeat entire playlist
+        case off, one, all
     }
     
-    // MARK: - init()
     override init() {
         super.init()
         setupAudioEngine()
         setupNotifications()
+        setupWidgetCommandObserver()
     }
     
-    // MARK: - setupAudioEngine
+    // MARK: - Audio Engine Setup
     private func setupAudioEngine() {
         engine = AVAudioEngine()
         playerNode = AVAudioPlayerNode()
-        
-        // Initialize EQ with 9 bands
         equalizer = AVAudioUnitEQ(numberOfBands: 9)
         
-        // Configure Bands
         let frequencies: [Float] = [60, 150, 400, 1000, 2400, 15000, 20000]
-        
-        // Band 0: Bass Knob (Low Shelf at ~100Hz)
         equalizer.bands[0].filterType = .lowShelf
         equalizer.bands[0].frequency = 100
         equalizer.bands[0].bypass = false
         
-        // Bands 1-7: Sliders (Parametric)
         for (index, freq) in frequencies.enumerated() {
             let bandIndex = index + 1
             equalizer.bands[bandIndex].filterType = .parametric
@@ -107,23 +90,17 @@ final class MusicPlayerManager: NSObject, ObservableObject {
             equalizer.bands[bandIndex].bypass = false
         }
         
-        // Band 8: Treble Knob (High Shelf at ~10kHz)
         equalizer.bands[8].filterType = .highShelf
         equalizer.bands[8].frequency = 10000
         equalizer.bands[8].bypass = false
         
         engine.attach(playerNode)
         engine.attach(equalizer)
-        
-        // Connect Nodes: Player -> EQ -> MainMixer
         engine.connect(playerNode, to: equalizer, format: nil)
         engine.connect(equalizer, to: engine.mainMixerNode, format: nil)
-        
-        // Setup Audio Session
         setupAudioSession()
     }
     
-    // MARK: - setupNotifications
     private func setupNotifications() {
         NotificationCenter.default.addObserver(
             self,
@@ -138,13 +115,11 @@ final class MusicPlayerManager: NSObject, ObservableObject {
             object: nil
         )
     }
-
-    // MARK: - @objc handleInterruption
+    
     @objc private func handleInterruption(notification: Notification) {
         guard let userInfo = notification.userInfo,
               let typeValue = userInfo[AVAudioSessionInterruptionTypeKey] as? UInt,
               let type = AVAudioSession.InterruptionType(rawValue: typeValue) else { return }
-        
         if type == .began {
             if isPlaying {
                 playerNode.pause()
@@ -163,37 +138,28 @@ final class MusicPlayerManager: NSObject, ObservableObject {
         }
     }
     
-    // MARK: - @objc handleRouteChange
     @objc private func handleRouteChange(notification: Notification) {
         guard let userInfo = notification.userInfo,
               let reasonValue = userInfo[AVAudioSessionRouteChangeReasonKey] as? UInt,
               let reason = AVAudioSession.RouteChangeReason(rawValue: reasonValue) else { return }
-        
-        switch reason {
-        case .oldDeviceUnavailable:
+        if reason == .oldDeviceUnavailable {
             if isPlaying {
                 playerNode.pause()
                 isPlaying = false
                 updateNowPlayingInfo()
             }
-        default: break
         }
     }
     
-    // MARK: - updateEQ Settings
+    // MARK: - EQ & Volume
     func updateEQ(settings: EqualizerSettings) {
         equalizer.bypass = !settings.isEnabled
-        
         if !settings.isEnabled { return }
-        
-        // Pre-Amp (Global Gain)
         if settings.isPreAmpEnabled {
             equalizer.globalGain = Float(settings.preAmpValue)
         } else {
             equalizer.globalGain = 0
         }
-        
-        // Bass Knob (Band 0)
         if settings.isBassEnabled {
             equalizer.bands[0].gain = Float(settings.bassValue)
             equalizer.bands[0].bypass = false
@@ -201,16 +167,12 @@ final class MusicPlayerManager: NSObject, ObservableObject {
             equalizer.bands[0].gain = 0
             equalizer.bands[0].bypass = true
         }
-        
-        // Sliders (Bands 1-7)
         for (index, value) in settings.bands.enumerated() {
             let bandIndex = index + 1
             if bandIndex < equalizer.bands.count {
                 equalizer.bands[bandIndex].gain = Float(value)
             }
         }
-        
-        // Treble Knob (Band 8)
         if settings.isTrebleEnabled {
             equalizer.bands[8].gain = Float(settings.trebleValue)
             equalizer.bands[8].bypass = false
@@ -220,81 +182,58 @@ final class MusicPlayerManager: NSObject, ObservableObject {
         }
     }
     
-    // MARK: - setVolume
     func setVolume(_ volume: Double) {
         engine.mainMixerNode.outputVolume = Float(volume)
     }
     
-    // MARK: - Play song
+    // MARK: - Playback Control
     func playSong(_ song: Song) {
         currentSong = song
-        
         if !engine.isRunning {
             try? engine.start()
         }
-        
         do {
             guard let fileURL = song.resolvedURL ?? song.url as URL? else {
                 print("Error: Unable to resolve song URL")
                 return
             }
-            
             audioFile = try AVAudioFile(forReading: fileURL)
             guard let audioFile = audioFile else { return }
-            
             playerNode.stop()
-            
             let token = UUID()
             playbackToken = token
-            
             seekFrame = 0
             playerNode.scheduleFile(audioFile, at: nil) { [weak self] in
                 DispatchQueue.main.async {
                     self?.handlePlaybackFinished(token: token)
                 }
             }
-            
             setupRemoteTransportControls()
-            
             playerNode.play()
             isPlaying = true
             duration = Double(audioFile.length) / audioFile.processingFormat.sampleRate
-            
-            if let artwork = song.artworkImage {
-                artworkImage = artwork
-            } else {
-                artworkImage = getArtwork(for: song)
-            }
-            
+            artworkImage = song.artworkImage ?? getArtwork(for: song)
             updateNowPlayingInfo()
             startTimer()
-            
+            saveCurrentPlaybackState()
+            updateNowPlayingInfo()
+            updateWidgetData()
         } catch {
             print("Error playing song: \(error.localizedDescription)")
         }
-        
-        updateNowPlayingInfo()
     }
     
-    // MARK: - handlePlaybackFinished
     private func handlePlaybackFinished(token: UUID) {
         guard token == playbackToken else { return }
-        
         if isPlaying {
             switch currentRepeatMode {
-            case .off:
-                playNext()
-            case .one:
-                if let current = currentSong {
-                    playSong(current)
-                }
-            case .all:
-                playNext()
+            case .off: playNext()
+            case .one: if let current = currentSong { playSong(current) }
+            case .all: playNext()
             }
         }
     }
     
-    // MARK: - playFromAllSongs
     func playFromAllSongs(
         _ songs: [Song],
         startAt song: Song? = nil,
@@ -302,57 +241,64 @@ final class MusicPlayerManager: NSObject, ObservableObject {
         shuffle: Bool = false,
         repeatMode: RepeatMode = .off
     ) {
-        
         allSongs = songs
         originalPlaylist = songs
-        shuffledPlaylist = []
         shuffleIsActive = shuffle
         playQueue = []
         currentPlaylistName = playlistName
         isPlayingFromPlaylist = (playlistName != nil)
         currentRepeatMode = repeatMode
         
+        if shuffleIsActive {
+            shuffledPlaylist = allSongs.shuffled()
+            currentIndex = 0
+        } else {
+            shuffledPlaylist = []
+            currentIndex = 0
+        }
+        
+        
+        let playlistToUse = shuffleIsActive ? shuffledPlaylist : allSongs
+        guard !playlistToUse.isEmpty else { return }
+        
         if let startSong = song {
-            currentSong = startSong
-            if let index = songs.firstIndex(where: { $0.url == startSong.url }) {
+            if let index = playlistToUse.firstIndex(where: { $0.url == startSong.url }) {
                 currentIndex = index
+                currentSong = startSong
                 playSong(startSong)
             } else {
                 currentIndex = 0
-                if let first = songs.first {
-                    currentSong = first
-                    playSong(first)
-                }
+                let firstSong = playlistToUse[0]
+                currentSong = firstSong
+                playSong(firstSong)
             }
-        } else if let first = songs.first {
-            currentSong = first
+        } else {
+            let firstSong = playlistToUse[0]
             currentIndex = 0
-            playSong(first)
+            currentSong = firstSong
+            playSong(firstSong)
         }
     }
     
-    // MARK: - addToQueueNext
     func addToQueueNext(_ song: Song) {
         guard !allSongs.isEmpty else {
             playQueue = [song]
             return
         }
-
         let safeIndex = (0..<allSongs.count).contains(currentIndex) ? currentIndex : -1
-
         let remaining: [Song]
         if safeIndex >= 0 && safeIndex + 1 < allSongs.count {
             remaining = Array(allSongs[(safeIndex + 1)...])
         } else {
             remaining = []
         }
-
         playQueue = remaining
         playQueue.insert(song, at: 0)
     }
     
-    // MARK: - playNext
     func playNext() {
+        ensurePlaybackState()
+        
         if !playQueue.isEmpty {
             let nextSong = playQueue.removeFirst()
             if let originalIndex = allSongs.firstIndex(where: { $0.url == nextSong.url }) {
@@ -361,9 +307,7 @@ final class MusicPlayerManager: NSObject, ObservableObject {
             playSong(nextSong)
         } else if !allSongs.isEmpty {
             let playlistToUse = shuffleIsActive ? (shuffledPlaylist.isEmpty ? allSongs : shuffledPlaylist) : allSongs
-            
             guard !playlistToUse.isEmpty else { return }
-            
             switch currentRepeatMode {
             case .all:
                 currentIndex = (currentIndex + 1) % playlistToUse.count
@@ -382,19 +326,19 @@ final class MusicPlayerManager: NSObject, ObservableObject {
                     stop()
                 }
             }
+            saveCurrentPlaybackState()
         }
     }
     
-    // MARK: - playPrevious
     func playPrevious() {
+        ensurePlaybackState()
+        
         let playlistToUse = shuffleIsActive ? (shuffledPlaylist.isEmpty ? allSongs : shuffledPlaylist) : allSongs
         guard !playlistToUse.isEmpty else { return }
-        
         if currentTime > 3 {
             seek(to: 0)
             return
         }
-        
         if currentRepeatMode == .one {
             if let current = currentSong {
                 playSong(current)
@@ -402,10 +346,10 @@ final class MusicPlayerManager: NSObject, ObservableObject {
         } else {
             currentIndex = (currentIndex - 1 + playlistToUse.count) % playlistToUse.count
             playSong(playlistToUse[currentIndex])
+            saveCurrentPlaybackState()
         }
     }
     
-    // MARK: - togglePlayPause
     func togglePlayPause() {
         if isPlaying {
             playerNode.pause()
@@ -418,18 +362,19 @@ final class MusicPlayerManager: NSObject, ObservableObject {
             isPlaying = true
         }
         updateNowPlayingInfo()
+        saveCurrentPlaybackState()
+        updateWidgetData()
     }
     
-    // MARK: - pause playing song
     func pause() {
         if isPlaying {
             playerNode.pause()
             isPlaying = false
             updateNowPlayingInfo()
+            updateWidgetData()
         }
     }
     
-    // MARK: - stop playing song
     func stop() {
         playbackToken = nil
         playerNode.stop()
@@ -439,48 +384,38 @@ final class MusicPlayerManager: NSObject, ObservableObject {
         artworkImage = nil
         stopTimer()
         PlaybackStateService.shared.clearPlaybackState()
+        saveCurrentPlaybackState()
+        updateWidgetData()
     }
     
-    // MARK: - toggleShuffle
+    // MARK: - Shuffle & Repeat
     func toggleShuffle() {
         if shuffleIsActive {
-            // Turning shuffle OFF - restore original order
             deactivateShuffle()
         } else {
-            // Turning shuffle ON - create shuffled playlist
             activateShuffle()
         }
-        
-        // Industry standard: Turning on shuffle disables repeat
         if shuffleIsActive && currentRepeatMode != .off {
             currentRepeatMode = .off
         }
     }
     
-    // MARK: - activateShuffle
     private func activateShuffle() {
         guard !allSongs.isEmpty else { return }
-        
         let currentSong = getCurrentSong()
-        
         if let currentSong = currentSong {
-            // Keep current song at position 0, shuffle the rest
             var songsToShuffle = allSongs.filter { $0.id != currentSong.id }
             songsToShuffle.shuffle()
             shuffledPlaylist = [currentSong] + songsToShuffle
             currentIndex = 0
         } else {
-            // No current song, shuffle everything
             shuffledPlaylist = allSongs.shuffled()
             currentIndex = 0
         }
-        
         shuffleIsActive = true
     }
     
-    // MARK: - deactivateShuffle
     private func deactivateShuffle() {
-        // Restore original order while maintaining current song position
         guard let currentSong = getCurrentSong(),
               let originalIndex = originalPlaylist.firstIndex(where: { $0.id == currentSong.id }) else {
             shuffledPlaylist = originalPlaylist
@@ -488,86 +423,68 @@ final class MusicPlayerManager: NSObject, ObservableObject {
             shuffleIsActive = false
             return
         }
-        
         shuffledPlaylist = originalPlaylist
         currentIndex = originalIndex
         shuffleIsActive = false
     }
     
-    // MARK: - getCurrentSong
     private func getCurrentSong() -> Song? {
         let activePlaylist = shuffleIsActive ? shuffledPlaylist : originalPlaylist
         guard currentIndex >= 0 && currentIndex < activePlaylist.count else { return nil }
         return activePlaylist[currentIndex]
     }
     
-    // MARK: - cycleRepeatMode
     func cycleRepeatMode() {
-        // Industry standard: Turning on repeat disables shuffle
         if shuffleIsActive {
             deactivateShuffle()
         }
-        
-        // Cycle through repeat modes: off → all → one → off
         switch currentRepeatMode {
-        case .off:
-            currentRepeatMode = .all
-        case .all:
-            currentRepeatMode = .one
-        case .one:
-            currentRepeatMode = .off
+        case .off: currentRepeatMode = .all
+        case .all: currentRepeatMode = .one
+        case .one: currentRepeatMode = .off
         }
     }
     
-    // MARK: - Shuffle Playlist
     func shufflePlay(playlist: [Song], fromPlaylist playlistName: String? = nil) {
         allSongs = playlist
         originalPlaylist = playlist
         shuffledPlaylist = playlist.shuffled()
         shuffleIsActive = true
         currentRepeatMode = .off
-        
         currentPlaylistName = playlistName
         isPlayingFromPlaylist = (playlistName != nil)
         playQueue = []
-        
         currentIndex = 0
         if let songToPlay = shuffledPlaylist.first {
             playSong(songToPlay)
         }
     }
     
-    // MARK: - startTimer
+    // MARK: - Timer
     private func startTimer() {
         stopTimer()
         timer = Timer.scheduledTimer(withTimeInterval: 0.5, repeats: true) { [weak self] _ in
             guard let self = self else { return }
-            
             if let nodeTime = self.playerNode.lastRenderTime,
                let playerTime = self.playerNode.playerTime(forNodeTime: nodeTime),
                let file = self.audioFile {
-                
                 let sampleRate = file.processingFormat.sampleRate
                 let currentFrame = self.seekFrame + playerTime.sampleTime
                 let time = Double(currentFrame) / sampleRate
-                
                 self.currentTime = time
-                
                 MPNowPlayingInfoCenter.default().nowPlayingInfo?[MPNowPlayingInfoPropertyElapsedPlaybackTime] = time
             }
         }
     }
     
-    // MARK: - stopTimer
     private func stopTimer() {
         timer?.invalidate()
         timer = nil
     }
     
-    // MARK: - saveCurrentPlaybackState
+    // MARK: - Playback State Persistence
     func saveCurrentPlaybackState() {
         guard let currentSong = currentSong else { return }
-        
         let playbackState = PlaybackState(
             song: currentSong,
             position: currentTime,
@@ -576,16 +493,13 @@ final class MusicPlayerManager: NSObject, ObservableObject {
         PlaybackStateService.shared.savePlaybackState(playbackState)
     }
     
-    // MARK: - restoreLastPlaybackState
     func restoreLastPlaybackState() {
         guard let playbackState = PlaybackStateService.shared.loadPlaybackState() else { return }
-        
         guard let songURL = URL(string: playbackState.songURL),
               FileManager.default.fileExists(atPath: songURL.path) else {
             PlaybackStateService.shared.clearPlaybackState()
             return
         }
-        
         let restoredSong = Song(
             url: songURL,
             title: playbackState.songTitle,
@@ -594,20 +508,36 @@ final class MusicPlayerManager: NSObject, ObservableObject {
             artworkImage: playbackState.artworkData != nil ? UIImage(data: playbackState.artworkData!) : nil
         )
         
+        // ✅ If we have a playlist, set the index so next/prev work
+        if !allSongs.isEmpty {
+            if let index = allSongs.firstIndex(where: { $0.urlString == restoredSong.urlString }) {
+                currentIndex = index
+            } else {
+                // Song not in current playlist – fallback to 0
+                currentIndex = 0
+            }
+        }
+        
         playSong(restoredSong)
         
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
             if playbackState.playbackPosition > 0 {
                 self.seek(to: playbackState.playbackPosition)
             }
-            
-            if self.isPlaying {
-                self.togglePlayPause()
-            }
         }
     }
     
-    // MARK: - getArtwork for song
+    // MARK: - Playlist Setup (without playing)
+    func setPlaylist(_ songs: [Song]) {
+        allSongs = songs
+        originalPlaylist = songs
+        shuffledPlaylist = []
+        shuffleIsActive = false
+        currentIndex = 0
+        // Do not play anything – just prepare the playlist.
+    }
+    
+    // MARK: - Artwork
     func getArtwork(for song: Song) -> UIImage {
         if let artwork = song.artworkImage { return artwork }
         guard let fileURL = song.resolvedURL ?? song.url as URL? else {
@@ -624,7 +554,6 @@ final class MusicPlayerManager: NSObject, ObservableObject {
         return generateDefaultArtwork()
     }
     
-    // MARK: - loadArtworkAsync
     func loadArtworkAsync(for song: Song) async -> UIImage {
         let key = NSString(string: song.urlString)
         if let cached = artworkCache.object(forKey: key) { return cached }
@@ -656,7 +585,6 @@ final class MusicPlayerManager: NSObject, ObservableObject {
         }.value
     }
     
-    // MARK: - generateDefaultArtwork
     private func generateDefaultArtwork() -> UIImage {
         let size = CGSize(width: 500, height: 500)
         let renderer = UIGraphicsImageRenderer(size: size)
@@ -674,7 +602,6 @@ final class MusicPlayerManager: NSObject, ObservableObject {
         }
     }
     
-    // MARK: - loadSong from url
     func loadSong(from url: URL) -> Song {
         let asset = AVAsset(url: url)
         var title = url.deletingPathExtension().lastPathComponent
@@ -694,7 +621,6 @@ final class MusicPlayerManager: NSObject, ObservableObject {
         return Song(url: url, title: title, artist: artist, duration: duration, artworkImage: artwork)
     }
     
-    // MARK: - delete song
     func delete(song: Song) {
         if currentSong == song {
             stop()
@@ -713,20 +639,15 @@ final class MusicPlayerManager: NSObject, ObservableObject {
         if !allSongs.isEmpty { playNext() }
     }
     
-    // MARK: - seek to time interval
     func seek(to time: TimeInterval) {
         guard let audioFile = audioFile else { return }
-        
         let sampleRate = audioFile.processingFormat.sampleRate
         let newFrame = AVAudioFramePosition(time * sampleRate)
         let frameCount = AVAudioFrameCount(audioFile.length - newFrame)
-        
         if frameCount > 0 {
             playerNode.stop()
-            
             let token = UUID()
             playbackToken = token
-            
             if frameCount > 1000 {
                 playerNode.scheduleSegment(
                     audioFile,
@@ -739,20 +660,16 @@ final class MusicPlayerManager: NSObject, ObservableObject {
                     }
                 }
             }
-            
             seekFrame = newFrame
-            
             if isPlaying {
                 playerNode.play()
             }
-            
             currentTime = time
             updateNowPlayingInfo()
         }
     }
     
     // MARK: - Lock Screen
-    // MARK: - setupAudioSession
     private func setupAudioSession() {
         do {
             try AVAudioSession.sharedInstance().setCategory(.playback, mode: .default)
@@ -760,7 +677,6 @@ final class MusicPlayerManager: NSObject, ObservableObject {
         } catch { print("Audio Session Error: \(error.localizedDescription)") }
     }
     
-    // MARK: - updateNowPlayingInfo
     private func updateNowPlayingInfo() {
         guard let song = currentSong else { return }
         var info: [String : Any] = [
@@ -779,7 +695,6 @@ final class MusicPlayerManager: NSObject, ObservableObject {
         MPNowPlayingInfoCenter.default().nowPlayingInfo = info
     }
     
-    // MARK: - setupRemoteTransportControls
     private func setupRemoteTransportControls() {
         let cc = MPRemoteCommandCenter.shared()
         cc.playCommand.isEnabled = true
@@ -808,6 +723,71 @@ final class MusicPlayerManager: NSObject, ObservableObject {
             guard let self = self, let positionEvent = event as? MPChangePlaybackPositionCommandEvent else { return .commandFailed }
             self.seek(to: positionEvent.positionTime)
             return .success
+        }
+    }
+    
+    // MARK: - Widget Data Update
+    private func updateWidgetData() {
+        let title = currentSong?.title
+        let artist = currentSong?.artist
+        let artworkData = currentSong?.artworkImage?.jpegData(compressionQuality: 0.8)
+        SharedDataManager.shared.updateWidgetData(title: title, artist: artist, artworkData: artworkData, isPlaying: isPlaying)
+        #if canImport(WidgetKit)
+        WidgetCenter.shared.reloadTimelines(ofKind: "MusicPlayerWidget")
+        #endif
+    }
+    
+    // MARK: - Ensure Playback State (for widget actions)
+    private func ensurePlaybackState() {
+        // If we have a current song, we're already good.
+        if currentSong != nil && !allSongs.isEmpty {
+            return
+        }
+        
+        // Try to restore last playback state (if any)
+        restoreLastPlaybackState()
+        
+        // If still no song, but we have songs, start from the first
+        if currentSong == nil && !allSongs.isEmpty {
+            playSong(allSongs[0])
+        }
+        
+        if allSongs.isEmpty {
+            print("⚠️ No songs available to play.")
+        }
+    }
+    
+    private func setupWidgetCommandObserver() {
+        let notificationCenter = CFNotificationCenterGetDarwinNotifyCenter()
+        CFNotificationCenterAddObserver(
+            notificationCenter,
+            Unmanaged.passUnretained(self).toOpaque(),
+            { (_, observer, name, _, _) in
+                guard let observer = observer else { return }
+                let manager = Unmanaged<MusicPlayerManager>.fromOpaque(observer).takeUnretainedValue()
+                manager.handleWidgetCommand()
+            },
+            "com.NaaPaata.widgetCommand" as CFString,
+            nil,
+            .deliverImmediately
+        )
+    }
+
+    private func handleWidgetCommand() {
+        guard let command = SharedDataManager.shared.readCommand() else { return }
+        SharedDataManager.shared.clearCommand()
+        
+        DispatchQueue.main.async {
+            switch command {
+            case "playpause":
+                self.togglePlayPause()
+            case "next":
+                self.playNext()
+            case "previous":
+                self.playPrevious()
+            default:
+                break
+            }
         }
     }
 }

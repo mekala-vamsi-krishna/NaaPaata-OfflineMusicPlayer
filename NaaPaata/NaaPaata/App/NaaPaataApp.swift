@@ -25,6 +25,9 @@ struct NaaPaataApp: App {
     @StateObject private var playlistsViewModel = PlaylistsViewModel()
     @StateObject private var storeKitManager = StoreManager()
     
+    // MARK: - Widget Action Flag
+//    @State private var isWidgetAction = false
+    
     // MARK: - SwiftData Container
     let container: ModelContainer
     
@@ -110,6 +113,20 @@ struct NaaPaataApp: App {
                                 }
                             }
                         }
+                        .onOpenURL { url in
+                            guard url.scheme == "naapaata" else { return }
+                            
+                            switch url.host {
+                            case "playpause":
+                                MusicPlayerManager.shared.togglePlayPause()
+                            case "next":
+                                MusicPlayerManager.shared.playNext()
+                            case "previous":
+                                MusicPlayerManager.shared.playPrevious()
+                            default:
+                                print("⚠️ Unknown widget action: \(url.host ?? "nil")")
+                            }
+                        }
                 } else {
                     OnboardingView()
                         .environmentObject(musicPlayerManager)
@@ -124,7 +141,6 @@ struct NaaPaataApp: App {
                 musicPlayerManager.saveCurrentPlaybackState()
             case .active:
                 musicPlayerManager.restoreLastPlaybackState()
-                // Refresh subscription status in background
                 Task {
                     await storeKitManager.loadProducts()
                     await storeKitManager.updateSubscriptionStatus()

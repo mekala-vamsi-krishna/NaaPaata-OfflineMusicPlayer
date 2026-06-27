@@ -56,6 +56,7 @@ final class SongsViewModel: ObservableObject {
             loadingProgress = 0.0
         }
         await performBackgroundSync(forceRefresh: forceRefresh)
+        musicManager.setPlaylist(songs)
     }
     
     // MARK: - performBackgroundSync
