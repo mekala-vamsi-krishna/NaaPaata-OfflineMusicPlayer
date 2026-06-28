@@ -23,9 +23,23 @@
 </a>
 
 ## 📸 Screenshots
-| Albums                                                                                                  | Playlists                                                                                               | Songs                                                                                                   | Album Details View                                                                                            | Music Player                                                                                      |
-| ------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------- |
-| <img src="https://github.com/user-attachments/assets/8595f1bf-a178-46b4-96b9-771920dcdeac" width="120"> | <img src="https://github.com/user-attachments/assets/42722a75-cbc7-45db-ada6-c101e59fd964" width="120"> | <img src="https://github.com/user-attachments/assets/aafa0cf8-38a5-4d83-8482-04b75eaca017" width="120"> | <img src="https://github.com/user-attachments/assets/964662e7-9cc4-4812-a86d-b8977ce8390a" width="120"> | <img src="https://github.com/user-attachments/assets/d2be996f-f7e0-413c-bab1-7bf807525d75" width="120"> |
+<p align="left">
+  <img src="https://github.com/user-attachments/assets/13407e4c-08e5-470f-a077-7f3db7b40148" width="260"/>
+  <img src="https://github.com/user-attachments/assets/ed307e6f-c6e9-478a-a051-6ab547b27d37" width="260"/>
+  <img src="https://github.com/user-attachments/assets/c14e3bcb-06e5-4026-9e1a-b6aee3ccbdd2" width="260"/>  
+</p>
+
+<p align="left">
+  <img src="https://github.com/user-attachments/assets/ce0f1afc-b060-4d55-9d7a-06ae64d00897" width="260"/>
+  <img src="https://github.com/user-attachments/assets/bd588e5e-446a-451a-b18d-67af15be6e63" width="260"/>
+  <img src="https://github.com/user-attachments/assets/4466e534-9c36-4d45-91e8-e01a353e4af5" width="260"/>
+</p>
+
+<p align="left">
+  <img src="https://github.com/user-attachments/assets/433751fd-96c3-4793-afd4-c88dadf5aa92" width="260"/>
+  <img src="https://github.com/user-attachments/assets/47eecbf7-8a1e-4fc7-a4db-2f19c0ab766a" width="260"/>
+  <img src="https://github.com/user-attachments/assets/47f94c22-155f-423a-8a4f-ccb41cdb7275" width="260"/>
+</p>
 
 ## 📀 Demo Preview
 
