@@ -128,11 +128,6 @@ struct AlbumsView: View {
                 }
                 .navigationTitle("Albums")
                 .searchable(text: $viewModel.searchText, placement: .navigationBarDrawer(displayMode: .automatic), prompt: "Search albums...")
-                .onAppear {
-                    Task {
-                        await viewModel.loadAlbums()
-                    }
-                }
                 .sheet(isPresented: $showingOnboarding) {
                     OnboardingView()
                 }
