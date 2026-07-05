@@ -12,7 +12,7 @@ struct SongsView: View {
     @EnvironmentObject var viewModel: SongsViewModel
     @EnvironmentObject var playlistsViewModel: PlaylistsViewModel
     @EnvironmentObject var tabState: TabState
-    @State private var showingOnboarding = false
+    @State private var showingInstruction = false
 
     var body: some View {
         NavigationStack {
@@ -53,14 +53,14 @@ struct SongsView: View {
                             .foregroundColor(AppColors.primary).opacity(0.7)
                             .padding(.top, 50)
 
-                        Text("Add MP3 files to the Naa Paata folder in the Files app to enjoy playback anytime.")
+                        Text("Add audio files to the Naa Paata folder in the Files app to enjoy playback anytime.")
                             .font(.headline)
                             .foregroundColor(AppColors.textPrimary)
                             .multilineTextAlignment(.center)
                             .padding(.horizontal)
 
                         Button(action: {
-                            showingOnboarding = true
+                            showingInstruction = true
                         }) {
                             Text("Learn More")
                                 .font(.system(size: 16, weight: .semibold))
@@ -104,8 +104,8 @@ struct SongsView: View {
             }
             .navigationTitle("Naa Paata ♪")
             .searchable(text: $viewModel.searchText, placement: .navigationBarDrawer(displayMode: .automatic), prompt: "Search songs...")
-            .sheet(isPresented: $showingOnboarding) {
-                OnboardingView()
+            .sheet(isPresented: $showingInstruction) {
+                InstructionView()
             }
         }
     }
