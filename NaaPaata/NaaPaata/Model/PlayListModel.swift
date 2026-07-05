@@ -15,7 +15,7 @@ final class Playlist: Identifiable {
     var name: String
     
     /// Many-to-many relationship with Song
-    @Relationship(deleteRule: .cascade) var songs: [Song] = []
+    @Relationship(deleteRule: .nullify) var songs: [Song] = []
     
     var coverImageData: Data?
     var desc: String

@@ -6,24 +6,28 @@
 //
 
 import Foundation
-import AVFoundation
 import SwiftUI
+import SwiftData
 
+@MainActor
 final class SongsViewModel: ObservableObject {
     private let musicManager = MusicPlayerManager.shared
+    private var modelContext: ModelContext?
+    
+    @AppStorage("songsSortOption") var currentSort: SortKey = .title
     
     @Published var searchText: String = ""
     @Published var songs: [Song] = []
     @Published var loadingProgress: Double = 0.0
-    @Published var isLoading: Bool = false
+    @Published var isLoading: Bool = true
+    @Published var isRefreshing: Bool = false
+    
     var totalSongs: Int { songs.count }
     
     enum SortKey: String, CaseIterable {
         case title, artist, duration, dateAddedAscending, dateAddedDescending
     }
     
-    @AppStorage("songsSortOption") var currentSort: SortKey = .title
-
     var filteredSongs: [Song] {
         guard !searchText.isEmpty else { return songs }
         return songs.filter {
@@ -32,81 +36,120 @@ final class SongsViewModel: ObservableObject {
         }
     }
     
-    init() {
-        NotificationCenter.default.addObserver(self, selector: #selector(handleSongDeleted), name: .songDeleted, object: nil)
+    // MARK: - Model Context Setup
+    func setup(modelContext: ModelContext) {
+        self.modelContext = modelContext
     }
     
-    deinit {
-        NotificationCenter.default.removeObserver(self)
-    }
-    
-    // Function to play within search results
-    func playFromSearchResults(_ song: Song) {
-        let results = filteredSongs
-        musicManager.playFromAllSongs(results, startAt: song)
-    }
-    
-    @objc private func handleSongDeleted(notification: Notification) {
-        guard let song = notification.userInfo?["song"] as? Song else { return }
-        
-        DispatchQueue.main.async {
-            // Remove the song from the list
-            if let index = self.songs.firstIndex(where: { $0.urlString == song.urlString }) {
-                self.songs.remove(at: index)
-            }
+    // MARK: - loadSongs
+    func loadSongs(forceRefresh: Bool = false) async {
+        guard let context = modelContext else {
+            debugPrint("❌ ModelContext not set in SongsViewModel")
+            return
         }
-    }
-
-    func loadSongs() async {
-        guard !isLoading else { return }
-        
+        let cachedSongs = fetchAllSongsFromDatabase()
+        let hasCachedSongs = !cachedSongs.isEmpty
         await MainActor.run {
-            isLoading = true
+            songs = cachedSongs
+            sortSongs(by: currentSort)
+            isLoading = !hasCachedSongs
             loadingProgress = 0.0
         }
+        await performBackgroundSync(forceRefresh: forceRefresh)
+        musicManager.setPlaylist(songs)
+    }
+    
+    // MARK: - performBackgroundSync
+    private func performBackgroundSync(forceRefresh: Bool = false) async {
+        await MainActor.run { if !isLoading { isRefreshing = true } }
+        guard let context = modelContext else {
+            await MainActor.run { isLoading = false; isRefreshing = false }
+            return
+        }
         
-        do {
-            let loader = LoadAllSongsFromDocuments()
-            let urls = loader.loadSongsFromDocuments()
-            
-            guard !urls.isEmpty else {
-                await MainActor.run {
-                    songs = []
-                    isLoading = false
-                    loadingProgress = 1.0
+        let fileItems = LoadAllSongsFromDocuments().loadAllAudioFilesWithRelativePaths()
+        let currentRelPaths = Set(fileItems.map { $0.relativePath })
+        let existingSongs = fetchAllSongsFromDatabase()
+        let existingRelPaths = Set(existingSongs.map { $0.relativePath })
+        
+        debugPrint("🔍 Sync: current files: \(fileItems.count), DB songs: \(existingSongs.count)")
+        
+        // Safety: if no files but DB has songs, skip deletion
+        if fileItems.isEmpty && !existingSongs.isEmpty {
+            debugPrint("⚠️ No files found – skipping sync to prevent data loss")
+            await MainActor.run { isLoading = false; isRefreshing = false; loadingProgress = 1.0 }
+            return
+        }
+        
+        // Determine changes
+        let newRelPaths = currentRelPaths.subtracting(existingRelPaths)
+        let deletedRelPaths = existingRelPaths.subtracting(currentRelPaths)
+        debugPrint("🔍 New: \(newRelPaths.count), Deleted: \(deletedRelPaths.count)")
+        
+        var changed = false
+        
+        // UPDATE existing songs with new absolute paths (if needed)
+        for song in existingSongs {
+            if let matchingFile = fileItems.first(where: { $0.relativePath == song.relativePath }) {
+                let newURLString = matchingFile.url.path
+                if song.urlString != newURLString {
+                    song.urlString = newURLString
+                    changed = true
                 }
-                return
             }
-            
-            // Use the concurrent metadata service
-            let loadedSongs = try await ConcurrentMetadataService.shared.loadSongsMetadata(urls: urls) { progress in
-                Task { @MainActor in
-                    self.loadingProgress = progress
+        }
+        
+        // Insert new songs
+        if !newRelPaths.isEmpty {
+            let urlsToProcess = fileItems.filter { newRelPaths.contains($0.relativePath) }.map { $0.url }
+            let newSongs = await ConcurrentMetadataService.shared.loadSongsMetadata(urls: urlsToProcess) { progress in
+                Task { @MainActor in self.loadingProgress = progress }
+            }
+            for song in newSongs {
+                // Ensure relativePath is not empty
+                if song.relativePath.isEmpty {
+                    let docsPath = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!.path + "/"
+                    let path = song.urlString
+                    song.relativePath = path.replacingOccurrences(of: docsPath, with: "")
+                    if song.relativePath.isEmpty { song.relativePath = URL(string: song.urlString)?.lastPathComponent ?? "unknown" }
                 }
+                context.insert(song)
             }
-            
-            await MainActor.run {
-                songs = loadedSongs
-                sortSongs(by: currentSort)
-                isLoading = false
-                loadingProgress = 1.0
+            changed = true
+        }
+        
+        // Delete songs that no longer exist on disk
+        if !deletedRelPaths.isEmpty {
+            let songsToDelete = existingSongs.filter { deletedRelPaths.contains($0.relativePath) }
+            for song in songsToDelete {
+                debugPrint("🗑️ Deleting song: \(song.title) (relativePath: \(song.relativePath))")
+                context.delete(song)
             }
-            
-        } catch {
-            print("Error loading songs: \(error.localizedDescription)")
-            await MainActor.run {
-                isLoading = false
-                loadingProgress = 1.0
-            }
+            changed = true
+        }
+        
+        if changed {
+            try? context.save()
+        }
+        
+        let updatedSongs = fetchAllSongsFromDatabase()
+        await MainActor.run {
+            songs = updatedSongs
+            sortSongs(by: currentSort)
+            isLoading = false
+            isRefreshing = false
+            loadingProgress = 1.0
         }
     }
     
-    // Shuffle songs
-    func shuffleSongs() -> [Song] {
-        songs.shuffled()
+    // MARK: - fetchAllSongsFromDatabase
+    private func fetchAllSongsFromDatabase() -> [Song] {
+        guard let context = modelContext else { return [] }
+        let descriptor = FetchDescriptor<Song>(sortBy: [SortDescriptor(\.title)])
+        return (try? context.fetch(descriptor)) ?? []
     }
     
-    // Sort songs (by title or artist)
+    // MARK: - sortSongs
     func sortSongs(by key: SortKey) {
         switch key {
         case .title: songs.sort { $0.title < $1.title }
@@ -117,30 +160,32 @@ final class SongsViewModel: ObservableObject {
         case .dateAddedDescending:
             songs.sort { ($0.dateAdded ?? Date.distantPast) > ($1.dateAdded ?? Date.distantPast) }
         }
-        // Update the current sort option
         currentSort = key
     }
     
+    // MARK: - playSong
     func play(_ song: Song) {
-        musicManager.playFromAllSongs(songs, startAt: song, fromPlaylist: "All Songs")
+        musicManager.playFromAllSongs(songs, startAt: song, fromPlaylist: "All Songs", shuffle: false, repeatMode: .all)
     }
     
+    // MARK: - playAll
     func playAll() {
-        musicManager.playFromAllSongs(songs, fromPlaylist: "All Songs")
+        musicManager.playFromAllSongs(songs, fromPlaylist: "All Songs", shuffle: false, repeatMode: .all)
     }
     
+    // MARK: - playShuffled
     func playShuffled() {
-        // Play all songs first to set the original playlist
-        musicManager.playFromAllSongs(songs, fromPlaylist: "All Songs")
-        
-        // Then toggle shuffle mode to shuffle the playlist while starting from the current song
-        musicManager.toggleShuffle()
+        musicManager.playFromAllSongs(songs, fromPlaylist: "All Songs", shuffle: true, repeatMode: .off)
     }
     
-    // Call this after delete or whenever manager changes
+    // MARK: - playFromSearchResults
+    func playFromSearchResults(_ song: Song) {
+        let results = filteredSongs
+        musicManager.playFromAllSongs(results, startAt: song, fromPlaylist: "All Songs", shuffle: false, repeatMode: .all)
+    }
+    
+    // MARK: - refresh
     func refresh() {
-        Task {
-            await loadSongs()
-        }
+        Task { await loadSongs(forceRefresh: true) }
     }
 }

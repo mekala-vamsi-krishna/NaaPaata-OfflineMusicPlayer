@@ -8,106 +8,11 @@
 import SwiftUI
 import AVFoundation
 
-struct AlbumsTopBar: View {
-    @ObservedObject var viewModel: AlbumsViewModel
-    var filteredCount: Int
-    var onSort: ((AlbumsViewModel.SortKey) -> Void)? // callback for sort
-
-    var body: some View {
-        HStack {
-            // Total albums
-            Text("\(filteredCount) Album\(filteredCount == 1 ? "" : "s")")
-                .font(.system(size: 18, weight: .semibold))
-                .foregroundColor(.primary)
-                .padding(.leading, 5)
-
-            Spacer()
-
-            // Right side buttons
-            HStack(spacing: 16) {
-                Menu {
-                    Button(action: {
-                        onSort?(.name)
-                    }) {
-                        HStack {
-                            Text("Name")
-                            if viewModel.currentSort == .name {
-                                Image(systemName: "checkmark")
-                                    .labelStyle(.titleAndIcon)
-                                    .foregroundColor(AppColors.primary)
-                                    .symbolRenderingMode(.hierarchical)
-                            }
-                        }
-                    }
-                    Button(action: {
-                        onSort?(.dateAddedDescending)
-                    }) {
-                        HStack {
-                            Text("Date Added (Newest)")
-                            if viewModel.currentSort == .dateAddedDescending {
-                                Image(systemName: "checkmark")
-                                    .foregroundColor(AppColors.primary)
-                            }
-                        }
-                    }
-                    Button(action: {
-                        onSort?(.dateAddedAscending)
-                    }) {
-                        HStack {
-                            Text("Date Added (Oldest)")
-                            if viewModel.currentSort == .dateAddedAscending {
-                                Image(systemName: "checkmark")
-                                    .foregroundColor(AppColors.primary)
-                            }
-                        }
-                    }
-                    Button(action: {
-                        onSort?(.dateModified)
-                    }) {
-                        HStack {
-                            Text("Date Modified")
-                            if viewModel.currentSort == .dateModified {
-                                Image(systemName: "checkmark")
-                                    .foregroundColor(AppColors.primary)
-                            }
-                        }
-                    }
-                    Button(action: {
-                        onSort?(.size)
-                    }) {
-                        HStack {
-                            Text("Size")
-                            if viewModel.currentSort == .size {
-                                Image(systemName: "checkmark")
-                                    .foregroundColor(AppColors.primary)
-                            }
-                        }
-                    }
-                } label: {
-                    HStack(spacing: 4) {
-                        Image(systemName: "arrow.up.arrow.down")
-                            .font(.system(size: 18))
-                        Text("Sort")
-                            .font(.system(size: 16, weight: .medium))
-                    }
-                    .foregroundColor(AppColors.primary)
-                }
-            }
-        }
-        .padding(.horizontal)
-        .padding(.vertical, 8)
-    }
-}
-
-
 struct AlbumsView: View {
-    @StateObject private var viewModel = AlbumsViewModel()
+    @EnvironmentObject var viewModel: AlbumsViewModel
     @Environment(\.horizontalSizeClass) var sizeClass
     
-    @State private var selectedSort: AlbumsViewModel.SortKey = .name
     @State private var showingOnboarding = false
-    
-
 
     var body: some View {
         GeometryReader { geometry in
@@ -134,11 +39,19 @@ struct AlbumsView: View {
                     .ignoresSafeArea()
                     
                     if viewModel.isLoading {
-                        ProgressView("Loading Albums...")
-                            .progressViewStyle(CircularProgressViewStyle(tint: AppColors.primary))
-                            .scaleEffect(1.2)
-                    } else if viewModel.albums.isEmpty && !viewModel.isLoading {
-                        // Empty State
+                        VStack(spacing: 20) {
+                            AnimatedDotsLoader()
+                            Text("Loading albums...")
+                                .font(.headline)
+                                .foregroundColor(AppColors.textSecondary)
+                            if viewModel.loadingProgress > 0 {
+                                Text("\(Int(viewModel.loadingProgress * 100))%")
+                                    .font(.caption)
+                                    .foregroundColor(AppColors.textSecondary)
+                            }
+                        }
+                        .transition(.opacity)
+                    } else if viewModel.albums.isEmpty {
                         VStack {
                             Spacer()
                             Image(systemName: "opticaldisc")
@@ -148,7 +61,7 @@ struct AlbumsView: View {
                                 .foregroundColor(AppColors.primary).opacity(0.7)
                                 .padding(.top, 50)
 
-                            Text("Add MP3 files to the MyAppFiles folder in the Files app to enjoy playback anytime.")
+                            Text("Add MP3 files to the Naa Paata folder in the Files app to enjoy playback anytime.")
                                 .font(.headline)
                                 .foregroundColor(AppColors.textPrimary)
                                 .multilineTextAlignment(.center)
@@ -169,15 +82,15 @@ struct AlbumsView: View {
 
                             Spacer()
                         }
-                    } else if !viewModel.albums.isEmpty {
+                    } else {
                         ScrollView {
                             LazyVGrid(columns: columns, spacing: layout.gridSpacing) {
-                                Section(header: 
+                                Section(header:
                                     AlbumsTopBar(viewModel: viewModel, filteredCount: viewModel.filteredAlbums.count) { key in
                                         viewModel.currentSort = key
                                         viewModel.sortAlbums(by: key)
                                     }
-                                    .padding(.horizontal, -layout.horizontalPadding) // Extend background to edges if needed, or adjust padding
+                                    .padding(.horizontal, -layout.horizontalPadding)
                                     .padding(.bottom, 10)
                                 ) {
                                     ForEach(viewModel.filteredAlbums) { album in
@@ -196,17 +109,25 @@ struct AlbumsView: View {
                             .padding(.horizontal, layout.horizontalPadding)
                             .padding(.bottom, 20)
                         }
-                        // Use scrollContentBackground hidden to show gradient? No, ScrollView doesn't always need it, but let's check.
-                        // LazyVGrid inside ScrollView is standard.
+                        .overlay(
+                            Group {
+                                if viewModel.isRefreshing {
+                                    HStack {
+                                        Spacer()
+                                        AnimatedDotsLoader()
+                                            .scaleEffect(0.5)
+                                            .padding(.trailing, 20)
+                                            .padding(.top, 10)
+                                    }
+                                    .transition(.opacity)
+                                }
+                            },
+                            alignment: .top
+                        )
                     }
                 }
                 .navigationTitle("Albums")
                 .searchable(text: $viewModel.searchText, placement: .navigationBarDrawer(displayMode: .automatic), prompt: "Search albums...")
-                .onAppear {
-                    Task {
-                        await viewModel.loadAlbums()
-                    }
-                }
                 .sheet(isPresented: $showingOnboarding) {
                     OnboardingView()
                 }
@@ -215,49 +136,7 @@ struct AlbumsView: View {
     }
 }
 
-struct AlbumCellView: View {
-    let album: Album
-    let imageSize: CGFloat
-    
-    var body: some View {
-        VStack(spacing: 10) {
-            ZStack {
-                if let artwork = album.artworkImage {
-                    Image(uiImage: artwork)
-                        .resizable()
-                        .scaledToFill()
-                        .frame(width: imageSize, height: imageSize)
-                        .cornerRadius(16)
-                        .shadow(radius: 10)
-                } else {
-                    Image("default_playlist_cover")
-                        .resizable()
-                        .scaledToFill()
-                        .frame(width: imageSize, height: imageSize)
-                        .cornerRadius(16)
-                        .shadow(radius: 10)
-                }
-            }
-            
-            VStack(alignment: .leading, spacing: 4) {
-                Text(album.name)
-                    .font(.headline)
-                    .foregroundColor(.primary)
-                    .lineLimit(1)
-                    .multilineTextAlignment(.leading)
-                    .padding(.horizontal, 6)
-                
-                Text("\(album.songs.count) song\(album.songs.count == 1 ? "" : "s")")
-                    .font(.subheadline)
-                    .foregroundColor(.secondary)
-                    .padding(.horizontal, 6)
-            }
-        }
-    }
-}
-
-
-
 #Preview {
     AlbumsView()
+        .environmentObject(AlbumsViewModel())
 }

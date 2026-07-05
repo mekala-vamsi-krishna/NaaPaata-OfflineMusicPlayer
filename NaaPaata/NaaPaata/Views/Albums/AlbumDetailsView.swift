@@ -8,19 +8,16 @@
 import SwiftUI
 import AVFoundation
 
-import SwiftUI
-import AVFoundation
-
 struct AlbumDetailsView: View {
     @EnvironmentObject var musicPlayerManager: MusicPlayerManager
     
     var title: String
     var artwork: UIImage?
-    var songs: [Song] // global Song model
+    var songs: [Song]
     
     @State private var showFullPlayer = false
     
-    // Helper: total album duration
+    // Total album duration
     private var totalDuration: TimeInterval {
         sortedSongs.reduce(0) { $0 + $1.duration }
     }
@@ -184,8 +181,6 @@ struct SongRow: View {
         return String(format: "%d:%02d", mins, secs)
     }
 }
-
-
 
 #Preview {
     AlbumDetailsView(

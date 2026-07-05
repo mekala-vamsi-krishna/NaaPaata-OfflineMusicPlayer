@@ -11,40 +11,62 @@ import GoogleMobileAds
 
 @main
 struct NaaPaataApp: App {
-    @StateObject var musicPlayerManager = MusicPlayerManager.shared
-    @StateObject var playlistsViewModel =  PlaylistsViewModel()
-    @StateObject var songsViewModel = SongsViewModel() // Initialize here
-    @ObservedObject var tabState = TabState()
-    @StateObject private var storeKitManager = StoreManager()
-    @StateObject private var sleepTimerManager = SleepTimerManager.shared
+    @Environment(\.scenePhase) private var scenePhase
     
     @AppStorage("hasCompletedOnboarding") var hasCompletedOnboarding = false
     
+    @ObservedObject private var tabState = TabState()
+    
+    @StateObject private var musicPlayerManager = MusicPlayerManager.shared
+    @StateObject private var sleepTimerManager = SleepTimerManager.shared
+    
+    @StateObject private var songsViewModel = SongsViewModel()
+    @StateObject private var albumsViewModel = AlbumsViewModel()
+    @StateObject private var playlistsViewModel = PlaylistsViewModel()
+    @StateObject private var storeKitManager = StoreManager()
+    
+    // MARK: - Widget Action Flag
+//    @State private var isWidgetAction = false
+    
+    // MARK: - SwiftData Container
     let container: ModelContainer
     
     init() {
+        // Initialize Google Mobile Ads
         MobileAds.shared.start(completionHandler: nil)
+        
+        // Setup SwiftData with all models
         let config = ModelConfiguration()
         do {
-            // Initialize SwiftData with Song, Playlist, and SleepTimerModel
-            container = try ModelContainer(for: Song.self, Playlist.self, SleepTimerModel.self, configurations: config)
+            container = try ModelContainer(
+                for: Song.self,
+                Playlist.self,
+                SleepTimerModel.self,
+                configurations: config
+            )
             PlaylistManager.shared.setModelContainer(container)
         } catch {
-            print("SwiftData init failed, attempting reset: \(error)")
+            // Attempt to recover by deleting corrupted database files
             let storeURL = config.url
             let urlsToRemove = [storeURL, storeURL.appendingPathExtension("shm"), storeURL.appendingPathExtension("wal")]
             for url in urlsToRemove {
                 try? FileManager.default.removeItem(at: url)
             }
             do {
-                container = try ModelContainer(for: Song.self, Playlist.self, SleepTimerModel.self, configurations: config)
+                container = try ModelContainer(
+                    for: Song.self,
+                    Playlist.self,
+                    SleepTimerModel.self,
+                    configurations: config
+                )
                 PlaylistManager.shared.setModelContainer(container)
             } catch {
                 fatalError("Failed to initialize ModelContainer after reset: \(error)")
             }
         }
     }
-
+    
+    // MARK: - Scene
     var body: some Scene {
         WindowGroup {
             Group {
@@ -52,15 +74,58 @@ struct NaaPaataApp: App {
                     MainTabView()
                         .environmentObject(musicPlayerManager)
                         .environmentObject(playlistsViewModel)
-                        .environmentObject(songsViewModel) // Inject into environment
+                        .environmentObject(songsViewModel)
+                        .environmentObject(albumsViewModel)
                         .environmentObject(tabState)
                         .environmentObject(storeKitManager)
                         .environmentObject(sleepTimerManager)
                         .onAppear {
-                            Task {
-                                await songsViewModel.loadSongs() // Load songs on app launch
-                            }
+                            // Set up model contexts for view models
+                            songsViewModel.setup(modelContext: container.mainContext)
+                            albumsViewModel.setup(modelContext: container.mainContext)
                             sleepTimerManager.setup(modelContext: container.mainContext)
+                            
+                            // Load songs & albums from cache (async)
+                            Task {
+                                await songsViewModel.loadSongs()
+                                await albumsViewModel.loadAlbums()
+                            }
+                            
+                            // Migration: ensure all songs have relativePath
+                            Task {
+                                let context = container.mainContext
+                                let existingSongs = try? context.fetch(FetchDescriptor<Song>())
+                                var needsSave = false
+                                if let songs = existingSongs {
+                                    for song in songs {
+                                        if song.relativePath.isEmpty {
+                                            if let range = song.urlString.range(of: "Documents/") {
+                                                song.relativePath = String(song.urlString[range.upperBound...])
+                                            } else {
+                                                song.relativePath = URL(string: song.urlString)?.lastPathComponent ?? ""
+                                            }
+                                            needsSave = true
+                                        }
+                                    }
+                                    if needsSave {
+                                        try? context.save()
+                                    }
+                                }
+                            }
+                        }
+                        .onOpenURL { url in
+                            guard url.scheme == "naapaata" else { return }
+                            
+                            switch url.host {
+                            case "playpause":
+                                MusicPlayerManager.shared.togglePlayPause()
+                            case "next":
+                                MusicPlayerManager.shared.playNext()
+                            case "previous":
+                                MusicPlayerManager.shared.playPrevious()
+                            default:
+                                print("⚠️ Unknown widget action: \(url.host ?? "nil")")
+                            }
                         }
                 } else {
                     OnboardingView()
@@ -70,23 +135,19 @@ struct NaaPaataApp: App {
             .withToast()
         }
         .modelContainer(container)
-        .onChange(of: scenePhase) { oldPhase, newPhase in
-            if newPhase == .background {
-                // Save playback state when app goes to background
+        .onChange(of: scenePhase) { _, newPhase in
+            switch newPhase {
+            case .background:
                 musicPlayerManager.saveCurrentPlaybackState()
-            } else if newPhase == .active {
-                // Restore playback state when app becomes active
+            case .active:
                 musicPlayerManager.restoreLastPlaybackState()
-                /// whenver app comes on forground after reaminings for long in background fetched the refresh status whether user has taken a subscription plan or not.
                 Task {
                     await storeKitManager.loadProducts()
                     await storeKitManager.updateSubscriptionStatus()
                 }
-             
-                
+            default:
+                break
             }
         }
     }
-    
-    @Environment(\.scenePhase) private var scenePhase
 }

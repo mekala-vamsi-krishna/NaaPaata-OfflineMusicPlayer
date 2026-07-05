@@ -11,28 +11,42 @@ struct ToastModifier: ViewModifier {
                 VStack {
                     Spacer()
                     
-                    HStack(spacing: 12) {
-                        Image("AppLogo") // Ensure this matches your AppLogo image asset name
+                    HStack(spacing: 10) {
+                        Image("AppLogo")
                             .resizable()
                             .scaledToFit()
                             .frame(width: 24, height: 24)
                             .clipShape(Circle())
+                            .overlay(
+                                Circle()
+                                    .stroke(Color.white.opacity(0.2), lineWidth: 0.5)
+                            )
                         
                         Text(toast.message)
                             .font(.system(size: 14, weight: .medium))
-                            .foregroundColor(.white)
+                            .foregroundColor(AppColors.textPrimary)
+                            .lineLimit(2)
+                            .multilineTextAlignment(.leading)
                     }
                     .padding(.horizontal, 16)
                     .padding(.vertical, 12)
-                    .background(Color(white: 0.15)) // dark background for better contrast
+                    .background(
+                        Color(AppColors.background)
+                    )
                     .clipShape(Capsule())
-                    .shadow(color: .black.opacity(0.3), radius: 8, x: 0, y: 4)
-                    .padding(.bottom, 60) // positioned above the bottom bar
-                    .transition(.move(edge: .bottom).combined(with: .opacity))
+                    .padding(.horizontal, 24)
+                    .padding(.bottom, 48)
+                    .transition(
+                        .asymmetric(
+                            insertion: .move(edge: .bottom).combined(with: .opacity),
+                            removal: .opacity
+                        )
+                    )
+                    .zIndex(100)
                 }
-                .zIndex(100)
             }
         }
+        .animation(.spring(response: 0.5, dampingFraction: 0.7), value: toastManager.toast)
     }
 }
 

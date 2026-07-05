@@ -6,36 +6,73 @@
 //
 
 import Foundation
-/// Single ResponsblityClass whose job is to return all mp3 files urls  if they exist or else  emty
+
 class LoadAllSongsFromDocuments {
-    public func loadSongsFromDocuments() -> [URL] {
+    private let audioExtensions: Set<String> = [
+        "mp3", "m4a", "aac", "wav", "aiff", "caf",
+        "flac", "ogg", "opus", "wma", "alac"
+    ]
+    
+    // MARK: - loadSongsFromDocuments
+    func loadSongsFromDocuments() -> [URL] {
+        return loadAllAudioFilesWithRelativePaths().map { $0.url }
+    }
+    
+    // MARK: - loadAllAudioFilesWithRelativePaths
+    func loadAllAudioFilesWithRelativePaths() -> [(url: URL, relativePath: String)] {
         let fileManager = FileManager.default
-        guard let docsURL = fileManager.urls(for: .documentDirectory, in: .userDomainMask).first else { return [] }
-        
-        let musicFolder = docsURL.appendingPathComponent("Music", isDirectory: true)
-        
-        // Create folder if not exists
-        if !fileManager.fileExists(atPath: musicFolder.path) {
-            do {
-                try fileManager.createDirectory(at: musicFolder, withIntermediateDirectories: true, attributes: nil)
-                print("Created Music folder at \(musicFolder.path)")
-            } catch {
-                print("Error creating folder: \(error)")
-                return []
-            }
+        guard let docsURL = fileManager.urls(for: .documentDirectory, in: .userDomainMask).first else {
+            return []
         }
+        print("🗂️ Naa Paata Documents folder: \(docsURL.path)")
+        createPlaceholderFileIfNeeded(in: docsURL)
         
-        guard let enumerator = fileManager.enumerator(at: musicFolder, includingPropertiesForKeys: nil, options: [.skipsHiddenFiles, .skipsPackageDescendants]) else {
+        guard let enumerator = fileManager.enumerator(
+            at: docsURL,
+            includingPropertiesForKeys: [.isRegularFileKey],
+            options: [.skipsHiddenFiles, .skipsPackageDescendants]
+        ) else {
             return []
         }
         
-        let mp3Files = enumerator.compactMap { element -> URL? in
-            guard let url = element as? URL, url.pathExtension.lowercased() == "mp3" else { return nil }
-            return url
+        let docsPath = docsURL.path + "/"
+        var results: [(url: URL, relativePath: String)] = []
+        for case let fileURL as URL in enumerator {
+            guard let resourceValues = try? fileURL.resourceValues(forKeys: [.isRegularFileKey]),
+                  resourceValues.isRegularFile == true else { continue }
+            let ext = fileURL.pathExtension.lowercased()
+            if audioExtensions.contains(ext) {
+                let relPath = fileURL.path.replacingOccurrences(of: docsPath, with: "")
+                results.append((fileURL, relPath))
+            }
         }
-        
-        print("Loaded \(mp3Files.count) music files including subfolders.")
-        return mp3Files
+        results.sort { $0.relativePath < $1.relativePath }
+        print("🗂️ Found \(results.count) audio files.")
+        return results
     }
-
+    
+    // MARK: - createPlaceholderFileIfNeeded
+    private func createPlaceholderFileIfNeeded(in directory: URL) {
+        let fileManager = FileManager.default
+        let placeholderURL = directory.appendingPathComponent("Place your audio files here.txt")
+        guard !fileManager.fileExists(atPath: placeholderURL.path) else { return }
+        let message = """
+        Hello! 👋
+        
+        You can add your music files to this folder (or any subfolder) and Naa Paata will find them automatically.
+        
+        Supported formats:
+        MP3, M4A, AAC, WAV, AIFF, CAF, FLAC, OGG, OPUS, WMA, ALAC
+        
+        Just drag and drop your files here using the Files app or iTunes File Sharing.
+        
+        Enjoy your music! 🎵
+        """
+        do {
+            try message.write(to: placeholderURL, atomically: true, encoding: .utf8)
+            print("📄 Created placeholder file: \(placeholderURL.lastPathComponent)")
+        } catch {
+            print("⚠️ Could not create placeholder file: \(error)")
+        }
+    }
 }
