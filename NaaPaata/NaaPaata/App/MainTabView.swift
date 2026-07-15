@@ -13,24 +13,19 @@ class TabState: ObservableObject {
 
 struct MainTabView: View {
     @EnvironmentObject var tabState: TabState
-    @StateObject private var musicPlayerManager = MusicPlayerManager.shared
-    @StateObject private var playlistsViewModel = PlaylistsViewModel()
-    @StateObject private var sleepTimerManager = SleepTimerManager.shared
+    @EnvironmentObject var musicPlayerManager: MusicPlayerManager
+    @EnvironmentObject var playlistsViewModel: PlaylistsViewModel
+    @EnvironmentObject var sleepTimerManager: SleepTimerManager
 
     @State private var showFullPlayer = false
-    @State private var miniPlayerFrame: CGRect = .zero
-    @Namespace private var animation
-
-    @Environment(\.horizontalSizeClass) var sizeClass
+    @Namespace private var playerTransition
 
     var body: some View {
         GeometryReader { geometry in
-            let layout = AdaptiveLayout(
-                horizontalSizeClass: sizeClass,
-                screenWidth: geometry.size.width
-            )
+            let bottomSafeArea = geometry.safeAreaInsets.bottom
 
-            ZStack {
+            ZStack(alignment: .bottom) {
+                // Main TabView
                 TabView(selection: $tabState.selectedTab) {
                     SongsView()
                         .tabItem {
@@ -38,21 +33,18 @@ struct MainTabView: View {
                             Text("Songs")
                         }
                         .tag(0)
-
                     AlbumsView()
                         .tabItem {
                             Image(systemName: "rectangle.stack.badge.play")
                             Text("Albums")
                         }
                         .tag(1)
-
                     PlayListsView()
                         .tabItem {
                             Image(systemName: "music.note.list")
                             Text("Lists")
                         }
                         .tag(2)
-
                     EqualizerView()
                         .tabItem {
                             Image(systemName: "slider.horizontal.3")
@@ -62,59 +54,39 @@ struct MainTabView: View {
                 }
                 .accentColor(AppColors.primary)
 
-                // Mini Player
-                VStack {
-                    Spacer()
-                    if musicPlayerManager.currentSong != nil && !showFullPlayer {
-                        MiniPlayerView(namespace: animation)
-                            .background(
-                                GeometryReader { geo in
-                                    Color.clear
-                                        .preference(key: MiniPlayerFrameKey.self,
-                                                    value: geo.frame(in: .global))
+                if musicPlayerManager.currentSong != nil {
+                    if showFullPlayer {
+                        // Full Player
+                        MusicPlayerView(
+                            dismissAction: {
+                                withAnimation(.spring(response: 0.5, dampingFraction: 0.85)) {
+                                    showFullPlayer = false
                                 }
-                            )
-                            .onPreferenceChange(MiniPlayerFrameKey.self) { frame in
-                                miniPlayerFrame = frame
-                            }
+                            },
+                            namespace: playerTransition
+                        )
+                        .environmentObject(musicPlayerManager)
+                        .environmentObject(playlistsViewModel)
+                        .environmentObject(sleepTimerManager)
+                        .transition(.opacity)
+                        .zIndex(1)
+                    } else {
+                        // Mini Player
+                        MiniPlayerView(namespace: playerTransition)
+                            .environmentObject(musicPlayerManager)
+                            .environmentObject(playlistsViewModel)
+                            .environmentObject(sleepTimerManager)
+                            .padding(.horizontal, 8)
+                            .padding(.bottom, bottomSafeArea + 22) 
                             .onTapGesture {
-                                withAnimation(.spring(response: 0.5, dampingFraction: 0.8)) {
+                                withAnimation(.spring(response: 0.5, dampingFraction: 0.85)) {
                                     showFullPlayer = true
                                 }
                             }
-                            .padding(.horizontal, layout.miniPlayerHorizontalPadding)
-                            .padding(.bottom, layout.miniPlayerBottomPadding)
+                            .zIndex(1)
                     }
-                }
-
-                // Full Player Overlay
-                if showFullPlayer {
-                    Color.clear
-                        .edgesIgnoringSafeArea(.all)
-
-                    MusicPlayerView(
-                        dismissAction: {
-                            withAnimation(.spring(response: 0.5, dampingFraction: 0.8)) {
-                                showFullPlayer = false
-                            }
-                        },
-                        miniPlayerFrame: miniPlayerFrame,
-                        namespace: animation
-                    )
-                    .environmentObject(musicPlayerManager)
-                    .environmentObject(playlistsViewModel)
-                    .environmentObject(sleepTimerManager)
-                    .transition(.opacity)
-                    .zIndex(1)
                 }
             }
         }
-    }
-}
-
-struct MiniPlayerFrameKey: PreferenceKey {
-    static var defaultValue: CGRect = .zero
-    static func reduce(value: inout CGRect, nextValue: () -> CGRect) {
-        value = nextValue()
     }
 }

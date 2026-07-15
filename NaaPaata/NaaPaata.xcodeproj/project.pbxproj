@@ -69,7 +69,7 @@
 		ACD23E2B2E9286E70054344D /* AddSongsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = ACD23E2A2E9286E70054344D /* AddSongsView.swift */; };
 		ACD23E2D2E92871D0054344D /* EditPlaylistView.swift in Sources */ = {isa = PBXBuildFile; fileRef = ACD23E2C2E92871D0054344D /* EditPlaylistView.swift */; };
 		ACE6B0362FEC384A0034009F /* ProgressBar.swift in Sources */ = {isa = PBXBuildFile; fileRef = ACE6B0352FEC38490034009F /* ProgressBar.swift */; };
-		ACE6B0382FEC386E0034009F /* PlayPaueButton.swift in Sources */ = {isa = PBXBuildFile; fileRef = ACE6B0372FEC386E0034009F /* PlayPaueButton.swift */; };
+		ACE6B0382FEC386E0034009F /* PlaybackButton.swift in Sources */ = {isa = PBXBuildFile; fileRef = ACE6B0372FEC386E0034009F /* PlaybackButton.swift */; };
 		ACE6B03A2FEC38860034009F /* ControlButton.swift in Sources */ = {isa = PBXBuildFile; fileRef = ACE6B0392FEC38860034009F /* ControlButton.swift */; };
 		ACE6B03C2FEC389B0034009F /* VisualEffectBlur.swift in Sources */ = {isa = PBXBuildFile; fileRef = ACE6B03B2FEC389B0034009F /* VisualEffectBlur.swift */; };
 		ACE6B03E2FEC38F30034009F /* UIImage+Ext.swift in Sources */ = {isa = PBXBuildFile; fileRef = ACE6B03D2FEC38F30034009F /* UIImage+Ext.swift */; };
@@ -186,7 +186,7 @@
 		ACD23E2A2E9286E70054344D /* AddSongsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddSongsView.swift; sourceTree = "<group>"; };
 		ACD23E2C2E92871D0054344D /* EditPlaylistView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EditPlaylistView.swift; sourceTree = "<group>"; };
 		ACE6B0352FEC38490034009F /* ProgressBar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProgressBar.swift; sourceTree = "<group>"; };
-		ACE6B0372FEC386E0034009F /* PlayPaueButton.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlayPaueButton.swift; sourceTree = "<group>"; };
+		ACE6B0372FEC386E0034009F /* PlaybackButton.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaybackButton.swift; sourceTree = "<group>"; };
 		ACE6B0392FEC38860034009F /* ControlButton.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ControlButton.swift; sourceTree = "<group>"; };
 		ACE6B03B2FEC389B0034009F /* VisualEffectBlur.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VisualEffectBlur.swift; sourceTree = "<group>"; };
 		ACE6B03D2FEC38F30034009F /* UIImage+Ext.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "UIImage+Ext.swift"; sourceTree = "<group>"; };
@@ -362,7 +362,7 @@
 				AC6F41742E7FD05F00B5BE35 /* MusicPlayerView.swift */,
 				ACEB86992F4329FD007DA2D8 /* SleepTimerPickerView.swift */,
 				ACE6B0352FEC38490034009F /* ProgressBar.swift */,
-				ACE6B0372FEC386E0034009F /* PlayPaueButton.swift */,
+				ACE6B0372FEC386E0034009F /* PlaybackButton.swift */,
 				ACE6B0392FEC38860034009F /* ControlButton.swift */,
 				ACE6B03B2FEC389B0034009F /* VisualEffectBlur.swift */,
 				ACE6B0402FEC395A0034009F /* CircularAlbumArtwork.swift */,
@@ -670,7 +670,7 @@
 				AC6F417F2E7FD05F00B5BE35 /* MainTabView.swift in Sources */,
 				AC524C972F9E28AC00914B76 /* ToastManager.swift in Sources */,
 				AC2F170E2FEB95AD002AE3A0 /* AnimatedDotsLoader.swift in Sources */,
-				ACE6B0382FEC386E0034009F /* PlayPaueButton.swift in Sources */,
+				ACE6B0382FEC386E0034009F /* PlaybackButton.swift in Sources */,
 				AC6774032EA2AF480059C86C /* PlayListCard.swift in Sources */,
 				CE7907E02E92E5E9006D517C /* LoadAllSongsFromDocuments.swift in Sources */,
 				AC6F41802E7FD05F00B5BE35 /* MP3FileCell.swift in Sources */,

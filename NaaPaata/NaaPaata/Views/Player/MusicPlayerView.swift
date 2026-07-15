@@ -10,16 +10,32 @@ import AVFoundation
 import MediaPlayer
 import SwiftData
 
+// MARK: - Conditional Matched Geometry Modifier
+struct MatchedGeometryIfAvailable: ViewModifier {
+    let id: String?
+    let namespace: Namespace.ID?
+
+    func body(content: Content) -> some View {
+        if let id = id, let namespace = namespace {
+            content.matchedGeometryEffect(id: id, in: namespace)
+        } else {
+            content
+        }
+    }
+}
+
+// MARK: - Playback Button with Spring Animation
+
+
+// MARK: - MusicPlayerView
 struct MusicPlayerView: View {
     // MARK: - Dependencies
-    let dismissAction: (() -> Void)?
-    let miniPlayerFrame: CGRect
-    let namespace: Namespace.ID
+    let dismissAction: () -> Void
+    var namespace: Namespace.ID
 
     @Environment(\.horizontalSizeClass) var sizeClass
     @Environment(\.verticalSizeClass) var verticalSizeClass
-    @Environment(\.colorScheme) var colorScheme
-    
+
     @EnvironmentObject var musicPlayerManager: MusicPlayerManager
     @EnvironmentObject var playlistsVM: PlaylistsViewModel
     @EnvironmentObject var sleepTimerManager: SleepTimerManager
@@ -29,62 +45,14 @@ struct MusicPlayerView: View {
     // MARK: - State
     @State private var newPlaylistName = ""
     @State private var newPlaylistDescription = ""
-    
     @State private var showCreatePlaylistSheet = false
     @State private var showSleepTimerSheet = false
     @State private var showSongInfoSheet = false
-    @State private var isAnimatingSwipeIndicator = false
-    
-    @State private var dragOffset: CGFloat = 0
-    @State private var artworkScale: CGFloat = 1.0
-
-    @State private var artworkColors: (background: Color, primary: Color, secondary: Color) = (
-        background: Color(red: 0.05, green: 0.05, blue: 0.12),
-        primary: AppColors.primary,
-        secondary: Color(red: 0.02, green: 0.02, blue: 0.06)
-    )
 
     private var isLandscape: Bool {
         verticalSizeClass == .compact
     }
-    
-    private var maxDragOffset: CGFloat {
-        UIScreen.main.bounds.height * 0.25
-    }
-    
-    private var dragProgress: CGFloat {
-        let progress = min(1, dragOffset / maxDragOffset)
-        return max(0, progress)
-    }
 
-    private var artworkDragScale: CGFloat {
-        let fullSize = min(UIScreen.main.bounds.width * 0.7, 320)
-        let miniSize = 48.0
-        let targetScale = miniSize / fullSize
-        return 1 - (1 - targetScale) * dragProgress
-    }
-    
-    private var artworkDragTranslation: CGSize {
-        guard miniPlayerFrame != .zero else { return .zero }
-        let fullCenter = CGPoint(x: UIScreen.main.bounds.width / 2,
-                                 y: UIScreen.main.bounds.height / 2)
-        let targetCenter = CGPoint(x: miniPlayerFrame.midX,
-                                   y: miniPlayerFrame.midY)
-        let delta = CGSize(width: (targetCenter.x - fullCenter.x) * dragProgress,
-                           height: (targetCenter.y - fullCenter.y) * dragProgress)
-        return delta
-    }
-    
-    private var backgroundOpacity: CGFloat {
-        let progress = min(1, dragOffset / maxDragOffset)
-        return 1 - progress * 0.8
-    }
-
-    private var contentOpacity: CGFloat {
-        let progress = min(1, dragOffset / maxDragOffset)
-        return 1 - progress * 0.7
-    }
-    
     private var repeatIconName: String {
         switch musicPlayerManager.currentRepeatMode {
         case .off: return "repeat"
@@ -93,127 +61,35 @@ struct MusicPlayerView: View {
         }
     }
 
-    // MARK: - Drag Gesture
-    private var dragGesture: some Gesture {
-        DragGesture()
-            .onChanged { value in
-                let translation = value.translation.height
-                if translation < maxDragOffset {
-                    dragOffset = translation
-                } else {
-                    let extra = translation - maxDragOffset
-                    dragOffset = maxDragOffset + extra * 0.15
-                }
-                if dragOffset < -20 { dragOffset = -20 }
-            }
-            .onEnded { value in
-                let crossedThreshold = value.translation.height > maxDragOffset * 0.6
-                let flungDown = value.predictedEndTranslation.height > maxDragOffset * 1.2
-                
-                if crossedThreshold || flungDown {
-                    dismissAction?()
-                } else {
-                    withAnimation(.spring(response: 0.4, dampingFraction: 0.75)) {
-                        dragOffset = 0
-                    }
-                }
-            }
-    }
-    
-    // MARK: - Methods
-    private func extractArtworkColors() {
-        guard let artwork = musicPlayerManager.artworkImage else { return }
-        DispatchQueue.global(qos: .userInitiated).async {
-            let colors = artwork.getDominantColors()
-            DispatchQueue.main.async {
-                withAnimation(.easeInOut(duration: 0.5)) {
-                    if colorScheme == .dark {
-                        artworkColors = (
-                            background: colors.background,
-                            primary: colors.primary,
-                            secondary: colors.secondary
-                        )
-                    } else {
-                        artworkColors = (
-                            background: colors.background.opacity(0.2),
-                            primary: colors.primary.opacity(0.1),
-                            secondary: colors.secondary.opacity(0.05)
-                        )
-                    }
-                }
-            }
-        }
-    }
-
     // MARK: - Body
     var body: some View {
         ZStack {
-            // Background
+            // MARK: - Dark Blurred Artwork Background
             GeometryReader { geometry in
                 ZStack {
-                    (colorScheme == .dark ? Color.black : Color.white)
-                                .ignoresSafeArea()
-                    
-                    // Base gradient
-                    if colorScheme == .dark {
-                        LinearGradient(
-                            colors: [
-                                artworkColors.background,
-                                artworkColors.secondary,
-                                Color.black
-                            ],
-                            startPoint: .top,
-                            endPoint: .bottom
-                        )
-                    } else {
-                        LinearGradient(
-                            colors: [
-                                artworkColors.background.opacity(0.3),
-                                Color.white.opacity(0.95),
-                                Color.white
-                            ],
-                            startPoint: .top,
-                            endPoint: .bottom
-                        )
-                    }
-
-                    // Artwork-based blurred overlay
-                    if colorScheme == .dark, let artwork = musicPlayerManager.artworkImage {
+                    if let artwork = musicPlayerManager.artworkImage {
                         Image(uiImage: artwork)
                             .resizable()
                             .scaledToFill()
                             .frame(width: geometry.size.width, height: geometry.size.height)
-                            .opacity(0.15)
-                            .blur(radius: 60)
                             .scaleEffect(1.2)
-                    }
-
-                    // Blur layers
-                    if colorScheme == .dark {
-                        VisualEffectBlur(blurStyle: .systemUltraThinMaterialDark)
-                            .opacity(0.4)
-                            .mask(LinearGradient(colors: [Color.white, Color.white.opacity(0)], startPoint: .top, endPoint: .bottom))
-                        VisualEffectBlur(blurStyle: .systemMaterialDark)
-                            .opacity(0.6)
-                            .mask(LinearGradient(colors: [Color.white.opacity(0), Color.white], startPoint: .top, endPoint: .bottom))
+                            .blur(radius: 80)
+                            .overlay(
+                                LinearGradient(
+                                    colors: [Color.black.opacity(0.3), Color.black.opacity(0.7)],
+                                    startPoint: .top,
+                                    endPoint: .bottom
+                                )
+                            )
                     } else {
-                        VisualEffectBlur(blurStyle: .systemUltraThinMaterialLight)
-                            .opacity(0.3)
-                            .mask(LinearGradient(colors: [Color.white, Color.white.opacity(0)], startPoint: .top, endPoint: .bottom))
-                        VisualEffectBlur(blurStyle: .systemMaterialLight)
-                            .opacity(0.4)
-                            .mask(LinearGradient(colors: [Color.white.opacity(0), Color.white], startPoint: .top, endPoint: .bottom))
+                        Color.black
                     }
                 }
                 .ignoresSafeArea()
-                .opacity(backgroundOpacity)
-                .onAppear { extractArtworkColors() }
-                .onChange(of: musicPlayerManager.currentSong) { _, _ in extractArtworkColors() }
             }
             .ignoresSafeArea()
-            .opacity(backgroundOpacity)
 
-            // Main content – entire view moves with drag
+            // Main content – with drag to dismiss
             Group {
                 if isLandscape {
                     landscapeContent
@@ -221,8 +97,16 @@ struct MusicPlayerView: View {
                     portraitContent
                 }
             }
-            .offset(y: dragOffset)
-            .gesture(dragGesture)
+            .gesture(
+                DragGesture()
+                    .onEnded { value in
+                        let translation = value.translation.height
+                        let velocity = value.velocity.height
+                        if translation > 80 || velocity > 300 {
+                            dismissAction()
+                        }
+                    }
+            )
         }
         .preferredColorScheme(.dark)
         .sheet(isPresented: $showCreatePlaylistSheet) {
@@ -257,263 +141,76 @@ struct MusicPlayerView: View {
         }
     }
 
-    // MARK: - Portrait Content (Artwork perfectly centered)
+    // MARK: - Portrait Content
     private var portraitContent: some View {
         GeometryReader { geometry in
             VStack(spacing: 0) {
+                // Dismiss indicator
                 VStack(spacing: 4) {
                     Image(systemName: "chevron.down")
                         .font(.system(size: 14, weight: .medium))
-                        .foregroundColor(colorScheme == .dark ? .white.opacity(0.6) : .black.opacity(0.6))
+                        .foregroundColor(.white.opacity(0.6))
                     Text("Swipe down")
                         .font(.system(size: 11, weight: .medium, design: .rounded))
-                        .foregroundColor(colorScheme == .dark ? .white.opacity(0.5) : .black.opacity(0.5))
+                        .foregroundColor(.white.opacity(0.6))
                 }
                 .frame(maxWidth: .infinity)
-                .padding(.bottom, 24)
-                .offset(y: isAnimatingSwipeIndicator ? 5 : -5)
-                .animation(Animation.easeInOut(duration: 1.5).repeatForever(autoreverses: true), value: isAnimatingSwipeIndicator)
-                .onAppear { isAnimatingSwipeIndicator = true }
+                .padding(.top, 12)
+                .padding(.bottom, 8)
                 .onTapGesture {
-                    withAnimation(.spring(response: 0.4, dampingFraction: 0.7)) {
-                        dismissAction?()
-                    }
+                    dismissAction()
                 }
 
-                VStack(spacing: 20) {
-                    CircularAlbumArtwork(
-                        artwork: musicPlayerManager.artworkImage,
-                        size: min(geometry.size.width * 0.7, 320),
-                        isPlaying: musicPlayerManager.isPlaying,
-                        colorScheme: colorScheme,
-                    )
-                    .scaleEffect(artworkDragScale)
-                    .offset(artworkDragTranslation)
-                    .scaleEffect(artworkScale)
+                Spacer(minLength: 8)
 
-                    VStack(spacing: 6) {
-                        Text(musicPlayerManager.currentSong?.title ?? "Unknown Title")
-                            .font(.system(size: 26, weight: .bold, design: .rounded))
-                            .foregroundColor(colorScheme == .dark ? .white : .black)
-                            .multilineTextAlignment(.center)
-                            .lineLimit(1)
-                        Text(musicPlayerManager.currentSong?.artist ?? "Unknown Artist")
-                            .font(.system(size: 17, weight: .medium, design: .rounded))
-                            .foregroundColor(colorScheme == .dark ? .white.opacity(0.7) : .black.opacity(0.6))
-                            .multilineTextAlignment(.center)
-                            .lineLimit(1)
-                    }
-                    .padding(.horizontal, 32)
-                    .opacity(contentOpacity)
+                // Artwork – larger
+                let artworkSize = min(geometry.size.width * 0.82, 380)
+                if let artwork = musicPlayerManager.artworkImage {
+                    Image(uiImage: artwork)
+                        .resizable()
+                        .scaledToFit()
+                        .frame(width: artworkSize, height: artworkSize)
+                        .clipShape(RoundedRectangle(cornerRadius: 14))
+                        .matchedGeometryEffect(id: "artwork", in: namespace)
+                        .shadow(color: .black.opacity(0.5), radius: 24, x: 0, y: 10)
+                } else {
+                    RoundedRectangle(cornerRadius: 14)
+                        .fill(Color.gray.opacity(0.3))
+                        .frame(width: artworkSize, height: artworkSize)
+                        .matchedGeometryEffect(id: "artwork", in: namespace)
                 }
-                .frame(maxWidth: .infinity)
 
-                VStack(spacing: 12) {
-                    // Banner Ad
-                    if geometry.size.width > 0 && geometry.size.width.isFinite {
-                        let adWidth = min(max(geometry.size.width - 40, 200), 320)
-                        if adWidth > 0 && adWidth.isFinite {
-                            BannerAdView(adUnitID: AddsKeys.addUnitId.rawValue)
-                                .frame(width: adWidth, height: 50)
-                                .clipShape(RoundedRectangle(cornerRadius: 12))
-                                .padding(12)
-                                .opacity(contentOpacity)
-                        }
-                    }
+                Spacer(minLength: 16)
 
-                    VStack(spacing: 20) {
-                        HStack {
-                            Spacer()
-                            HStack(spacing: 16) {
-                                Button(action: {
-                                    HapticManager.shared.light()
-                                    showSleepTimerSheet = true
-                                }) {
-                                    ZStack {
-                                        Image(systemName: sleepTimerManager.isTimerActive ? "moon.fill" : "moon")
-                                            .font(.system(size: 18, weight: .medium))
-                                            .foregroundColor(sleepTimerManager.isTimerActive ? AppColors.primary : (colorScheme == .dark ? .white : .black))
-                                            .frame(width: 40, height: 40)
-                                            .background(.ultraThinMaterial)
-                                            .clipShape(Circle())
-                                        if sleepTimerManager.isTimerActive {
-                                            Text(sleepTimerManager.formattedTimeRemaining)
-                                                .font(.system(size: 9, weight: .bold))
-                                                .foregroundColor(.white)
-                                                .padding(.horizontal, 5)
-                                                .padding(.vertical, 2)
-                                                .background(AppColors.primary)
-                                                .clipShape(Capsule())
-                                                .offset(x: 14, y: -14)
-                                        }
-                                    }
-                                }
+                // Title & artist – centred
+                VStack(spacing: 6) {
+                    Text(musicPlayerManager.currentSong?.title ?? "Unknown Title")
+                        .font(.system(size: 28, weight: .bold, design: .rounded))
+                        .foregroundColor(.white)
+                        .multilineTextAlignment(.center)
+                        .lineLimit(1)
+                        .matchedGeometryEffect(id: "title", in: namespace)
+                        .padding(.horizontal, 32)
 
-                                Menu {
-                                    Button {
-                                        showSongInfoSheet = true
-                                    } label: {
-                                        Label("Song Info", systemImage: "info.circle")
-                                    }
-                                    Divider()
-                                    ForEach(playlists) { playlist in
-                                        Button {
-                                            if let currentSong = musicPlayerManager.currentSong {
-                                                playlistsVM.addSongToPlaylist(currentSong, to: playlist)
-                                            }
-                                        } label: {
-                                            if let currentSong = musicPlayerManager.currentSong,
-                                               playlist.songs.contains(where: { $0.relativePath == currentSong.relativePath }) {
-                                                Label(playlist.name, systemImage: "checkmark")
-                                            } else {
-                                                Label(playlist.name, systemImage: "music.note.list")
-                                            }
-                                        }
-                                    }
-                                    Divider()
-                                    Button {
-                                        showCreatePlaylistSheet = true
-                                    } label: {
-                                        Label("Create New Playlist", systemImage: "plus.circle")
-                                    }
-                                } label: {
-                                    Image(systemName: "ellipsis")
-                                        .font(.system(size: 18, weight: .semibold))
-                                        .foregroundColor(colorScheme == .dark ? .white : .black)
-                                        .frame(width: 40, height: 40)
-                                        .background(.ultraThinMaterial)
-                                        .clipShape(Circle())
-                                }
-                            }
-                        }
-                        .padding(.horizontal, 24)
-
-                        // Progress Bar
-                        ProgressBar(
-                            currentTime: $musicPlayerManager.currentTime,
-                            duration: musicPlayerManager.duration,
-                            onDragChanged: { time in
-                                musicPlayerManager.seek(to: time)
-                            },
-                            colorScheme: colorScheme
-                        )
-                        .padding(.horizontal, 24)
-
-                        // Playback Controls
-                        HStack(spacing: 0) {
-                            ControlButton(
-                                icon: "shuffle",
-                                isActive: musicPlayerManager.shuffleIsActive,
-                                action: {
-                                    HapticManager.shared.medium()
-                                    withAnimation(.spring(response: 0.3, dampingFraction: 0.6)) {
-                                        musicPlayerManager.toggleShuffle()
-                                    }
-                                },
-                                colorScheme: colorScheme
-                            )
-                            .frame(width: 50)
-
-                            Spacer()
-
-                            HStack(spacing: 30) {
-                                Button(action: {
-                                    HapticManager.shared.light()
-                                    musicPlayerManager.playPrevious()
-                                }) {
-                                    Image(systemName: "backward.fill")
-                                        .font(.system(size: 28, weight: .medium))
-                                        .foregroundColor(colorScheme == .dark ? .white : .black)
-                                        .frame(width: 50, height: 50)
-                                }
-
-                                PlayPauseButton(
-                                    isPlaying: musicPlayerManager.isPlaying,
-                                    size: 70,
-                                    action: {
-                                        HapticManager.shared.medium()
-                                        musicPlayerManager.togglePlayPause()
-                                    },
-                                    colorScheme: colorScheme
-                                )
-
-                                Button(action: {
-                                    HapticManager.shared.light()
-                                    musicPlayerManager.playNext()
-                                }) {
-                                    Image(systemName: "forward.fill")
-                                        .font(.system(size: 28, weight: .medium))
-                                        .foregroundColor(colorScheme == .dark ? .white : .black)
-                                        .frame(width: 50, height: 50)
-                                }
-                            }
-
-                            Spacer()
-
-                            ControlButton(
-                                icon: repeatIconName,
-                                isActive: musicPlayerManager.currentRepeatMode != .off,
-                                action: {
-                                    HapticManager.shared.medium()
-                                    withAnimation(.spring(response: 0.3, dampingFraction: 0.6)) {
-                                        musicPlayerManager.cycleRepeatMode()
-                                    }
-                                },
-                                colorScheme: colorScheme
-                            )
-                            .frame(width: 50)
-                        }
-                        .padding(.horizontal, 24)
-                    }
-                    .padding(.bottom, max(geometry.safeAreaInsets.bottom, 20))
-                    .opacity(contentOpacity)
+                    Text(musicPlayerManager.currentSong?.artist ?? "Unknown Artist")
+                        .font(.system(size: 18, weight: .medium, design: .rounded))
+                        .foregroundColor(.white.opacity(0.7))
+                        .multilineTextAlignment(.center)
+                        .lineLimit(1)
+                        .matchedGeometryEffect(id: "artist", in: namespace)
+                        .padding(.horizontal, 32)
                 }
-            }
-            .frame(width: geometry.size.width, height: geometry.size.height)
-        }
-    }
+                .padding(.top, 4)
 
-    // MARK: - Landscape Content (artwork centered vertically on left)
-    private var landscapeContent: some View {
-        GeometryReader { geometry in
-            HStack(spacing: 0) {
-                // Left: Artwork (centered vertically)
-                VStack {
-                    Spacer()
-                    CircularAlbumArtwork(
-                        artwork: musicPlayerManager.artworkImage,
-                        size: min(geometry.size.width * 0.55, 300),
-                        isPlaying: musicPlayerManager.isPlaying,
-                        colorScheme: colorScheme,
-                    )
-                    .scaleEffect(artworkDragScale)
-                    .offset(artworkDragTranslation)
-                    .scaleEffect(artworkScale)
-                    Spacer()
-                }
-                .frame(maxWidth: .infinity)
+                Spacer(minLength: 12)
 
-                // Right: Controls
-                VStack(spacing: 20) {
-                    Spacer()
-
-                    // Top row: Ad banner on left, buttons on right
+                // Controls (progress + buttons)
+                VStack(spacing: 16) {
+                    // Top row: sleep timer + ellipsis menu
                     HStack {
-                        // Banner Ad – with geometry-based sizing and horizontal padding
-                        if geometry.size.width > 0 && geometry.size.width.isFinite {
-                            let adWidth = min(max(geometry.size.width * 0.25, 160), 220)
-                            if adWidth > 0 && adWidth.isFinite {
-                                BannerAdView(adUnitID: AddsKeys.addUnitId.rawValue)
-                                    .frame(width: adWidth, height: 50)
-                                    .clipShape(RoundedRectangle(cornerRadius: 12))
-                                    .opacity(contentOpacity)
-                            }
-                        }
-
-                        Spacer(minLength: 8)
-
-                        // Sleep timer & menu buttons
+                        Spacer()
                         HStack(spacing: 16) {
+                            // Sleep Timer – dark theme
                             Button(action: {
                                 HapticManager.shared.light()
                                 showSleepTimerSheet = true
@@ -521,7 +218,7 @@ struct MusicPlayerView: View {
                                 ZStack {
                                     Image(systemName: sleepTimerManager.isTimerActive ? "moon.fill" : "moon")
                                         .font(.system(size: 18, weight: .medium))
-                                        .foregroundColor(sleepTimerManager.isTimerActive ? AppColors.primary : (colorScheme == .dark ? .white : .black))
+                                        .foregroundColor(.white)
                                         .frame(width: 40, height: 40)
                                         .background(.ultraThinMaterial)
                                         .clipShape(Circle())
@@ -531,7 +228,7 @@ struct MusicPlayerView: View {
                                             .foregroundColor(.white)
                                             .padding(.horizontal, 5)
                                             .padding(.vertical, 2)
-                                            .background(AppColors.primary)
+                                            .background(Color.black.opacity(0.5))
                                             .clipShape(Capsule())
                                             .offset(x: 14, y: -14)
                                     }
@@ -568,28 +265,14 @@ struct MusicPlayerView: View {
                             } label: {
                                 Image(systemName: "ellipsis")
                                     .font(.system(size: 18, weight: .semibold))
-                                    .foregroundColor(colorScheme == .dark ? .white : .black)
+                                    .foregroundColor(.white)
                                     .frame(width: 40, height: 40)
                                     .background(.ultraThinMaterial)
                                     .clipShape(Circle())
                             }
                         }
                     }
-                    .padding(.horizontal, 24)   // Aligns with the other controls
-
-                    // Song Info
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text(musicPlayerManager.currentSong?.title ?? "Unknown Title")
-                            .font(.system(size: 30, weight: .bold, design: .rounded))
-                            .foregroundColor(colorScheme == .dark ? .white : .black)
-                            .lineLimit(1)
-                        Text(musicPlayerManager.currentSong?.artist ?? "Unknown Artist")
-                            .font(.system(size: 18, weight: .medium, design: .rounded))
-                            .foregroundColor(colorScheme == .dark ? .white.opacity(0.7) : .black.opacity(0.6))
-                            .lineLimit(1)
-                    }
                     .padding(.horizontal, 24)
-                    .opacity(contentOpacity)
 
                     // Progress Bar
                     ProgressBar(
@@ -597,14 +280,13 @@ struct MusicPlayerView: View {
                         duration: musicPlayerManager.duration,
                         onDragChanged: { time in
                             musicPlayerManager.seek(to: time)
-                        },
-                        colorScheme: colorScheme
+                        }
                     )
                     .padding(.horizontal, 24)
-                    .opacity(contentOpacity)
 
-                    // Playback Controls
+                    // Playback Controls – with spring animations
                     HStack(spacing: 0) {
+                        // Shuffle
                         ControlButton(
                             icon: "shuffle",
                             isActive: musicPlayerManager.shuffleIsActive,
@@ -613,47 +295,51 @@ struct MusicPlayerView: View {
                                 withAnimation(.spring(response: 0.3, dampingFraction: 0.6)) {
                                     musicPlayerManager.toggleShuffle()
                                 }
-                            },
-                            colorScheme: colorScheme
+                            }
                         )
                         .frame(width: 50)
 
                         Spacer()
 
                         HStack(spacing: 30) {
-                            Button(action: {
-                                HapticManager.shared.light()
-                                musicPlayerManager.playPrevious()
-                            }) {
-                                Image(systemName: "backward.fill")
-                                    .font(.system(size: 28, weight: .medium))
-                                    .foregroundColor(colorScheme == .dark ? .white : .black)
-                                    .frame(width: 50, height: 50)
-                            }
+                            // Previous – no matched geometry
+                            PlaybackButton(
+                                icon: "backward.fill",
+                                size: 28,
+                                action: {
+                                    HapticManager.shared.light()
+                                    musicPlayerManager.playPrevious()
+                                }
+                            )
 
-                            PlayPauseButton(
-                                isPlaying: musicPlayerManager.isPlaying,
-                                size: 70,
+                            // Play/Pause – with matched geometry
+                            PlaybackButton(
+                                icon: musicPlayerManager.isPlaying ? "pause.fill" : "play.fill",
+                                size: 44,
                                 action: {
                                     HapticManager.shared.medium()
                                     musicPlayerManager.togglePlayPause()
                                 },
-                                colorScheme: colorScheme
+                                matchedGeometryID: "playButton",
+                                namespace: namespace
                             )
 
-                            Button(action: {
-                                HapticManager.shared.light()
-                                musicPlayerManager.playNext()
-                            }) {
-                                Image(systemName: "forward.fill")
-                                    .font(.system(size: 28, weight: .medium))
-                                    .foregroundColor(colorScheme == .dark ? .white : .black)
-                                    .frame(width: 50, height: 50)
-                            }
+                            // Next – with matched geometry
+                            PlaybackButton(
+                                icon: "forward.fill",
+                                size: 28,
+                                action: {
+                                    HapticManager.shared.light()
+                                    musicPlayerManager.playNext()
+                                },
+                                matchedGeometryID: "nextButton",
+                                namespace: namespace
+                            )
                         }
 
                         Spacer()
 
+                        // Repeat
                         ControlButton(
                             icon: repeatIconName,
                             isActive: musicPlayerManager.currentRepeatMode != .off,
@@ -662,20 +348,219 @@ struct MusicPlayerView: View {
                                 withAnimation(.spring(response: 0.3, dampingFraction: 0.6)) {
                                     musicPlayerManager.cycleRepeatMode()
                                 }
-                            },
-                            colorScheme: colorScheme
+                            }
                         )
                         .frame(width: 50)
                     }
                     .padding(.horizontal, 24)
-                    .opacity(contentOpacity)
+                }
+                .padding(.bottom, max(geometry.safeAreaInsets.bottom, 20))
+
+                Spacer(minLength: 8)
+            }
+            .frame(width: geometry.size.width, height: geometry.size.height)
+        }
+    }
+
+    // MARK: - Landscape Content
+    private var landscapeContent: some View {
+        GeometryReader { geometry in
+            HStack(spacing: 0) {
+                // Left: Artwork (larger, centred)
+                VStack {
+                    Spacer()
+                    let artworkSize = min(geometry.size.width * 0.5, 320)
+                    if let artwork = musicPlayerManager.artworkImage {
+                        Image(uiImage: artwork)
+                            .resizable()
+                            .scaledToFit()
+                            .frame(width: artworkSize, height: artworkSize)
+                            .clipShape(RoundedRectangle(cornerRadius: 14))
+                            .matchedGeometryEffect(id: "artwork", in: namespace)
+                            .shadow(color: .black.opacity(0.5), radius: 24, x: 0, y: 10)
+                    } else {
+                        RoundedRectangle(cornerRadius: 14)
+                            .fill(Color.gray.opacity(0.3))
+                            .frame(width: artworkSize, height: artworkSize)
+                            .matchedGeometryEffect(id: "artwork", in: namespace)
+                    }
+                    Spacer()
+                }
+                .frame(maxWidth: .infinity)
+
+                // Right: Controls
+                VStack(spacing: 20) {
+                    Spacer()
+
+                    // Top row: sleep timer + menu
+                    HStack {
+                        Spacer()
+                        HStack(spacing: 16) {
+                            // Sleep Timer – dark theme
+                            Button(action: {
+                                HapticManager.shared.light()
+                                showSleepTimerSheet = true
+                            }) {
+                                ZStack {
+                                    Image(systemName: sleepTimerManager.isTimerActive ? "moon.fill" : "moon")
+                                        .font(.system(size: 18, weight: .medium))
+                                        .foregroundColor(.white)
+                                        .frame(width: 40, height: 40)
+                                        .background(.ultraThinMaterial)
+                                        .clipShape(Circle())
+                                    if sleepTimerManager.isTimerActive {
+                                        Text(sleepTimerManager.formattedTimeRemaining)
+                                            .font(.system(size: 9, weight: .bold))
+                                            .foregroundColor(.white)
+                                            .padding(.horizontal, 5)
+                                            .padding(.vertical, 2)
+                                            .background(Color.black.opacity(0.5))
+                                            .clipShape(Capsule())
+                                            .offset(x: 14, y: -14)
+                                    }
+                                }
+                            }
+
+                            Menu {
+                                Button {
+                                    showSongInfoSheet = true
+                                } label: {
+                                    Label("Song Info", systemImage: "info.circle")
+                                }
+                                Divider()
+                                ForEach(playlists) { playlist in
+                                    Button {
+                                        if let currentSong = musicPlayerManager.currentSong {
+                                            playlistsVM.addSongToPlaylist(currentSong, to: playlist)
+                                        }
+                                    } label: {
+                                        if let currentSong = musicPlayerManager.currentSong,
+                                           playlist.songs.contains(where: { $0.relativePath == currentSong.relativePath }) {
+                                            Label(playlist.name, systemImage: "checkmark")
+                                        } else {
+                                            Label(playlist.name, systemImage: "music.note.list")
+                                        }
+                                    }
+                                }
+                                Divider()
+                                Button {
+                                    showCreatePlaylistSheet = true
+                                } label: {
+                                    Label("Create New Playlist", systemImage: "plus.circle")
+                                }
+                            } label: {
+                                Image(systemName: "ellipsis")
+                                    .font(.system(size: 18, weight: .semibold))
+                                    .foregroundColor(.white)
+                                    .frame(width: 40, height: 40)
+                                    .background(.ultraThinMaterial)
+                                    .clipShape(Circle())
+                            }
+                        }
+                    }
+                    .padding(.horizontal, 24)
+
+                    // Song info – left aligned
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text(musicPlayerManager.currentSong?.title ?? "Unknown Title")
+                            .font(.system(size: 34, weight: .bold, design: .rounded))
+                            .foregroundColor(.white)
+                            .lineLimit(1)
+                            .matchedGeometryEffect(id: "title", in: namespace)
+
+                        Text(musicPlayerManager.currentSong?.artist ?? "Unknown Artist")
+                            .font(.system(size: 20, weight: .medium, design: .rounded))
+                            .foregroundColor(.white.opacity(0.7))
+                            .lineLimit(1)
+                            .matchedGeometryEffect(id: "artist", in: namespace)
+                    }
+                    .padding(.horizontal, 24)
+
+                    // Progress Bar
+                    ProgressBar(
+                        currentTime: $musicPlayerManager.currentTime,
+                        duration: musicPlayerManager.duration,
+                        onDragChanged: { time in
+                            musicPlayerManager.seek(to: time)
+                        }
+                    )
+                    .padding(.horizontal, 24)
+
+                    // Playback Controls – with spring animations
+                    HStack(spacing: 0) {
+                        // Shuffle
+                        ControlButton(
+                            icon: "shuffle",
+                            isActive: musicPlayerManager.shuffleIsActive,
+                            action: {
+                                HapticManager.shared.medium()
+                                withAnimation(.spring(response: 0.3, dampingFraction: 0.6)) {
+                                    musicPlayerManager.toggleShuffle()
+                                }
+                            }
+                        )
+                        .frame(width: 50)
+
+                        Spacer()
+
+                        HStack(spacing: 30) {
+                            // Previous – no matched geometry
+                            PlaybackButton(
+                                icon: "backward.fill",
+                                size: 28,
+                                action: {
+                                    HapticManager.shared.light()
+                                    musicPlayerManager.playPrevious()
+                                }
+                            )
+
+                            // Play/Pause – with matched geometry
+                            PlaybackButton(
+                                icon: musicPlayerManager.isPlaying ? "pause.fill" : "play.fill",
+                                size: 44,
+                                action: {
+                                    HapticManager.shared.medium()
+                                    musicPlayerManager.togglePlayPause()
+                                },
+                                matchedGeometryID: "playButton",
+                                namespace: namespace
+                            )
+
+                            // Next – with matched geometry
+                            PlaybackButton(
+                                icon: "forward.fill",
+                                size: 28,
+                                action: {
+                                    HapticManager.shared.light()
+                                    musicPlayerManager.playNext()
+                                },
+                                matchedGeometryID: "nextButton",
+                                namespace: namespace
+                            )
+                        }
+
+                        Spacer()
+
+                        // Repeat
+                        ControlButton(
+                            icon: repeatIconName,
+                            isActive: musicPlayerManager.currentRepeatMode != .off,
+                            action: {
+                                HapticManager.shared.medium()
+                                withAnimation(.spring(response: 0.3, dampingFraction: 0.6)) {
+                                    musicPlayerManager.cycleRepeatMode()
+                                }
+                            }
+                        )
+                        .frame(width: 50)
+                    }
+                    .padding(.horizontal, 24)
 
                     Spacer()
                         .frame(height: max(geometry.safeAreaInsets.bottom, 20))
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
-            .frame(width: geometry.size.width, height: geometry.size.height)
         }
     }
 }

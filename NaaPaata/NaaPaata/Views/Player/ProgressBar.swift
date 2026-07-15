@@ -11,86 +11,87 @@ struct ProgressBar: View {
     @Binding var currentTime: TimeInterval
     let duration: TimeInterval
     let onDragChanged: (TimeInterval) -> Void
-    let colorScheme: ColorScheme
 
     @State private var isDragging = false
+    @State private var dragTime: TimeInterval = 0
+
+    // The time we actually display: dragTime when dragging, else currentTime
+    private var displayTime: TimeInterval {
+        isDragging ? dragTime : currentTime
+    }
+
+    // Height of the bar: bigger when dragging
+    private var barHeight: CGFloat {
+        isDragging ? 10 : 6
+    }
 
     var body: some View {
         VStack(spacing: 8) {
             GeometryReader { geometry in
                 ZStack(alignment: .leading) {
+                    // Uncompleted track
                     Capsule()
-                        .fill((colorScheme == .dark ? Color.white : Color.black).opacity(0.12))
-                        .frame(height: 3)
+                        .fill(Color.gray.opacity(0.25))
+                        .frame(height: barHeight)
 
+                    // Completed track
                     Capsule()
-                        .fill(
-                            LinearGradient(
-                                colors: [AppColors.primary, AppColors.primary.opacity(0.6)],
-                                startPoint: .leading,
-                                endPoint: .trailing
-                            )
-                        )
-                        .frame(width: progressWidth(totalWidth: geometry.size.width), height: 3)
-                        .animation(.linear(duration: 0.1), value: currentTime)
-
-                    Circle()
                         .fill(Color.white)
-                        .frame(width: 14, height: 14)
-                        .shadow(color: AppColors.primary.opacity(0.4), radius: 4, x: 0, y: 0)
-                        .offset(x: circleXPosition(geometry: geometry), y: 0)
-                        .animation(isDragging ? nil : .linear(duration: 0.1), value: currentTime)
+                        .frame(width: progressWidth(totalWidth: geometry.size.width), height: barHeight)
+                        .animation(.linear(duration: 0.1), value: displayTime)
                 }
-                .frame(height: 30)
+                .frame(height: max(barHeight, 30))
                 .contentShape(Rectangle())
                 .gesture(
                     DragGesture(minimumDistance: 0)
                         .onChanged { value in
-                            isDragging = true
-                            let newPosition = max(0, min(geometry.size.width, value.location.x))
-                            let progress = newPosition / geometry.size.width
+                            let newX = max(0, min(geometry.size.width, value.location.x))
+                            let progress = newX / geometry.size.width
                             let newTime = progress * duration
-                            currentTime = newTime
-                            onDragChanged(newTime)
+
+                            // Update dragTime but do NOT seek yet
+                            if !isDragging {
+                                isDragging = true
+                            }
+                            dragTime = newTime
                         }
                         .onEnded { value in
+                            let newX = max(0, min(geometry.size.width, value.location.x))
+                            let progress = newX / geometry.size.width
+                            let finalTime = progress * duration
+
+                            // Update currentTime and trigger seek
+                            currentTime = finalTime
+                            onDragChanged(finalTime)
+
+                            // Reset dragging state
                             isDragging = false
-                            let newPosition = max(0, min(geometry.size.width, value.location.x))
-                            let progress = newPosition / geometry.size.width
-                            let newTime = progress * duration
-                            currentTime = newTime
-                            onDragChanged(newTime)
+                            dragTime = 0
                         }
                 )
             }
-            .frame(height: 30)
+            .frame(height: max(barHeight, 30))
 
+            // Time labels – update during drag
             HStack {
-                Text(formatTime(currentTime))
+                Text(formatTime(displayTime))
                     .font(.system(size: 13, weight: .medium, design: .rounded))
                     .monospacedDigit()
-                    .foregroundColor((colorScheme == .dark ? Color.white : Color.black).opacity(0.6))
+                    .foregroundColor(.white.opacity(0.6))
                 Spacer()
                 Text(formatTime(duration))
                     .font(.system(size: 13, weight: .medium, design: .rounded))
                     .monospacedDigit()
-                    .foregroundColor((colorScheme == .dark ? Color.white : Color.black).opacity(0.6))
+                    .foregroundColor(.white.opacity(0.6))
             }
         }
     }
 
+    // MARK: - Helpers
     private func progressWidth(totalWidth: CGFloat) -> CGFloat {
         guard duration > 0 else { return 0 }
-        return totalWidth * CGFloat(currentTime / duration)
-    }
-
-    private func circleXPosition(geometry: GeometryProxy) -> CGFloat {
-        guard duration > 0 else { return 0 }
-        let halfCircle: CGFloat = 7
-        let progress = CGFloat(currentTime / duration)
-        let position = progress * geometry.size.width - halfCircle
-        let maxOffset = geometry.size.width - 14
-        return max(0, min(maxOffset, position))
+        let progress = min(displayTime / duration, 1)
+        return totalWidth * CGFloat(progress)
     }
 
     private func formatTime(_ time: TimeInterval) -> String {
