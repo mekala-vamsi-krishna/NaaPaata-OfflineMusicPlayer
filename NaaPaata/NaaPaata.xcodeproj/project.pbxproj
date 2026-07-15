@@ -33,12 +33,10 @@
 		AC6F41872E7FD26300B5BE35 /* MiniPlayerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AC6F41862E7FD26300B5BE35 /* MiniPlayerView.swift */; };
 		AC6F41892E7FD29A00B5BE35 /* MusicPlayerManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = AC6F41882E7FD29A00B5BE35 /* MusicPlayerManager.swift */; };
 		AC6F418B2E7FE03700B5BE35 /* AlbumDetailsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AC6F418A2E7FE03700B5BE35 /* AlbumDetailsView.swift */; };
-		AC6FFBC52FEE7D960017897E /* SwiftUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = AC6FFBC42FEE7D960017897E /* SwiftUI.framework */; };
 		AC6FFBE42FEE844C0017897E /* SharedDataManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = AC6FFBD62FEE7E530017897E /* SharedDataManager.swift */; };
 		AC6FFBE52FEE86010017897E /* SharedDataManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = AC6FFBD62FEE7E530017897E /* SharedDataManager.swift */; };
 		AC6FFBE62FEE86490017897E /* SongModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = ACD23E222E9285F60054344D /* SongModel.swift */; };
 		AC6FFBE72FEE891E0017897E /* AppColors.swift in Sources */ = {isa = PBXBuildFile; fileRef = AC6F416E2E7FD05F00B5BE35 /* AppColors.swift */; };
-		AC6FFBE82FEE8F060017897E /* WidgetKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = AC6FFBC22FEE7D950017897E /* WidgetKit.framework */; };
 		AC6FFBEB2FEE8F5B0017897E /* MusicPlayerWidgetExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = AC6FFBC02FEE7D950017897E /* MusicPlayerWidgetExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		AC6FFC0E2FF0010A0017897E /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = AC6FFC052FF0010A0017897E /* Assets.xcassets */; };
 		AC6FFC102FF0010A0017897E /* MediumWidgetView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AC6FFC072FF0010A0017897E /* MediumWidgetView.swift */; };
@@ -152,8 +150,6 @@
 		AC6F41882E7FD29A00B5BE35 /* MusicPlayerManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MusicPlayerManager.swift; sourceTree = "<group>"; };
 		AC6F418A2E7FE03700B5BE35 /* AlbumDetailsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AlbumDetailsView.swift; sourceTree = "<group>"; };
 		AC6FFBC02FEE7D950017897E /* MusicPlayerWidgetExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = MusicPlayerWidgetExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
-		AC6FFBC22FEE7D950017897E /* WidgetKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = WidgetKit.framework; path = System/Library/Frameworks/WidgetKit.framework; sourceTree = SDKROOT; };
-		AC6FFBC42FEE7D960017897E /* SwiftUI.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = SwiftUI.framework; path = System/Library/Frameworks/SwiftUI.framework; sourceTree = SDKROOT; };
 		AC6FFBD42FEE7DCB0017897E /* NaaPaataRelease.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = NaaPaataRelease.entitlements; sourceTree = "<group>"; };
 		AC6FFBD52FEE7E110017897E /* MusicPlayerWidgetExtensionRelease.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = MusicPlayerWidgetExtensionRelease.entitlements; sourceTree = "<group>"; };
 		AC6FFBD62FEE7E530017897E /* SharedDataManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SharedDataManager.swift; sourceTree = "<group>"; };
@@ -218,8 +214,6 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				AC6FFBC52FEE7D960017897E /* SwiftUI.framework in Frameworks */,
-				AC6FFBE82FEE8F060017897E /* WidgetKit.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -270,7 +264,6 @@
 				AC3A0F672E761869000CFC19 /* Launch Screen.storyboard */,
 				AC6F41782E7FD05F00B5BE35 /* NaaPaata */,
 				AC6FFC0D2FF0010A0017897E /* MusicPlayerWidget */,
-				AC6FFBC12FEE7D950017897E /* Frameworks */,
 				AC3A0F302E7538B9000CFC19 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -434,15 +427,6 @@
 				ACE6B0482FEC3A5E0034009F /* AlbumsTopBar.swift */,
 			);
 			path = Albums;
-			sourceTree = "<group>";
-		};
-		AC6FFBC12FEE7D950017897E /* Frameworks */ = {
-			isa = PBXGroup;
-			children = (
-				AC6FFBC22FEE7D950017897E /* WidgetKit.framework */,
-				AC6FFBC42FEE7D960017897E /* SwiftUI.framework */,
-			);
-			name = Frameworks;
 			sourceTree = "<group>";
 		};
 		AC6FFC0D2FF0010A0017897E /* MusicPlayerWidget */ = {
