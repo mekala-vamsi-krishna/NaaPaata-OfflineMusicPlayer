@@ -17,7 +17,6 @@ struct AlbumsTopBar: View {
             Text("\(filteredCount) Album\(filteredCount == 1 ? "" : "s")")
                 .font(.system(size: 18, weight: .semibold))
                 .foregroundColor(.primary)
-                .padding(.leading, 5)
 
             Spacer()
 
@@ -79,7 +78,6 @@ struct AlbumsTopBar: View {
                 }
             }
         }
-        .padding(.horizontal)
         .padding(.vertical, 8)
     }
 }

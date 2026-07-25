@@ -11,6 +11,7 @@ import AVFoundation
 struct MP3FileCell: View {
     let song: Song
     @EnvironmentObject var musicManager: MusicPlayerManager
+    @EnvironmentObject var albumsViewModel: AlbumsViewModel
 
     @State private var showSongInfoSheet = false
     @State private var showShareSheet = false
@@ -18,9 +19,10 @@ struct MP3FileCell: View {
     @State private var showDeleteAlert = false
     @State private var showAddToPlaylist = false
     @State private var artwork: UIImage?
+    @State private var navigateToAlbum = false
+    @State private var albumForNavigation: (title: String, artwork: UIImage?, songs: [Song])?
 
     // Create Playlist
-    @State private var showCreatePlaylist = false
     @State private var newPlaylistName = ""
     @State private var newPlaylistDescription = ""
 
@@ -81,6 +83,18 @@ struct MP3FileCell: View {
                 }
 
                 Button {
+                    let matched = albumsViewModel.albums.first(where: { $0.name == song.album })
+                    albumForNavigation = (
+                        title: matched?.name ?? song.album,
+                        artwork: matched?.artworkImage ?? song.artworkImage,
+                        songs: matched?.songs ?? [song]
+                    )
+                    navigateToAlbum = true
+                } label: {
+                    Label("Go to Album", systemImage: "square.stack")
+                }
+
+                Button {
                     if let shareURL = song.resolvedURL ?? song.url {
                         shareItems = [shareURL]
                         showShareSheet = true
@@ -95,15 +109,6 @@ struct MP3FileCell: View {
                     showAddToPlaylist = true
                 } label: {
                     Label("Add to Playlist", systemImage: "music.note.list")
-                }
-                
-                Divider()
-
-                // Create New Playlist (restored)
-                Button {
-                    showCreatePlaylist = true
-                } label: {
-                    Label("Create New Playlist", systemImage: "plus.circle")
                 }
 
                 Divider()
@@ -128,51 +133,17 @@ struct MP3FileCell: View {
             AddToPlaylistView(song: song)
                 .environmentObject(musicManager)
         }
-        .sheet(isPresented: $showCreatePlaylist) {
-            CreatePlaylistSheet(
-                name: $newPlaylistName,
-                description: $newPlaylistDescription,
-                onCreate: { coverImage in
-                    // 1. Generate a unique name (handles duplicates)
-                    let trimmedName = newPlaylistName.trimmingCharacters(in: .whitespaces)
-                    guard !trimmedName.isEmpty else { return }
-
-                    let currentPlaylists = PlaylistManager.shared.getAllPlaylists()
-                    var uniqueName = trimmedName
-                    var counter = 1
-                    while currentPlaylists.contains(where: { $0.name == uniqueName }) {
-                        uniqueName = "\(trimmedName) (\(counter))"
-                        counter += 1
-                    }
-
-                    // 2. Create the playlist
-                    let newPlaylist = Playlist(
-                        name: uniqueName,
-                        coverImage: coverImage,
-                        desc: newPlaylistDescription,
-                        dateCreated: Date()
-                    )
-                    PlaylistManager.shared.savePlaylist(newPlaylist)
-
-                    // 3. Add the current song to it
-                    if let created = PlaylistManager.shared.loadPlaylist(name: uniqueName) {
-                        let _ = PlaylistManager.shared.addSongToPlaylist(song, playlist: created)
-                        ToastManager.shared.showToast(message: "Song added to \(created.name) playlist")
-                    }
-
-                    // 4. Reset and dismiss
-                    newPlaylistName = ""
-                    newPlaylistDescription = ""
-                    showCreatePlaylist = false
-                }
-            )
-        }
         .sheet(isPresented: $showSongInfoSheet) {
             NavigationStack {
                 SongInfoView(song: song)
             }
             .presentationDetents([.fraction(0.7)])
             .presentationDragIndicator(.visible)
+        }
+        .navigationDestination(isPresented: $navigateToAlbum) {
+            if let album = albumForNavigation {
+                AlbumDetailsView(title: album.title, artwork: album.artwork, songs: album.songs)
+            }
         }
         .sheet(isPresented: $showShareSheet) {
             ActivityViewController(activityItems: shareItems)

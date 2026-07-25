@@ -36,11 +36,13 @@ struct MusicPlayerView: View {
     @EnvironmentObject var musicPlayerManager: MusicPlayerManager
     @EnvironmentObject var playlistsVM: PlaylistsViewModel
     @EnvironmentObject var sleepTimerManager: SleepTimerManager
+    @EnvironmentObject var albumsViewModel: AlbumsViewModel
 
     // MARK: - State
     @State private var showAddToPlaylistSheet = false
     @State private var showSleepTimerSheet = false
     @State private var showSongInfoSheet = false
+    @State private var showAlbumSheet = false
 
     private var isLandscape: Bool {
         verticalSizeClass == .compact
@@ -121,6 +123,20 @@ struct MusicPlayerView: View {
             SleepTimerPickerView()
                 .presentationDetents([.medium, .large])
                 .presentationDragIndicator(.visible)
+        }
+        .sheet(isPresented: $showAlbumSheet) {
+            if let currentSong = musicPlayerManager.currentSong {
+                let matched = albumsViewModel.albums.first(where: { $0.name == currentSong.album })
+                NavigationStack {
+                    AlbumDetailsView(
+                        title: matched?.name ?? currentSong.album,
+                        artwork: matched?.artworkImage ?? currentSong.artworkImage,
+                        songs: matched?.songs ?? [currentSong]
+                    )
+                    .navigationTitle(matched?.name ?? currentSong.album)
+                    .navigationBarTitleDisplayMode(.inline)
+                }
+            }
         }
     }
 
@@ -223,6 +239,13 @@ struct MusicPlayerView: View {
                                     showSongInfoSheet = true
                                 } label: {
                                     Label("Song Info", systemImage: "info.circle")
+                                }
+                                Button {
+                                    if musicPlayerManager.currentSong != nil {
+                                        showAlbumSheet = true
+                                    }
+                                } label: {
+                                    Label("Go to Album", systemImage: "square.stack")
                                 }
                                 Divider()
                                 Button {
@@ -396,6 +419,13 @@ struct MusicPlayerView: View {
                                     showSongInfoSheet = true
                                 } label: {
                                     Label("Song Info", systemImage: "info.circle")
+                                }
+                                Button {
+                                    if musicPlayerManager.currentSong != nil {
+                                        showAlbumSheet = true
+                                    }
+                                } label: {
+                                    Label("Go to Album", systemImage: "square.stack")
                                 }
                                 Divider()
                                 Button {

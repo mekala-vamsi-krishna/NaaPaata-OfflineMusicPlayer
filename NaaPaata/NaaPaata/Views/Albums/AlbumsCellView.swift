@@ -12,7 +12,7 @@ struct AlbumCellView: View {
     let imageSize: CGFloat
     
     var body: some View {
-        VStack(spacing: 10) {
+        VStack(alignment: .leading, spacing: 10) {
             ZStack {
                 if let artwork = album.artworkImage {
                     Image(uiImage: artwork)
@@ -37,12 +37,10 @@ struct AlbumCellView: View {
                     .foregroundColor(.primary)
                     .lineLimit(1)
                     .multilineTextAlignment(.leading)
-                    .padding(.horizontal, 6)
                 
                 Text("\(album.songs.count) song\(album.songs.count == 1 ? "" : "s")")
                     .font(.subheadline)
                     .foregroundColor(.secondary)
-                    .padding(.horizontal, 6)
             }
         }
     }

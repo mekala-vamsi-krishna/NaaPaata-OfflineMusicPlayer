@@ -52,6 +52,7 @@
 		AC8269AB2EB678D400722433 /* OnboardingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AC8269AA2EB678D400722433 /* OnboardingView.swift */; };
 		ACAB2BA82EBFC7E4005F84D8 /* PlaybackStateService.swift in Sources */ = {isa = PBXBuildFile; fileRef = ACAB2BA72EBFC7D9005F84D8 /* PlaybackStateService.swift */; };
 		ACAB2BAA2EBFC80B005F84D8 /* PlaybackStateModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = ACAB2BA92EBFC80B005F84D8 /* PlaybackStateModel.swift */; };
+		ACB6388C3015197B00FAEE2F /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = ACB6388A3015197A00FAEE2F /* SettingsView.swift */; };
 		ACC27B4D2ED8B2F10037273C /* AdaptiveLayout.swift in Sources */ = {isa = PBXBuildFile; fileRef = ACC27B4B2ED8B2F10037273C /* AdaptiveLayout.swift */; };
 		ACCBA9332EDB5FFE00531C3A /* EqualizerViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = ACCBA9322EDB5FFE00531C3A /* EqualizerViewModel.swift */; };
 		ACCBA9352EDB65AB00531C3A /* RotaryKnobView.swift in Sources */ = {isa = PBXBuildFile; fileRef = ACCBA9342EDB65AB00531C3A /* RotaryKnobView.swift */; };
@@ -167,6 +168,7 @@
 		AC8269AA2EB678D400722433 /* OnboardingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingView.swift; sourceTree = "<group>"; };
 		ACAB2BA72EBFC7D9005F84D8 /* PlaybackStateService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaybackStateService.swift; sourceTree = "<group>"; };
 		ACAB2BA92EBFC80B005F84D8 /* PlaybackStateModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaybackStateModel.swift; sourceTree = "<group>"; };
+		ACB6388A3015197A00FAEE2F /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		ACC27B4B2ED8B2F10037273C /* AdaptiveLayout.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AdaptiveLayout.swift; sourceTree = "<group>"; };
 		ACCBA9322EDB5FFE00531C3A /* EqualizerViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EqualizerViewModel.swift; sourceTree = "<group>"; };
 		ACCBA9342EDB65AB00531C3A /* RotaryKnobView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RotaryKnobView.swift; sourceTree = "<group>"; };
@@ -318,6 +320,7 @@
 				AC6F41852E7FD13D00B5BE35 /* Songs */,
 				AC6F418C2E80421C00B5BE35 /* Albums */,
 				AC6773F52EA2A2B30059C86C /* Playlists */,
+				ACB6388B3015197A00FAEE2F /* Settings */,
 				AC5B78A92EA597B0004AD706 /* SongInfo */,
 				AC5B78AA2EA597E8004AD706 /* ShareView */,
 				AC8269A62EB6750B00722433 /* ViewModifiers */,
@@ -467,6 +470,14 @@
 				AC8269AA2EB678D400722433 /* OnboardingView.swift */,
 			);
 			path = OnboardingView;
+			sourceTree = "<group>";
+		};
+		ACB6388B3015197A00FAEE2F /* Settings */ = {
+			isa = PBXGroup;
+			children = (
+				ACB6388A3015197A00FAEE2F /* SettingsView.swift */,
+			);
+			path = Settings;
 			sourceTree = "<group>";
 		};
 		ACC27B4C2ED8B2F10037273C /* Utils */ = {
@@ -659,6 +670,7 @@
 				CE7907E02E92E5E9006D517C /* LoadAllSongsFromDocuments.swift in Sources */,
 				AC6F41802E7FD05F00B5BE35 /* MP3FileCell.swift in Sources */,
 				AC6F41812E7FD05F00B5BE35 /* MusicPlayerView.swift in Sources */,
+				ACB6388C3015197B00FAEE2F /* SettingsView.swift in Sources */,
 				AC8269A82EB6751C00722433 /* ButtonStyleViewModifier.swift in Sources */,
 				ACE6B03A2FEC38860034009F /* ControlButton.swift in Sources */,
 				ACE6B0432FEC39A40034009F /* SongsTopBar.swift in Sources */,

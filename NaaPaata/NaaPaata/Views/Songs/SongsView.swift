@@ -13,6 +13,7 @@ struct SongsView: View {
     @EnvironmentObject var playlistsViewModel: PlaylistsViewModel
     @EnvironmentObject var tabState: TabState
     @State private var showingInstruction = false
+    @State private var navigateToEqualizer = false
 
     var body: some View {
         NavigationStack {
@@ -104,8 +105,20 @@ struct SongsView: View {
             }
             .navigationTitle("Naa Paata ♪")
             .searchable(text: $viewModel.searchText, placement: .navigationBarDrawer(displayMode: .automatic), prompt: "Search songs...")
+            .toolbar {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button(action: { navigateToEqualizer = true }) {
+                        Image(systemName: "slider.horizontal.3")
+                            .font(.system(size: 18, weight: .semibold))
+                            .foregroundColor(AppColors.primary)
+                    }
+                }
+            }
             .sheet(isPresented: $showingInstruction) {
                 InstructionView()
+            }
+            .navigationDestination(isPresented: $navigateToEqualizer) {
+                EqualizerView()
             }
         }
     }

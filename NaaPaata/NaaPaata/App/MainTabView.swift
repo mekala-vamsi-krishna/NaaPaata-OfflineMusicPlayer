@@ -45,10 +45,10 @@ struct MainTabView: View {
                             Text("Lists")
                         }
                         .tag(2)
-                    EqualizerView()
+                    SettingsView()
                         .tabItem {
-                            Image(systemName: "slider.horizontal.3")
-                            Text("Equalizer")
+                            Image(systemName: "gear")
+                            Text("Settings")
                         }
                         .tag(3)
                 }

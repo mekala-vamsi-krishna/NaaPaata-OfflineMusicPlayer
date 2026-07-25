@@ -188,4 +188,43 @@ final class SongsViewModel: ObservableObject {
     func refresh() {
         Task { await loadSongs(forceRefresh: true) }
     }
+
+    // MARK: - importSongs
+    /// Copies audio files from external URLs (e.g. Files picker) into the app's Documents folder
+    /// and triggers a sync so they appear in the songs list immediately.
+    func importSongs(from urls: [URL]) {
+        guard let docsURL = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first else { return }
+
+        var importedCount = 0
+        for sourceURL in urls {
+            // Start security-scoped access for file-coordinator URLs
+            let accessed = sourceURL.startAccessingSecurityScopedResource()
+            defer { if accessed { sourceURL.stopAccessingSecurityScopedResource() } }
+
+            let destURL = docsURL.appendingPathComponent(sourceURL.lastPathComponent)
+
+            // If a file with the same name already exists, skip
+            guard !FileManager.default.fileExists(atPath: destURL.path) else {
+                ToastManager.shared.showToast(message: "\(sourceURL.lastPathComponent) already exists")
+                continue
+            }
+
+            do {
+                try FileManager.default.copyItem(at: sourceURL, to: destURL)
+                importedCount += 1
+            } catch {
+                print("❌ Failed to import \(sourceURL.lastPathComponent): \(error.localizedDescription)")
+                ToastManager.shared.showToast(message: "Failed to import \(sourceURL.lastPathComponent)")
+            }
+        }
+
+        if importedCount > 0 {
+            let message = importedCount == 1
+                ? "1 song imported"
+                : "\(importedCount) songs imported"
+            ToastManager.shared.showToast(message: message)
+            // Trigger a sync so the new files appear in the list
+            Task { await loadSongs(forceRefresh: true) }
+        }
+    }
 }
