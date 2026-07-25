@@ -9,54 +9,43 @@ import SwiftUI
 import SwiftData
 import AVFoundation
 
+@MainActor
 final class PlaylistsViewModel: ObservableObject {
-    let playlistManager = PlaylistManager.shared
+    private let playlistManager = PlaylistManager.shared
     @Published var isLoading: Bool = false
-    
+
     init() {}
-    
-    // MARK: - addPlaylist
+
+    // MARK: - addPlaylist (called from PlayListsView — delegates to createPlaylist)
     func addPlaylist(name: String, description: String = "", coverImage: UIImage? = nil, playlists: [Playlist] = []) {
+        createPlaylist(name: name, description: description, coverImage: coverImage)
+    }
+
+    // MARK: - createPlaylist (with unique name deduplication)
+    func createPlaylist(name: String, description: String = "", coverImage: UIImage? = nil) {
         let trimmedName = name.trimmingCharacters(in: .whitespaces)
         guard !trimmedName.isEmpty else { return }
-        
-        let currentPlaylists = playlists.isEmpty ? playlistManager.getAllPlaylists() : playlists
-        
+        let existing = playlistManager.getAllPlaylists()
         var uniqueName = trimmedName
         var counter = 1
-        while currentPlaylists.contains(where: { $0.name == uniqueName }) {
+        while existing.contains(where: { $0.name == uniqueName }) {
             uniqueName = "\(trimmedName) (\(counter))"
             counter += 1
         }
-        
-        let newPlaylist = Playlist(
-            name: uniqueName,
-            songs: [],
-            coverImage: coverImage,
-            desc: description,
-            dateCreated: Date()
-        )
-        playlistManager.savePlaylist(newPlaylist)
+        let playlist = Playlist(name: uniqueName, coverImage: coverImage, desc: description, dateCreated: Date())
+        playlistManager.savePlaylist(playlist)
     }
-    
+
     // MARK: - deletePlaylist
     func deletePlaylist(_ playlist: Playlist) {
         playlistManager.deletePlaylistById(id: playlist.id)
     }
-    
+
     // MARK: - updatePlaylist
     func updatePlaylist(_ playlist: Playlist) {
         playlistManager.savePlaylist(playlist)
     }
-    
-    // MARK: - renamePlaylist
-    func renamePlaylist(_ playlist: Playlist, newName: String) {
-        let trimmedName = newName.trimmingCharacters(in: .whitespaces)
-        guard !trimmedName.isEmpty, trimmedName != playlist.name else { return }
-        playlist.name = trimmedName
-        playlistManager.savePlaylist(playlist)
-    }
-    
+
     // MARK: - addSongToPlaylist
     func addSongToPlaylist(_ song: Song, to playlist: Playlist) {
         let result = playlistManager.addSongToPlaylist(song, playlist: playlist)
@@ -69,36 +58,40 @@ final class PlaylistsViewModel: ObservableObject {
             print("Error: \(msg)")
         }
     }
-    
+
     // MARK: - removeSongFromPlaylist
     func removeSongFromPlaylist(_ song: Song, from playlist: Playlist) {
         playlistManager.removeSongFromPlaylist(song, from: playlist)
     }
-    
-    // MARK: - loadAllPlaylistsConcurrently
-    func loadAllPlaylistsConcurrently() async -> [Playlist] {
-        let playlists = playlistManager.getAllPlaylists()
-        return await withTaskGroup(of: Playlist?.self) { group in
-            for playlist in playlists {
-                group.addTask {
-                    let validSongs = await self.playlistManager.getSongsInPlaylist(playlistName: playlist.name)
-                    return Playlist(
-                        id: playlist.id,
-                        name: playlist.name,
-                        songs: validSongs,
-                        coverImage: playlist.coverImage,
-                        desc: playlist.desc,
-                        dateCreated: playlist.dateCreated
-                    )
-                }
-            }
-            var loadedPlaylists: [Playlist] = []
-            for await playlist in group {
-                if let playlist = playlist {
-                    loadedPlaylists.append(playlist)
-                }
-            }
-            return loadedPlaylists.sorted { $0.dateCreated > $1.dateCreated }
-        }
+
+    // MARK: - addSongToPlaylists (batch, for multi-playlist selection)
+    @discardableResult
+    func addSongToPlaylists(_ song: Song, playlistIDs: Set<UUID>) -> [UUID: AddSongResult] {
+        return playlistManager.addSongToPlaylists(song, playlistIDs: playlistIDs)
+    }
+
+    // MARK: - removeSongFromPlaylists (batch)
+    func removeSongFromPlaylists(_ song: Song, playlistIDs: Set<UUID>) {
+        playlistManager.removeSongFromPlaylists(song, playlistIDs: playlistIDs)
+    }
+
+    // MARK: - getSongs(for:)
+    func getSongs(for playlist: Playlist) -> [Song] {
+        return playlistManager.getSongs(for: playlist)
+    }
+
+    // MARK: - getPlaylist(id:)
+    func getPlaylist(id: UUID) -> Playlist? {
+        return playlistManager.getPlaylist(id: id)
+    }
+
+    // MARK: - getAllPlaylists
+    func getAllPlaylists() -> [Playlist] {
+        return playlistManager.getAllPlaylists()
+    }
+
+    // MARK: - loadPlaylist(name:)
+    func loadPlaylist(name: String) -> Playlist? {
+        return playlistManager.loadPlaylist(name: name)
     }
 }

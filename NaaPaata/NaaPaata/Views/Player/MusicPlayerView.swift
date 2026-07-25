@@ -6,9 +6,6 @@
 //
 
 import SwiftUI
-import AVFoundation
-import MediaPlayer
-import SwiftData
 
 // MARK: - Conditional Matched Geometry Modifier
 struct MatchedGeometryIfAvailable: ViewModifier {
@@ -40,12 +37,8 @@ struct MusicPlayerView: View {
     @EnvironmentObject var playlistsVM: PlaylistsViewModel
     @EnvironmentObject var sleepTimerManager: SleepTimerManager
 
-    @Query(sort: \Playlist.dateCreated, order: .reverse) var playlists: [Playlist]
-
     // MARK: - State
-    @State private var newPlaylistName = ""
-    @State private var newPlaylistDescription = ""
-    @State private var showCreatePlaylistSheet = false
+    @State private var showAddToPlaylistSheet = false
     @State private var showSleepTimerSheet = false
     @State private var showSongInfoSheet = false
 
@@ -109,21 +102,11 @@ struct MusicPlayerView: View {
             )
         }
         .preferredColorScheme(.dark)
-        .sheet(isPresented: $showCreatePlaylistSheet) {
-            CreatePlaylistSheet(
-                name: $newPlaylistName,
-                description: $newPlaylistDescription,
-                onCreate: { coverImage in
-                    playlistsVM.addPlaylist(name: newPlaylistName, description: newPlaylistDescription, coverImage: coverImage, playlists: playlists)
-                    if let currentSong = musicPlayerManager.currentSong,
-                       let newPlayList = PlaylistManager.shared.loadPlaylist(name: newPlaylistName) {
-                        playlistsVM.addSongToPlaylist(currentSong, to: newPlayList)
-                    }
-                    newPlaylistName = ""
-                    newPlaylistDescription = ""
-                    showCreatePlaylistSheet = false
-                }
-            )
+        .sheet(isPresented: $showAddToPlaylistSheet) {
+            if let currentSong = musicPlayerManager.currentSong {
+                AddToPlaylistView(song: currentSong)
+                    .environmentObject(musicPlayerManager)
+            }
         }
         .sheet(isPresented: $showSongInfoSheet) {
             if let song = musicPlayerManager.currentSong {
@@ -242,25 +225,12 @@ struct MusicPlayerView: View {
                                     Label("Song Info", systemImage: "info.circle")
                                 }
                                 Divider()
-                                ForEach(playlists) { playlist in
-                                    Button {
-                                        if let currentSong = musicPlayerManager.currentSong {
-                                            playlistsVM.addSongToPlaylist(currentSong, to: playlist)
-                                        }
-                                    } label: {
-                                        if let currentSong = musicPlayerManager.currentSong,
-                                           playlist.songs.contains(where: { $0.relativePath == currentSong.relativePath }) {
-                                            Label(playlist.name, systemImage: "checkmark")
-                                        } else {
-                                            Label(playlist.name, systemImage: "music.note.list")
-                                        }
-                                    }
-                                }
-                                Divider()
                                 Button {
-                                    showCreatePlaylistSheet = true
+                                    if musicPlayerManager.currentSong != nil {
+                                        showAddToPlaylistSheet = true
+                                    }
                                 } label: {
-                                    Label("Create New Playlist", systemImage: "plus.circle")
+                                    Label("Add to Playlist", systemImage: "music.note.list")
                                 }
                             } label: {
                                 Image(systemName: "ellipsis")
@@ -428,25 +398,12 @@ struct MusicPlayerView: View {
                                     Label("Song Info", systemImage: "info.circle")
                                 }
                                 Divider()
-                                ForEach(playlists) { playlist in
-                                    Button {
-                                        if let currentSong = musicPlayerManager.currentSong {
-                                            playlistsVM.addSongToPlaylist(currentSong, to: playlist)
-                                        }
-                                    } label: {
-                                        if let currentSong = musicPlayerManager.currentSong,
-                                           playlist.songs.contains(where: { $0.relativePath == currentSong.relativePath }) {
-                                            Label(playlist.name, systemImage: "checkmark")
-                                        } else {
-                                            Label(playlist.name, systemImage: "music.note.list")
-                                        }
-                                    }
-                                }
-                                Divider()
                                 Button {
-                                    showCreatePlaylistSheet = true
+                                    if musicPlayerManager.currentSong != nil {
+                                        showAddToPlaylistSheet = true
+                                    }
                                 } label: {
-                                    Label("Create New Playlist", systemImage: "plus.circle")
+                                    Label("Add to Playlist", systemImage: "music.note.list")
                                 }
                             } label: {
                                 Image(systemName: "ellipsis")

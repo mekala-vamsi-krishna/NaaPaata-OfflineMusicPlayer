@@ -11,12 +11,12 @@ import SwiftData
 @Model
 final class Playlist: Identifiable {
     @Attribute(.unique) var id: UUID
-    
     var name: String
-    
-    /// Many-to-many relationship with Song
-    @Relationship(deleteRule: .nullify) var songs: [Song] = []
-    
+
+    /// Stores song membership as relative paths — avoids SwiftData relationship re-parenting.
+    /// A song can belong to multiple playlists because paths are plain strings, not object references.
+    var songPaths: [String] = []
+
     var coverImageData: Data?
     var desc: String
     var dateCreated: Date
@@ -24,19 +24,19 @@ final class Playlist: Identifiable {
     init(
         id: UUID = UUID(),
         name: String,
-        songs: [Song] = [],
+        songPaths: [String] = [],
         coverImage: UIImage? = nil,
         desc: String = "",
         dateCreated: Date = Date()
     ) {
         self.id = id
         self.name = name
-        self.songs = songs
+        self.songPaths = songPaths
         self.coverImageData = coverImage?.jpegData(compressionQuality: 0.9)
         self.desc = desc
         self.dateCreated = dateCreated
     }
-    
+
     var coverImage: UIImage? {
         guard let data = coverImageData else { return nil }
         return UIImage(data: data)
@@ -49,4 +49,3 @@ enum SortOption: String, CaseIterable {
     case artist = "Artist"
     case duration = "Duration"
 }
-

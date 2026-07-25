@@ -107,7 +107,6 @@ struct SubscriptionsView: View {
                         FeatureRow(icon: "waveform", title: "Advanced Equalizer", description: "10-band EQ with custom presets")
                         FeatureRow(icon: "speaker.wave.3.fill", title: "Enhanced Audio", description: "Premium sound processing")
                         FeatureRow(icon: "music.note.list", title: "Unlimited Songs & Playlists", description: "Create as many as you want")
-                        FeatureRow(icon: "sparkles", title: "Ad-Free Experience", description: "No interruptions, ever")
                     }
                     .padding(.horizontal, 24)
                     .padding(.bottom, 40)
