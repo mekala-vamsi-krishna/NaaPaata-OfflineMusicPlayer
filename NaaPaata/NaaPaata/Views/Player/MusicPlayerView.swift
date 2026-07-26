@@ -7,24 +7,6 @@
 
 import SwiftUI
 
-// MARK: - Conditional Matched Geometry Modifier
-struct MatchedGeometryIfAvailable: ViewModifier {
-    let id: String?
-    let namespace: Namespace.ID?
-
-    func body(content: Content) -> some View {
-        if let id = id, let namespace = namespace {
-            content.matchedGeometryEffect(id: id, in: namespace)
-        } else {
-            content
-        }
-    }
-}
-
-// MARK: - Playback Button with Spring Animation
-
-
-// MARK: - MusicPlayerView
 struct MusicPlayerView: View {
     // MARK: - Dependencies
     let dismissAction: () -> Void

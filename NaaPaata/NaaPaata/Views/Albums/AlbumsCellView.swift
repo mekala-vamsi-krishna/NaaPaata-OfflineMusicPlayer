@@ -22,12 +22,17 @@ struct AlbumCellView: View {
                         .cornerRadius(16)
                         .shadow(radius: 10)
                 } else {
-                    Image("default_playlist_cover")
-                        .resizable()
-                        .scaledToFill()
+                    RoundedRectangle(cornerRadius: 16)
+                        .fill(Color.secondary.opacity(0.2))
                         .frame(width: imageSize, height: imageSize)
-                        .cornerRadius(16)
-                        .shadow(radius: 10)
+                        .shadow(radius: 4)
+                        .overlay(
+                            Image(systemName: "opticaldisc")
+                                .resizable()
+                                .scaledToFit()
+                                .frame(width: imageSize * 0.5, height: imageSize * 0.5)
+                                .foregroundColor(.secondary)
+                        )
                 }
             }
             

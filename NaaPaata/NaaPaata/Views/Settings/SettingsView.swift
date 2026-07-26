@@ -9,7 +9,6 @@ struct SettingsView: View {
     @EnvironmentObject private var songsViewModel: SongsViewModel
     @EnvironmentObject private var store: StoreManager
 
-    @State private var showFilePicker = false
     @State private var isImporting = false
     @State private var showPaywall = false
 
@@ -43,18 +42,31 @@ struct SettingsView: View {
                 List {
                     // MARK: - Import Section
                     Section {
-                        Button(action: { showFilePicker = true }) {
+                        Button {
+                            AudioDocumentPicker.present(allowedTypes: audioTypes) { urls in
+                                guard !urls.isEmpty else { return }
+
+                                isImporting = true
+
+                                songsViewModel.importSongs(from: urls)
+
+                                DispatchQueue.main.asyncAfter(deadline: .now() + 1) {
+                                    isImporting = false
+                                }
+                            }
+                        } label: {
+
                             HStack(spacing: 14) {
-                                // Icon
                                 ZStack {
                                     RoundedRectangle(cornerRadius: 10)
                                         .fill(AppColors.primary.opacity(0.15))
                                         .frame(width: 40, height: 40)
+
                                     Image(systemName: "folder.fill")
                                         .font(.system(size: 18, weight: .medium))
                                         .foregroundColor(AppColors.primary)
                                 }
-
+                                
                                 VStack(alignment: .leading, spacing: 2) {
                                     Text("Import from Files")
                                         .font(.system(size: 16, weight: .medium))
@@ -63,9 +75,9 @@ struct SettingsView: View {
                                         .font(.system(size: 13))
                                         .foregroundColor(AppColors.textSecondary)
                                 }
-
+                                
                                 Spacer()
-
+                                
                                 if isImporting {
                                     ProgressView()
                                         .tint(AppColors.primary)
@@ -75,19 +87,33 @@ struct SettingsView: View {
                                         .foregroundColor(AppColors.textSecondary.opacity(0.5))
                                 }
                             }
-                            .padding(.vertical, 4)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .contentShape(Rectangle())
+                            .padding(.vertical, 2)
                         }
                         .buttonStyle(.plain)
                         .disabled(isImporting)
+                        .listRowInsets(
+                            EdgeInsets(
+                                top: 8,
+                                leading: 16,
+                                bottom: 8,
+                                trailing: 16
+                            )
+                        )
+
                     } header: {
+
                         Text("Import")
-                            .font(.system(size: 13, weight: .semibold))
-                            .foregroundColor(AppColors.textSecondary)
+                            .font(.system(size: 14, weight: .medium))
+                            .foregroundColor(.secondary)
                             .textCase(nil)
+
                     } footer: {
+
                         Text("Selected files will be copied into the Naa Paata sandbox folder and added to your library automatically.")
-                            .font(.system(size: 12))
-                            .foregroundColor(AppColors.textSecondary)
+                            .font(.system(size: 11))
+                            .foregroundColor(.secondary)
                     }
 
                     // MARK: - Premium Section
@@ -132,58 +158,10 @@ struct SettingsView: View {
             }
             .navigationTitle("Settings")
             .navigationBarTitleDisplayMode(.large)
-            // File picker sheet
-            .sheet(isPresented: $showFilePicker) {
-                AudioDocumentPicker(allowedTypes: audioTypes) { urls in
-                    guard !urls.isEmpty else { return }
-                    isImporting = true
-                    songsViewModel.importSongs(from: urls)
-                    // Reset importing state after a short delay to let toast appear
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
-                        isImporting = false
-                    }
-                }
-            }
             .sheet(isPresented: $showPaywall) {
                 SubscriptionsView()
                     .environmentObject(store)
             }
-        }
-    }
-}
-
-// MARK: - UIDocumentPickerViewController wrapper
-struct AudioDocumentPicker: UIViewControllerRepresentable {
-    let allowedTypes: [UTType]
-    let onPick: ([URL]) -> Void
-
-    func makeCoordinator() -> Coordinator {
-        Coordinator(onPick: onPick)
-    }
-
-    func makeUIViewController(context: Context) -> UIDocumentPickerViewController {
-        let picker = UIDocumentPickerViewController(forOpeningContentTypes: allowedTypes, asCopy: true)
-        picker.allowsMultipleSelection = true
-        picker.delegate = context.coordinator
-        picker.modalPresentationStyle = .formSheet
-        return picker
-    }
-
-    func updateUIViewController(_ uiViewController: UIDocumentPickerViewController, context: Context) {}
-
-    class Coordinator: NSObject, UIDocumentPickerDelegate {
-        let onPick: ([URL]) -> Void
-
-        init(onPick: @escaping ([URL]) -> Void) {
-            self.onPick = onPick
-        }
-
-        func documentPicker(_ controller: UIDocumentPickerViewController, didPickDocumentsAt urls: [URL]) {
-            onPick(urls)
-        }
-
-        func documentPickerWasCancelled(_ controller: UIDocumentPickerViewController) {
-            onPick([])
         }
     }
 }

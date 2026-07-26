@@ -18,6 +18,7 @@ struct MainTabView: View {
     @EnvironmentObject var sleepTimerManager: SleepTimerManager
 
     @State private var showFullPlayer = false
+    @State private var keyboardHeight: CGFloat = 0
     @Namespace private var playerTransition
 
     var body: some View {
@@ -25,7 +26,6 @@ struct MainTabView: View {
             let bottomSafeArea = geometry.safeAreaInsets.bottom
 
             ZStack(alignment: .bottom) {
-                // Main TabView
                 TabView(selection: $tabState.selectedTab) {
                     SongsView()
                         .tabItem {
@@ -56,7 +56,6 @@ struct MainTabView: View {
 
                 if musicPlayerManager.currentSong != nil {
                     if showFullPlayer {
-                        // Full Player
                         MusicPlayerView(
                             dismissAction: {
                                 withAnimation(.spring(response: 0.5, dampingFraction: 0.85)) {
@@ -71,13 +70,12 @@ struct MainTabView: View {
                         .transition(.opacity)
                         .zIndex(1)
                     } else {
-                        // Mini Player
                         MiniPlayerView(namespace: playerTransition)
                             .environmentObject(musicPlayerManager)
                             .environmentObject(playlistsViewModel)
                             .environmentObject(sleepTimerManager)
                             .padding(.horizontal, 8)
-                            .padding(.bottom, bottomSafeArea + 22) 
+                            .padding(.bottom, keyboardHeight > 0 ? max(0, keyboardHeight - bottomSafeArea) + 4 : bottomSafeArea + 16)
                             .onTapGesture {
                                 withAnimation(.spring(response: 0.5, dampingFraction: 0.85)) {
                                     showFullPlayer = true
@@ -87,6 +85,16 @@ struct MainTabView: View {
                     }
                 }
             }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillShowNotification)) { notification in
+            if let keyboardFrame = notification.userInfo?[UIResponder.keyboardFrameEndUserInfoKey] as? CGRect {
+                if musicPlayerManager.currentSong != nil && !showFullPlayer {
+                    keyboardHeight = keyboardFrame.height
+                }
+            }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillHideNotification)) { _ in
+            keyboardHeight = 0
         }
     }
 }
