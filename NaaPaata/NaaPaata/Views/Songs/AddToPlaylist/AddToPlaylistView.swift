@@ -24,7 +24,7 @@ struct AddToPlaylistView: View {
     var body: some View {
         NavigationStack {
             VStack(spacing: 0) {
-                // MARK: - Header Card (Song being added) with Artwork
+                // MARK: - Header Card (Song being added)
                 HStack(spacing: 12) {
                     // Artwork
                     if let artwork = songArtwork {
@@ -62,8 +62,11 @@ struct AddToPlaylistView: View {
                 }
                 .padding(.horizontal, 16)
                 .padding(.vertical, 12)
-                .background(AppColors.cardBackground)
-                .cornerRadius(12)
+                .background(
+                    RoundedRectangle(cornerRadius: 12)
+                        .fill(Color.gray.opacity(0.08))
+                        .shadow(color: Color.black.opacity(0.05), radius: 4, x: 0, y: 2)
+                )
                 .padding(.horizontal, 16)
                 .padding(.top, 8)
                 .padding(.bottom, 4)
@@ -139,6 +142,8 @@ struct AddToPlaylistView: View {
                         commitSelections()
                         dismiss()
                     }
+                    .font(.system(size: 16, weight: .semibold))
+                    .foregroundColor(AppColors.primary)
                 }
                 ToolbarItem(placement: .bottomBar) {
                     Button(action: { showCreatePlaylist = true }) {
