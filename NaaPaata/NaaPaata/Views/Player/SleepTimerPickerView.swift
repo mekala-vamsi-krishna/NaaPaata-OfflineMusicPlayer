@@ -36,25 +36,6 @@ struct SleepTimerPickerView: View {
                         Text(sleepTimerManager.formattedTimeRemaining)
                             .font(.system(size: 52, weight: .bold, design: .monospaced))
                             .foregroundColor(AppColors.textPrimary)
-
-                        Button(action: {
-                            sleepTimerManager.stopTimer()
-                            dismiss()
-                        }) {
-                            HStack {
-                                Image(systemName: "stop.fill")
-                                    .font(.system(size: 16))
-                                Text("Stop Timer")
-                                    .font(.system(size: 18, weight: .semibold))
-                            }
-                            .foregroundColor(.white)
-                            .frame(maxWidth: .infinity)
-                            .frame(height: 54)
-                            .background(Color.red)
-                            .cornerRadius(14)
-                            .shadow(color: Color.red.opacity(0.3), radius: 8, y: 4)
-                        }
-                        .padding(.horizontal, 24)
                     }
                     .padding(.bottom, 32)
                 } else {
@@ -82,42 +63,68 @@ struct SleepTimerPickerView: View {
                         .frame(height: 160)
                         .background(
                             RoundedRectangle(cornerRadius: 16)
-                                .fill(.ultraThinMaterial)  // subtle glass card
+                                .fill(.ultraThinMaterial)
                                 .shadow(color: Color.black.opacity(0.08), radius: 6, x: 0, y: 2)
                         )
                         .padding(.horizontal, 20)
-
-                        // MARK: - Action Buttons
-                        VStack(spacing: 12) {
-                            Button(action: {
-                                sleepTimerManager.setTimer(hours: selectedHours, minutes: selectedMinutes)
-                                dismiss()
-                            }) {
-                                Text("Start Timer")
-                                    .font(.system(size: 18, weight: .semibold))
-                                    .foregroundColor(.white)
-                                    .frame(maxWidth: .infinity)
-                                    .frame(height: 54)
-                                    .background(AppColors.primary)
-                                    .cornerRadius(14)
-                                    .shadow(color: AppColors.primary.opacity(0.3), radius: 8, y: 4)
-                            }
-                        }
-                        .padding(.horizontal, 24)
-                        .padding(.top, 8)
                     }
                     .padding(.bottom, 32)
                 }
 
+                // MARK: - Spacer to push button to bottom
                 Spacer(minLength: 20)
+
+                // MARK: - Action Button (always at the same position)
+                if sleepTimerManager.isTimerActive {
+                    Button(action: {
+                        sleepTimerManager.stopTimer()
+                        dismiss()
+                    }) {
+                        HStack {
+                            Image(systemName: "stop.fill")
+                                .font(.system(size: 16))
+                            Text("Stop Timer")
+                                .font(.system(size: 18, weight: .semibold))
+                        }
+                        .foregroundColor(.white)
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 54)
+                        .background(Color.red)
+                        .cornerRadius(14)
+                        .shadow(color: Color.red.opacity(0.3), radius: 8, y: 4)
+                    }
+                    .padding(.horizontal, 24)
+                    .padding(.bottom, 24)
+                } else {
+                    Button(action: {
+                        sleepTimerManager.setTimer(hours: selectedHours, minutes: selectedMinutes)
+                        dismiss()
+                    }) {
+                        Text("Start Timer")
+                            .font(.system(size: 18, weight: .semibold))
+                            .foregroundColor(.white)
+                            .frame(maxWidth: .infinity)
+                            .frame(height: 54)
+                            .background(AppColors.primary)
+                            .cornerRadius(14)
+                            .shadow(color: AppColors.primary.opacity(0.3), radius: 8, y: 4)
+                    }
+                    .padding(.horizontal, 24)
+                    .padding(.bottom, 24)
+                }
             }
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") {
+                    Button {
                         dismiss()
+                    } label: {
+                        Image(systemName: "xmark.circle.fill")
+                            .font(.title2)
+                            .foregroundColor(.secondary)
                     }
                 }
             }
+            .toolbarBackground(.hidden, for: .navigationBar)
             .presentationDetents([.medium, .large])
             .presentationDragIndicator(.visible)
         }
