@@ -85,13 +85,9 @@ struct SongsView: View {
                         .listRowSeparator(.hidden)
                         .listRowBackground(Color.clear)
 
-                        ForEach(viewModel.filteredSongs, id: \.self) { song in
+                        ForEach(viewModel.songs, id: \.self) { song in
                             Button {
-                                if viewModel.searchText.isEmpty {
-                                    viewModel.play(song)
-                                } else {
-                                    viewModel.playFromSearchResults(song)
-                                }
+                                viewModel.play(song)
                             } label: {
                                 MP3FileCell(song: song)
                             }
@@ -104,7 +100,6 @@ struct SongsView: View {
                 }
             }
             .navigationTitle("Naa Paata ♪")
-            .searchable(text: $viewModel.searchText, placement: .navigationBarDrawer(displayMode: .automatic), prompt: "Search songs...")
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button(action: { navigateToEqualizer = true }) {

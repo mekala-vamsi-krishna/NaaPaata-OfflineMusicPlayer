@@ -9,12 +9,12 @@ import SwiftUI
 
 struct AlbumsTopBar: View {
     @ObservedObject var viewModel: AlbumsViewModel
-    var filteredCount: Int
+    var count: Int
     var onSort: ((AlbumsViewModel.SortKey) -> Void)?
 
     var body: some View {
         HStack {
-            Text("\(filteredCount) Album\(filteredCount == 1 ? "" : "s")")
+            Text("\(count) Album\(count == 1 ? "" : "s")")
                 .font(.system(size: 18, weight: .semibold))
                 .foregroundColor(.primary)
 
@@ -68,13 +68,9 @@ struct AlbumsTopBar: View {
                         }
                     }
                 } label: {
-                    HStack(spacing: 4) {
-                        Image(systemName: "arrow.up.arrow.down")
-                            .font(.system(size: 18))
-                        Text("Sort")
-                            .font(.system(size: 16, weight: .medium))
-                    }
-                    .foregroundColor(AppColors.primary)
+                    Image(systemName: "arrow.up.arrow.down")
+                        .font(.system(size: 18))
+                        .foregroundColor(AppColors.primary)
                 }
             }
         }

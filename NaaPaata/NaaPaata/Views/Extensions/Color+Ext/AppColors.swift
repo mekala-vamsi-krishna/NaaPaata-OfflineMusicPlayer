@@ -10,14 +10,12 @@ import SwiftUI
 extension Color {
     init(hex: String) {
         let scanner = Scanner(string: hex)
-        _ = scanner.scanString("#") // Skip #
+        _ = scanner.scanString("#")
         var rgb: UInt64 = 0
         scanner.scanHexInt64(&rgb)
-
         let r = Double((rgb >> 16) & 0xFF) / 255
         let g = Double((rgb >> 8) & 0xFF) / 255
         let b = Double(rgb & 0xFF) / 255
-
         self.init(red: r, green: g, blue: b)
     }
 }
@@ -29,15 +27,18 @@ extension Color {
 
 struct AppColors {
     // MARK: - Core Brand Colors
-    static let primary = Color(hex: "#AF52DE")        // Vibrant purple
+    // `primary` reads from ThemeManager so it always reflects the user's chosen colour.
+    // All views that use AppColors.primary automatically update when the theme changes
+    // because ThemeManager is an @EnvironmentObject injected at the root.
+    static var primary: Color { ThemeManager.shared.current.color }
     static let secondary = Color(hex: "#D8B4FE")      // Soft lavender
 
     // MARK: - Dynamic Backgrounds
     static var background: Color {
         Color(UIColor { traitCollection in
             traitCollection.userInterfaceStyle == .dark
-                ? UIColor(red: 0.07, green: 0.07, blue: 0.09, alpha: 1.0) // dark charcoal
-                : UIColor(red: 0.95, green: 0.95, blue: 0.97, alpha: 1.0) // light gray
+                ? UIColor(red: 0.07, green: 0.07, blue: 0.09, alpha: 1.0)
+                : UIColor(red: 0.95, green: 0.95, blue: 0.97, alpha: 1.0)
         })
     }
 
@@ -66,6 +67,5 @@ struct AppColors {
         })
     }
 
-    static let error = Color(hex: "#FF453A")          // Bright red
+    static let error = Color(hex: "#FF453A")
 }
-

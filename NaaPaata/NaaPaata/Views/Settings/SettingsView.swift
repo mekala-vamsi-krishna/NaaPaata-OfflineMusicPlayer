@@ -8,11 +8,11 @@ import UniformTypeIdentifiers
 struct SettingsView: View {
     @EnvironmentObject private var songsViewModel: SongsViewModel
     @EnvironmentObject private var store: StoreManager
+    @EnvironmentObject private var themeManager: ThemeManager
 
     @State private var isImporting = false
     @State private var showPaywall = false
 
-    // Supported audio types for the document picker
     private let audioTypes: [UTType] = [
         .audio,
         .mp3,
@@ -40,33 +40,101 @@ struct SettingsView: View {
                 .ignoresSafeArea()
 
                 List {
-                    // MARK: - Import Section
+                    // MARK: - Appearance & Customisation Section
                     Section {
-                        Button {
-                            AudioDocumentPicker.present(allowedTypes: audioTypes) { urls in
-                                guard !urls.isEmpty else { return }
-
-                                isImporting = true
-
-                                songsViewModel.importSongs(from: urls)
-
-                                DispatchQueue.main.asyncAfter(deadline: .now() + 1) {
-                                    isImporting = false
-                                }
-                            }
+                        // Row: App Style
+                        NavigationLink {
+                            AppThemePickerView()
+                                .environmentObject(themeManager)
                         } label: {
-
                             HStack(spacing: 14) {
                                 ZStack {
                                     RoundedRectangle(cornerRadius: 10)
                                         .fill(AppColors.primary.opacity(0.15))
                                         .frame(width: 40, height: 40)
+                                    Image(systemName: "sun.max.fill")
+                                        .font(.system(size: 18, weight: .medium))
+                                        .foregroundColor(AppColors.primary)
+                                }
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text("App Theme")
+                                        .font(.system(size: 16, weight: .medium))
+                                        .foregroundColor(AppColors.textPrimary)
+                                    Text("Light, Dark, or System")
+                                        .font(.system(size: 13))
+                                        .foregroundColor(AppColors.textSecondary)
+                                }
+                                Spacer()
+                                // Show current style name
+                                Text(themeManager.colorScheme.label)
+                                    .font(.system(size: 13, weight: .medium))
+                                    .foregroundColor(AppColors.textSecondary)
+                            }
+                            .padding(.vertical, 4)
+                        }
+                        .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
 
+                        // Row: App Theme Colour
+                        NavigationLink {
+                            AppColourPickerView()
+                                .environmentObject(themeManager)
+                        } label: {
+                            HStack(spacing: 14) {
+                                ZStack {
+                                    RoundedRectangle(cornerRadius: 10)
+                                        .fill(AppColors.primary.opacity(0.15))
+                                        .frame(width: 40, height: 40)
+                                    Image(systemName: "paintpalette.fill")
+                                        .font(.system(size: 18, weight: .medium))
+                                        .foregroundColor(AppColors.primary)
+                                }
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text("App Colour")
+                                        .font(.system(size: 16, weight: .medium))
+                                        .foregroundColor(AppColors.textPrimary)
+                                    Text("Choose your app accent colour")
+                                        .font(.system(size: 13))
+                                        .foregroundColor(AppColors.textSecondary)
+                                }
+                                Spacer()
+                                // Live colour preview dot
+                                Circle()
+                                    .fill(themeManager.current.color)
+                                    .frame(width: 16, height: 16)
+                                    .shadow(color: themeManager.current.color.opacity(0.4), radius: 3)
+                            }
+                            .padding(.vertical, 4)
+                        }
+                        .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
+
+                    } header: {
+                        Text("Appearance & Customisation")
+                            .font(.system(size: 14, weight: .medium))
+                            .foregroundColor(.secondary)
+                            .textCase(nil)
+                    }
+
+                    // MARK: - Import Section (unchanged)
+                    Section {
+                        Button {
+                            AudioDocumentPicker.present(allowedTypes: audioTypes) { urls in
+                                guard !urls.isEmpty else { return }
+                                isImporting = true
+                                songsViewModel.importSongs(from: urls)
+                                DispatchQueue.main.asyncAfter(deadline: .now() + 1) {
+                                    isImporting = false
+                                }
+                            }
+                        } label: {
+                            HStack(spacing: 14) {
+                                ZStack {
+                                    RoundedRectangle(cornerRadius: 10)
+                                        .fill(AppColors.primary.opacity(0.15))
+                                        .frame(width: 40, height: 40)
                                     Image(systemName: "folder.fill")
                                         .font(.system(size: 18, weight: .medium))
                                         .foregroundColor(AppColors.primary)
                                 }
-                                
                                 VStack(alignment: .leading, spacing: 2) {
                                     Text("Import from Files")
                                         .font(.system(size: 16, weight: .medium))
@@ -75,9 +143,7 @@ struct SettingsView: View {
                                         .font(.system(size: 13))
                                         .foregroundColor(AppColors.textSecondary)
                                 }
-                                
                                 Spacer()
-                                
                                 if isImporting {
                                     ProgressView()
                                         .tint(AppColors.primary)
@@ -93,30 +159,19 @@ struct SettingsView: View {
                         }
                         .buttonStyle(.plain)
                         .disabled(isImporting)
-                        .listRowInsets(
-                            EdgeInsets(
-                                top: 8,
-                                leading: 16,
-                                bottom: 8,
-                                trailing: 16
-                            )
-                        )
-
+                        .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
                     } header: {
-
                         Text("Import")
                             .font(.system(size: 14, weight: .medium))
                             .foregroundColor(.secondary)
                             .textCase(nil)
-
                     } footer: {
-
                         Text("Selected files will be copied into the Naa Paata sandbox folder and added to your library automatically.")
                             .font(.system(size: 11))
                             .foregroundColor(.secondary)
                     }
 
-                    // MARK: - Premium Section
+                    // MARK: - Premium Section (unchanged)
                     if !store.isPremimumUser {
                         Section {
                             Button(action: { showPaywall = true }) {
@@ -170,4 +225,5 @@ struct SettingsView: View {
     SettingsView()
         .environmentObject(SongsViewModel())
         .environmentObject(StoreManager())
+        .environmentObject(ThemeManager.shared)
 }

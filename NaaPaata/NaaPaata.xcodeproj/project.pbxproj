@@ -9,6 +9,13 @@
 /* Begin PBXBuildFile section */
 		8A2F514453C945DB83AB63420C3142C1 /* ConcurrentMetadataService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8A2F514453C945DB83AB63420C3142C0 /* ConcurrentMetadataService.swift */; };
 		AC0093872EDADD2300589BB2 /* EqualizerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AC00937F2EDADD2300589BB2 /* EqualizerView.swift */; };
+		AC17AEE63017ACF100E4124D /* AppThemePickerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AC17AEE53017ACF100E4124D /* AppThemePickerView.swift */; };
+		AC17AEE83017AD0A00E4124D /* ThemeManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = AC17AEE73017AD0A00E4124D /* ThemeManager.swift */; };
+		AC17AEEB3017B0A200E4124D /* ThemeTransition.swift in Sources */ = {isa = PBXBuildFile; fileRef = AC17AEEA3017B0A200E4124D /* ThemeTransition.swift */; };
+		AC17AEEF3017BC6F00E4124D /* SearchView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AC17AEED3017BC6F00E4124D /* SearchView.swift */; };
+		AC17AEF13017BC8C00E4124D /* SearchViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = AC17AEF03017BC8C00E4124D /* SearchViewModel.swift */; };
+		AC17AEF33018611100E4124D /* AppColourPickerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AC17AEF23018611100E4124D /* AppColourPickerView.swift */; };
+		AC17AEF53018C22900E4124D /* EqualizerBars.swift in Sources */ = {isa = PBXBuildFile; fileRef = AC17AEF43018C22900E4124D /* EqualizerBars.swift */; };
 		AC2CBA702ECA027B005DD432 /* HapticManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = AC2CBA6F2ECA027B005DD432 /* HapticManager.swift */; };
 		AC2F170E2FEB95AD002AE3A0 /* AnimatedDotsLoader.swift in Sources */ = {isa = PBXBuildFile; fileRef = AC2F170D2FEB95AD002AE3A0 /* AnimatedDotsLoader.swift */; };
 		AC3A0F682E761869000CFC19 /* Launch Screen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = AC3A0F672E761869000CFC19 /* Launch Screen.storyboard */; };
@@ -36,7 +43,6 @@
 		AC6FFBE42FEE844C0017897E /* SharedDataManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = AC6FFBD62FEE7E530017897E /* SharedDataManager.swift */; };
 		AC6FFBE52FEE86010017897E /* SharedDataManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = AC6FFBD62FEE7E530017897E /* SharedDataManager.swift */; };
 		AC6FFBE62FEE86490017897E /* SongModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = ACD23E222E9285F60054344D /* SongModel.swift */; };
-		AC6FFBE72FEE891E0017897E /* AppColors.swift in Sources */ = {isa = PBXBuildFile; fileRef = AC6F416E2E7FD05F00B5BE35 /* AppColors.swift */; };
 		AC6FFBEB2FEE8F5B0017897E /* MusicPlayerWidgetExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = AC6FFBC02FEE7D950017897E /* MusicPlayerWidgetExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		AC6FFC0E2FF0010A0017897E /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = AC6FFC052FF0010A0017897E /* Assets.xcassets */; };
 		AC6FFC102FF0010A0017897E /* MediumWidgetView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AC6FFC072FF0010A0017897E /* MediumWidgetView.swift */; };
@@ -128,6 +134,13 @@
 		5663AB6C319A4DD894CFE9E3 /* PurchaseError.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PurchaseError.swift; sourceTree = "<group>"; };
 		8A2F514453C945DB83AB63420C3142C0 /* ConcurrentMetadataService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConcurrentMetadataService.swift; sourceTree = "<group>"; };
 		AC00937F2EDADD2300589BB2 /* EqualizerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EqualizerView.swift; sourceTree = "<group>"; };
+		AC17AEE53017ACF100E4124D /* AppThemePickerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppThemePickerView.swift; sourceTree = "<group>"; };
+		AC17AEE73017AD0A00E4124D /* ThemeManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThemeManager.swift; sourceTree = "<group>"; };
+		AC17AEEA3017B0A200E4124D /* ThemeTransition.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThemeTransition.swift; sourceTree = "<group>"; };
+		AC17AEED3017BC6F00E4124D /* SearchView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SearchView.swift; sourceTree = "<group>"; };
+		AC17AEF03017BC8C00E4124D /* SearchViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SearchViewModel.swift; sourceTree = "<group>"; };
+		AC17AEF23018611100E4124D /* AppColourPickerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppColourPickerView.swift; sourceTree = "<group>"; };
+		AC17AEF43018C22900E4124D /* EqualizerBars.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EqualizerBars.swift; sourceTree = "<group>"; };
 		AC2CBA6F2ECA027B005DD432 /* HapticManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HapticManager.swift; sourceTree = "<group>"; };
 		AC2F170D2FEB95AD002AE3A0 /* AnimatedDotsLoader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnimatedDotsLoader.swift; sourceTree = "<group>"; };
 		AC3A0F2F2E7538B9000CFC19 /* NaaPaata.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = NaaPaata.app; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -240,6 +253,14 @@
 			path = Equalizer;
 			sourceTree = "<group>";
 		};
+		AC17AEEE3017BC6F00E4124D /* Search */ = {
+			isa = PBXGroup;
+			children = (
+				AC17AEED3017BC6F00E4124D /* SearchView.swift */,
+			);
+			path = Search;
+			sourceTree = "<group>";
+		};
 		AC279E802E90325000E33715 /* App */ = {
 			isa = PBXGroup;
 			children = (
@@ -260,6 +281,7 @@
 			isa = PBXGroup;
 			children = (
 				AC2F170D2FEB95AD002AE3A0 /* AnimatedDotsLoader.swift */,
+				AC17AEF43018C22900E4124D /* EqualizerBars.swift */,
 			);
 			path = Components;
 			sourceTree = "<group>";
@@ -330,6 +352,7 @@
 				AC6F418C2E80421C00B5BE35 /* Albums */,
 				AC6773F52EA2A2B30059C86C /* Playlists */,
 				ACB6388B3015197A00FAEE2F /* Settings */,
+				AC17AEEE3017BC6F00E4124D /* Search */,
 				AC5B78A92EA597B0004AD706 /* SongInfo */,
 				AC5B78AA2EA597E8004AD706 /* ShareView */,
 				AC8269A62EB6750B00722433 /* ViewModifiers */,
@@ -344,6 +367,7 @@
 				AC6773F82EA2A4200059C86C /* SongsViewModel.swift */,
 				AC6774062EA2CA260059C86C /* AlbumsViewModel.swift */,
 				CE7907E42E92F591006D517C /* PlaylistViewModel.swift */,
+				AC17AEF03017BC8C00E4124D /* SearchViewModel.swift */,
 			);
 			path = ViewModels;
 			sourceTree = "<group>";
@@ -354,6 +378,7 @@
 				ACCBA9382EDC1E5800531C3A /* StoreManager.swift */,
 				AC6F41882E7FD29A00B5BE35 /* MusicPlayerManager.swift */,
 				CE7907E12E92F01B006D517C /* PlaylistManager.swift */,
+				AC17AEE73017AD0A00E4124D /* ThemeManager.swift */,
 				AC2CBA6F2ECA027B005DD432 /* HapticManager.swift */,
 				ACEB86952F4329DB007DA2D8 /* SleepTimerManager.swift */,
 				AC524C962F9E28AC00914B76 /* ToastManager.swift */,
@@ -486,6 +511,8 @@
 			isa = PBXGroup;
 			children = (
 				ACB6388A3015197A00FAEE2F /* SettingsView.swift */,
+				AC17AEE53017ACF100E4124D /* AppThemePickerView.swift */,
+				AC17AEF23018611100E4124D /* AppColourPickerView.swift */,
 			);
 			path = Settings;
 			sourceTree = "<group>";
@@ -510,6 +537,7 @@
 		ACB638983015E71F00FAEE2F /* Extensions */ = {
 			isa = PBXGroup;
 			children = (
+				AC17AEEA3017B0A200E4124D /* ThemeTransition.swift */,
 				AC279E822E9032B300E33715 /* Color+Ext */,
 				ACE6B03F2FEC39150034009F /* UIImage+Ext */,
 			);
@@ -688,6 +716,7 @@
 				ACEB86962F4329DB007DA2D8 /* SleepTimerManager.swift in Sources */,
 				AC6F417D2E7FD05F00B5BE35 /* AppColors.swift in Sources */,
 				AC6FFBE52FEE86010017897E /* SharedDataManager.swift in Sources */,
+				AC17AEF13017BC8C00E4124D /* SearchViewModel.swift in Sources */,
 				AC6774072EA2CA260059C86C /* AlbumsViewModel.swift in Sources */,
 				AC2CBA702ECA027B005DD432 /* HapticManager.swift in Sources */,
 				ACE6B03C2FEC389B0034009F /* VisualEffectBlur.swift in Sources */,
@@ -708,6 +737,9 @@
 				AC6774032EA2AF480059C86C /* PlayListCard.swift in Sources */,
 				CE7907E02E92E5E9006D517C /* LoadAllSongsFromDocuments.swift in Sources */,
 				AC6F41802E7FD05F00B5BE35 /* MP3FileCell.swift in Sources */,
+				AC17AEF33018611100E4124D /* AppColourPickerView.swift in Sources */,
+				AC17AEE83017AD0A00E4124D /* ThemeManager.swift in Sources */,
+				AC17AEEF3017BC6F00E4124D /* SearchView.swift in Sources */,
 				AC6F41812E7FD05F00B5BE35 /* MusicPlayerView.swift in Sources */,
 				ACB6388C3015197B00FAEE2F /* SettingsView.swift in Sources */,
 				AC8269A82EB6751C00722433 /* ButtonStyleViewModifier.swift in Sources */,
@@ -723,8 +755,10 @@
 				AC6F41822E7FD05F00B5BE35 /* NaaPaataApp.swift in Sources */,
 				ACE6B0362FEC384A0034009F /* ProgressBar.swift in Sources */,
 				ACCBA9332EDB5FFE00531C3A /* EqualizerViewModel.swift in Sources */,
+				AC17AEEB3017B0A200E4124D /* ThemeTransition.swift in Sources */,
 				ACEB86982F4329EF007DA2D8 /* SleepTimerModel.swift in Sources */,
 				ACCBA9422EDC290D00531C3A /* SubscriptionsView.swift in Sources */,
+				AC17AEE63017ACF100E4124D /* AppThemePickerView.swift in Sources */,
 				AC524C992F9E28CA00914B76 /* ToastModifier.swift in Sources */,
 				ACE6B0492FEC3A5E0034009F /* AlbumsTopBar.swift in Sources */,
 				ACCBA9392EDC1E5E00531C3A /* StoreManager.swift in Sources */,
@@ -733,6 +767,7 @@
 				ACC27B4D2ED8B2F10037273C /* AdaptiveLayout.swift in Sources */,
 				AC6F41832E7FD05F00B5BE35 /* PlayListsView.swift in Sources */,
 				ACD23E292E9286BB0054344D /* PlaylistSongRowView.swift in Sources */,
+				AC17AEF53018C22900E4124D /* EqualizerBars.swift in Sources */,
 				ACE6B0412FEC395A0034009F /* CircularAlbumArtwork.swift in Sources */,
 				ACCBA9352EDB65AB00531C3A /* RotaryKnobView.swift in Sources */,
 				CE090E602F2637AD00B45930 /* AddsKeys.swift in Sources */,
@@ -762,7 +797,6 @@
 				AC6FFC132FF0010A0017897E /* MusicPlayerWidgetControl.swift in Sources */,
 				AC6FFC142FF0010A0017897E /* SmallWidgetView.swift in Sources */,
 				AC6FFC152FF0010A0017897E /* WidgetIntents.swift in Sources */,
-				AC6FFBE72FEE891E0017897E /* AppColors.swift in Sources */,
 				AC6FFBE62FEE86490017897E /* SongModel.swift in Sources */,
 				AC6FFBE42FEE844C0017897E /* SharedDataManager.swift in Sources */,
 			);

@@ -88,7 +88,7 @@ struct AlbumsView: View {
                                 Section(header:
                                     AlbumsTopBar(
                                         viewModel: viewModel,
-                                        filteredCount: viewModel.filteredAlbums.count
+                                        count: viewModel.albums.count
                                     ) { key in
                                         viewModel.currentSort = key
                                         viewModel.sortAlbums(by: key)
@@ -97,7 +97,7 @@ struct AlbumsView: View {
                                     .padding(.top, 8)
                                     .padding(.bottom, 8)
                                 ) {
-                                    ForEach(viewModel.filteredAlbums) { album in
+                                    ForEach(viewModel.albums) { album in
                                         NavigationLink {
                                             AlbumDetailsView(
                                                 title: album.name,
@@ -131,7 +131,6 @@ struct AlbumsView: View {
                     }
                 }
                 .navigationTitle("Albums")
-                .searchable(text: $viewModel.searchText, placement: .navigationBarDrawer(displayMode: .automatic), prompt: "Search albums...")
                 .sheet(isPresented: $showingOnboarding) {
                     OnboardingView()
                 }

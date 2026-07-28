@@ -7,15 +7,28 @@
 
 import SwiftUI
 
-class TabState: ObservableObject {
-    @AppStorage("selectedTab") var selectedTab: Int = 0
+// MARK: - Tab Enum (RawRepresentable for @AppStorage)
+enum AppTab: Int, Hashable, CaseIterable {
+    case songs = 0
+    case albums = 1
+    case playlists = 2
+    case settings = 3
+    case search = 4
 }
 
+// MARK: - Tab State with @AppStorage
+class TabState: ObservableObject {
+    @AppStorage("selectedTab") var selectedTab: AppTab = .songs
+}
+
+// MARK: - Main Tab View
 struct MainTabView: View {
     @EnvironmentObject var tabState: TabState
     @EnvironmentObject var musicPlayerManager: MusicPlayerManager
     @EnvironmentObject var playlistsViewModel: PlaylistsViewModel
     @EnvironmentObject var sleepTimerManager: SleepTimerManager
+
+    @StateObject private var searchViewModel = SearchViewModel()
 
     @State private var showFullPlayer = false
     @State private var keyboardHeight: CGFloat = 0
@@ -26,34 +39,65 @@ struct MainTabView: View {
             let bottomSafeArea = geometry.safeAreaInsets.bottom
 
             ZStack(alignment: .bottom) {
-                TabView(selection: $tabState.selectedTab) {
-                    SongsView()
-                        .tabItem {
-                            Image(systemName: "music.quarternote.3")
-                            Text("Songs")
+                // MARK: - Main TabView (iOS 18+)
+                if #available(iOS 18.0, *) {
+                    TabView(selection: $tabState.selectedTab) {
+                        Tab("Songs", systemImage: "music.quarternote.3", value: .songs) {
+                            SongsView()
                         }
-                        .tag(0)
-                    AlbumsView()
-                        .tabItem {
-                            Image(systemName: "rectangle.stack.badge.play")
-                            Text("Albums")
+                        Tab("Albums", systemImage: "rectangle.stack.badge.play", value: .albums) {
+                            AlbumsView()
                         }
-                        .tag(1)
-                    PlayListsView()
-                        .tabItem {
-                            Image(systemName: "music.note.list")
-                            Text("Lists")
+                        Tab("Lists", systemImage: "music.note.list", value: .playlists) {
+                            PlayListsView()
                         }
-                        .tag(2)
-                    SettingsView()
-                        .tabItem {
-                            Image(systemName: "gear")
-                            Text("Settings")
+                        Tab("Settings", systemImage: "gear", value: .settings) {
+                            SettingsView()
                         }
-                        .tag(3)
+                        Tab("Search", systemImage: "magnifyingglass", value: .search, role: .search) {
+                            SearchView()
+                                .environmentObject(searchViewModel)
+                        }
+                    }
+                    .accentColor(AppColors.primary)
+                } else {
+                    TabView(selection: $tabState.selectedTab) {
+                        SongsView()
+                            .tabItem {
+                                Image(systemName: "music.quarternote.3")
+                                Text("Songs")
+                            }
+                            .tag(0)
+                        AlbumsView()
+                            .tabItem {
+                                Image(systemName: "rectangle.stack.badge.play")
+                                Text("Albums")
+                            }
+                            .tag(1)
+                        PlayListsView()
+                            .tabItem {
+                                Image(systemName: "music.note.list")
+                                Text("Lists")
+                            }
+                            .tag(2)
+                        SettingsView()
+                            .tabItem {
+                                Image(systemName: "gear")
+                                Text("Settings")
+                            }
+                            .tag(3)
+                        SearchView()
+                            .environmentObject(searchViewModel)
+                            .tabItem {
+                                Image(systemName: "magnifyingglass")
+                                Text("Search")
+                            }
+                            .tag(4)
+                    }
+                    .accentColor(AppColors.primary)
                 }
-                .accentColor(AppColors.primary)
 
+                // MARK: - Mini Player / Full Player
                 if musicPlayerManager.currentSong != nil {
                     if showFullPlayer {
                         MusicPlayerView(

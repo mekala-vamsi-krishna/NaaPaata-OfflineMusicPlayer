@@ -29,7 +29,7 @@ struct PlaylistCard: View {
                     .overlay(
                         GeometryReader { geometry in
                             ZStack {
-                                // Cover image – fills the whole card exactly
+                                // Cover image
                                 if let image = playlist.coverImage {
                                     Image(uiImage: image)
                                         .resizable()
@@ -37,9 +37,9 @@ struct PlaylistCard: View {
                                         .frame(width: geometry.size.width, height: geometry.size.height)
                                         .clipped()
                                 } else {
-                                    Image("default_playlist_cover")
-                                        .resizable()
-                                        .scaledToFill()
+                                    Image(systemName: "music.note")
+                                        .font(.system(size: 48))
+                                        .foregroundColor(AppColors.primary)
                                         .frame(width: geometry.size.width, height: geometry.size.height)
                                         .clipped()
                                 }

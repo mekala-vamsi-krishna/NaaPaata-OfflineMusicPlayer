@@ -170,9 +170,41 @@ struct PlaylistDetailsView: View {
                         .resizable()
                         .scaledToFill()
                 } else {
-                    Image("default_playlist_cover")
-                        .resizable()
-                        .scaledToFill()
+                    ZStack {
+                        // Glow effect
+                        RoundedRectangle(cornerRadius: 16)
+                            .fill(
+                                RadialGradient(
+                                    colors: [AppColors.primary.opacity(0.3), .clear],
+                                    center: .center,
+                                    startRadius: 30,
+                                    endRadius: 80
+                                )
+                            )
+                            .blur(radius: 16)
+
+                        // Main card with ultra-thin material
+                        RoundedRectangle(cornerRadius: 16)
+                            .fill(.ultraThinMaterial)
+                            .overlay(
+                                Image(systemName: "music.note")
+                                    .font(.system(size: 44))
+                                    .foregroundColor(AppColors.primary)
+                            )
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 16)
+                                    .strokeBorder(
+                                        LinearGradient(
+                                            colors: [.white.opacity(0.2), .clear],
+                                            startPoint: .topLeading,
+                                            endPoint: .bottomTrailing
+                                        ),
+                                        lineWidth: 1
+                                    )
+                            )
+                    }
+                    .frame(width: 120, height: 120)
+                    .clipShape(RoundedRectangle(cornerRadius: 16))
                 }
             }
             .frame(width: 120, height: 120)
@@ -377,13 +409,4 @@ struct PlaylistDetailsView: View {
         let minutes = (Int(total) % 3600) / 60
         return hours > 0 ? "\(hours)h \(minutes)m" : "\(minutes)m"
     }
-}
-
-
-// MARK: - Preview
-#Preview {
-    NavigationStack {
-//        PlaylistDetailsView(playlist: <#Playlist#>, onUpdate: <#(Playlist) -> Void#>, onDelete: <#() -> Void#>)
-    }
-    .preferredColorScheme(.dark)
 }
