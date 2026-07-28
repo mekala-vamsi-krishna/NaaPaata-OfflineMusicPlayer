@@ -29,7 +29,7 @@ struct PlaylistCard: View {
                     .overlay(
                         GeometryReader { geometry in
                             ZStack {
-                                // Cover image – fills the whole card exactly
+                                // Cover image
                                 if let image = playlist.coverImage {
                                     Image(uiImage: image)
                                         .resizable()
@@ -37,30 +37,11 @@ struct PlaylistCard: View {
                                         .frame(width: geometry.size.width, height: geometry.size.height)
                                         .clipped()
                                 } else {
-                                    Image("default_playlist_cover")
-                                        .resizable()
-                                        .scaledToFill()
+                                    Image(systemName: "music.note")
+                                        .font(.system(size: 48))
+                                        .foregroundColor(AppColors.primary)
                                         .frame(width: geometry.size.width, height: geometry.size.height)
                                         .clipped()
-                                }
-                                
-                                // Song count badge
-                                VStack {
-                                    HStack {
-                                        Spacer()
-                                        HStack(spacing: 4) {
-                                            Image(systemName: "music.note")
-                                                .font(.system(size: 10, weight: .semibold))
-                                            Text("\(playlist.songs.count)")
-                                                .font(.system(size: 12, weight: .bold))
-                                        }
-                                        .foregroundColor(.white)
-                                        .padding(.horizontal, 10)
-                                        .padding(.vertical, 6)
-                                        .background(Capsule().fill(AppColors.primary.opacity(0.9)))
-                                        .padding(10)
-                                    }
-                                    Spacer()
                                 }
                             }
                         }
@@ -85,7 +66,7 @@ struct PlaylistCard: View {
                     .lineLimit(1)
                 
                 HStack(spacing: 4) {
-                    Text(playlist.songs.isEmpty ? "Empty" : "\(playlist.songs.count) song\(playlist.songs.count == 1 ? "" : "s")")
+                    Text(playlist.songPaths.isEmpty ? "Empty" : "\(playlist.songPaths.count) song\(playlist.songPaths.count == 1 ? "" : "s")")
                         .font(.system(size: 13, weight: .medium))
                 }
                 .foregroundColor(AppColors.textSecondary)

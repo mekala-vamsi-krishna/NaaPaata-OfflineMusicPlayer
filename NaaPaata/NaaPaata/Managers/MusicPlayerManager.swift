@@ -562,7 +562,7 @@ final class MusicPlayerManager: NSObject, ObservableObject {
             return artwork
         }
         return await Task.detached(priority: .userInitiated) { [weak self] in
-            guard let self = self else { return UIImage(systemName: "music.note")! }
+            guard let self = self else { return self?.generateDefaultArtwork() ?? UIImage() }
             guard let fileURL = song.resolvedURL ?? song.url else {
                 return self.generateDefaultArtwork()
             }
@@ -584,20 +584,42 @@ final class MusicPlayerManager: NSObject, ObservableObject {
             return result
         }.value
     }
-    
-    private func generateDefaultArtwork() -> UIImage {
-        let size = CGSize(width: 500, height: 500)
+
+    private func fallbackArtwork() -> UIImage {
+        let size = CGSize(width: 100, height: 100)
         let renderer = UIGraphicsImageRenderer(size: size)
         return renderer.image { context in
-            let rect = CGRect(origin: .zero, size: size)
-            let colors = [UIColor(AppColors.primary).cgColor, UIColor(AppColors.primary).cgColor]
-            let colorSpace = CGColorSpaceCreateDeviceRGB()
-            let gradient = CGGradient(colorsSpace: colorSpace, colors: colors as CFArray, locations: [0.0, 1.0])!
-            context.cgContext.drawLinearGradient(gradient, start: CGPoint(x: 0, y: 0), end: CGPoint(x: size.width, y: size.height), options: [])
-            if let symbolImage = UIImage(systemName: "music.note")?.withTintColor(.white, renderingMode: .alwaysOriginal) {
-                let symbolSize = CGSize(width: size.width * 0.5, height: size.height * 0.5)
-                let symbolOrigin = CGPoint(x: (size.width - symbolSize.width) / 2, y: (size.height - symbolSize.height) / 2)
-                symbolImage.draw(in: CGRect(origin: symbolOrigin, size: symbolSize))
+            // 1. White background
+            UIColor.white.setFill()
+            context.fill(CGRect(origin: .zero, size: size))
+
+            // 2. Purple music note
+            let config = UIImage.SymbolConfiguration(pointSize: 44, weight: .medium)
+            if let noteImage = UIImage(systemName: "music.note", withConfiguration: config) {
+                // Convert SwiftUI Color to UIColor (assuming AppColors.primary is a Color)
+                let tintColor = UIColor(AppColors.primary)
+                tintColor.setFill()
+                let rect = CGRect(x: (size.width - 44) / 2, y: (size.height - 44) / 2, width: 44, height: 44)
+                noteImage.draw(in: rect, blendMode: .normal, alpha: 1.0)
+            }
+        }
+    }
+    
+    private func generateDefaultArtwork() -> UIImage {
+        let size = CGSize(width: 100, height: 100)
+        let renderer = UIGraphicsImageRenderer(size: size)
+        return renderer.image { context in
+            // 1. White background
+            UIColor.white.setFill()
+            context.fill(CGRect(origin: .zero, size: size))
+
+            // 2. Purple music note (tinted)
+            let config = UIImage.SymbolConfiguration(pointSize: 44, weight: .medium)
+            if let noteImage = UIImage(systemName: "music.note", withConfiguration: config) {
+                // Tint the image with the primary color
+                let tintedImage = noteImage.withTintColor(UIColor(AppColors.primary), renderingMode: .alwaysOriginal)
+                let rect = CGRect(x: (size.width - 44) / 2, y: (size.height - 44) / 2, width: 44, height: 44)
+                tintedImage.draw(in: rect)
             }
         }
     }

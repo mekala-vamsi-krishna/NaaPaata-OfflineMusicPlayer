@@ -19,22 +19,27 @@ struct PlaylistDetailsView: View {
     
     @State private var showAddSongs = false
     @State private var showEditPlaylist = false
-    @State private var showSortOptions = false
     @State private var showDeletePlaylistConfirmation = false
     @State private var selectedSong: Song?
     @State private var currentSortOption: SortOption = .dateAdded
     @State private var isAscending = true
     @State private var searchText = ""
+    @State private var isDeleted = false
     
     init(playlist: Playlist, onUpdate: @escaping (Playlist) -> Void, onDelete: @escaping () -> Void) {
         self._playlist = State(initialValue: playlist)
         self.onUpdate = onUpdate
         self.onDelete = onDelete
     }
+
+    // MARK: - Resolved Songs (path-based lookup)
+    var resolvedSongs: [Song] {
+        playlistManager.getSongs(for: playlist)
+    }
     
     // MARK: - Sorted & Filtered Songs
     var sortedSongs: [Song] {
-        var songs = playlist.songs
+        var songs = resolvedSongs
         
         switch currentSortOption {
         case .dateAdded:
@@ -80,15 +85,17 @@ struct PlaylistDetailsView: View {
                            startPoint: .top, endPoint: .bottom)
                 .ignoresSafeArea()
             
-            ScrollView {
-                VStack(spacing: 0) {
-                    playlistHeader
-                    actionButtons.padding(.vertical, 24)
-                    searchAndSortBar.padding(.horizontal, 20).padding(.bottom, 16)
-                    songsListSection
+            if !isDeleted {
+                ScrollView {
+                    VStack(spacing: 0) {
+                        playlistHeader
+                        actionButtons.padding(.vertical, 24)
+                        searchAndSortBar.padding(.horizontal, 20).padding(.bottom, 16)
+                        songsListSection
+                    }
                 }
+                .id(refreshID)
             }
-            .id(refreshID)
         }
         .navigationBarTitleDisplayMode(.inline)
         .navigationBarBackButtonHidden(true)
@@ -133,11 +140,9 @@ struct PlaylistDetailsView: View {
         .alert("Remove Song", isPresented: .constant(selectedSong != nil), presenting: selectedSong) { song in
             Button("Cancel", role: .cancel) { selectedSong = nil }
             Button("Remove", role: .destructive) {
-                // Use URL-based comparison to remove the song
-                if let index = playlist.songs.firstIndex(where: { $0.urlString == song.urlString }) {
-                    withAnimation { playlist.songs.remove(at: index) }
-                    onUpdate(playlist) // Update parent view immediately (includes saving to SwiftData)
-                }
+                let relPath = song.relativePath
+                playlist.songPaths.removeAll { $0 == relPath }
+                PlaylistManager.shared.removeSongFromPlaylist(song, from: playlist)
                 selectedSong = nil
             }
         } message: { song in
@@ -146,6 +151,7 @@ struct PlaylistDetailsView: View {
         .alert("Delete Playlist", isPresented: $showDeletePlaylistConfirmation) {
             Button("Cancel", role: .cancel) {}
             Button("Delete", role: .destructive) {
+                isDeleted = true
                 onDelete()
                 dismiss()
             }
@@ -164,9 +170,41 @@ struct PlaylistDetailsView: View {
                         .resizable()
                         .scaledToFill()
                 } else {
-                    Image("default_playlist_cover")
-                        .resizable()
-                        .scaledToFill()
+                    ZStack {
+                        // Glow effect
+                        RoundedRectangle(cornerRadius: 16)
+                            .fill(
+                                RadialGradient(
+                                    colors: [AppColors.primary.opacity(0.3), .clear],
+                                    center: .center,
+                                    startRadius: 30,
+                                    endRadius: 80
+                                )
+                            )
+                            .blur(radius: 16)
+
+                        // Main card with ultra-thin material
+                        RoundedRectangle(cornerRadius: 16)
+                            .fill(.ultraThinMaterial)
+                            .overlay(
+                                Image(systemName: "music.note")
+                                    .font(.system(size: 44))
+                                    .foregroundColor(AppColors.primary)
+                            )
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 16)
+                                    .strokeBorder(
+                                        LinearGradient(
+                                            colors: [.white.opacity(0.2), .clear],
+                                            startPoint: .topLeading,
+                                            endPoint: .bottomTrailing
+                                        ),
+                                        lineWidth: 1
+                                    )
+                            )
+                    }
+                    .frame(width: 120, height: 120)
+                    .clipShape(RoundedRectangle(cornerRadius: 16))
                 }
             }
             .frame(width: 120, height: 120)
@@ -188,10 +226,10 @@ struct PlaylistDetailsView: View {
                 }
                 
                 HStack(spacing: 12) {
-                    Label("\(playlist.songs.count) songs", systemImage: "music.note.list")
+                    Label("\(playlist.songPaths.count) songs", systemImage: "music.note.list")
                         .font(.system(size: 12, weight: .medium))
                     
-                    if !playlist.songs.isEmpty {
+                    if !playlist.songPaths.isEmpty {
                         Text("•")
                             .font(.system(size: 12))
                         Label(totalDuration, systemImage: "clock")
@@ -209,7 +247,7 @@ struct PlaylistDetailsView: View {
     // MARK: - Action Buttons
     private var actionButtons: some View {
         HStack(spacing: 16) {
-            Button(action: { MusicPlayerManager.shared.playFromAllSongs(playlist.songs, fromPlaylist: playlist.name) }) {
+            Button(action: { MusicPlayerManager.shared.playFromAllSongs(sortedSongs, fromPlaylist: playlist.name) }) {
                 HStack(spacing: 12) {
                     Image(systemName: "play.fill").font(.system(size: 18, weight: .bold))
                     Text("Play All").font(.system(size: 16, weight: .bold))
@@ -220,10 +258,10 @@ struct PlaylistDetailsView: View {
                                            startPoint: .leading, endPoint: .trailing))
                 .clipShape(Capsule())
             }
-            .disabled(playlist.songs.isEmpty)
-            .opacity(playlist.songs.isEmpty ? 0.5 : 1.0)
+            .disabled(playlist.songPaths.isEmpty)
+            .opacity(playlist.songPaths.isEmpty ? 0.5 : 1.0)
             
-            Button(action: { MusicPlayerManager.shared.shufflePlay(playlist: playlist.songs, fromPlaylist: playlist.name) }) {
+            Button(action: { MusicPlayerManager.shared.shufflePlay(playlist: sortedSongs, fromPlaylist: playlist.name) }) {
                 HStack(spacing: 12) {
                     Image(systemName: "shuffle").font(.system(size: 18, weight: .bold))
                     Text("Shuffle").font(.system(size: 16, weight: .bold))
@@ -234,8 +272,8 @@ struct PlaylistDetailsView: View {
                 .clipShape(Capsule())
                 .overlay(Capsule().strokeBorder(AppColors.primary.opacity(0.3), lineWidth: 1.5))
             }
-            .disabled(playlist.songs.isEmpty)
-            .opacity(playlist.songs.isEmpty ? 0.5 : 1.0)
+            .disabled(playlist.songPaths.isEmpty)
+            .opacity(playlist.songPaths.isEmpty ? 0.5 : 1.0)
         }
         .padding(.horizontal, 20)
     }
@@ -243,7 +281,7 @@ struct PlaylistDetailsView: View {
     // MARK: - Search & Sort
     private var searchAndSortBar: some View {
         VStack(spacing: 12) {
-            if !playlist.songs.isEmpty {
+            if !playlist.songPaths.isEmpty {
                 HStack(spacing: 12) {
                     
                     // MARK: - Search Bar (Capsule)
@@ -268,19 +306,9 @@ struct PlaylistDetailsView: View {
                     
                     
                     // MARK: - Sort Button (Circular Icon Only)
-                    Button(action: {
-                        showSortOptions = true
-                    }) {
-                        Image(systemName: "arrow.up.arrow.down")
-                            .font(.system(size: 16, weight: .semibold))
-                            .foregroundColor(AppColors.primary)
-                            .frame(width: 44, height: 44)
-                            .background(.ultraThinMaterial)
-                            .clipShape(Circle())
-                    }
-                    .confirmationDialog("Sort by", isPresented: $showSortOptions) {
+                    Menu {
                         ForEach(SortOption.allCases, id: \.self) { option in
-                            Button(option.rawValue) {
+                            Button(action: {
                                 withAnimation {
                                     if currentSortOption == option {
                                         isAscending.toggle()
@@ -289,9 +317,22 @@ struct PlaylistDetailsView: View {
                                         isAscending = true
                                     }
                                 }
+                            }) {
+                                HStack {
+                                    Text(option.rawValue)
+                                    if currentSortOption == option {
+                                        Image(systemName: isAscending ? "chevron.up" : "chevron.down")
+                                    }
+                                }
                             }
                         }
-                        Button("Cancel", role: .cancel) { }
+                    } label: {
+                        Image(systemName: "arrow.up.arrow.down")
+                            .font(.system(size: 16, weight: .semibold))
+                            .foregroundColor(AppColors.primary)
+                            .frame(width: 44, height: 44)
+                            .background(.ultraThinMaterial)
+                            .clipShape(Circle())
                     }
                 }
             }
@@ -301,7 +342,7 @@ struct PlaylistDetailsView: View {
     // MARK: - Songs List
     private var songsListSection: some View {
         VStack(spacing: 0) {
-            if sortedSongs.isEmpty && playlist.songs.isEmpty {
+            if sortedSongs.isEmpty && playlist.songPaths.isEmpty {
                 emptyStateView
             } else if sortedSongs.isEmpty && !searchText.isEmpty {
                 noSearchResultsView
@@ -312,7 +353,7 @@ struct PlaylistDetailsView: View {
                         editMode: .inactive,
                         onPlay: { 
                             // Play from the full playlist context, starting with this song
-                            MusicPlayerManager.shared.playFromAllSongs(playlist.songs, startAt: song, fromPlaylist: playlist.name)
+                            MusicPlayerManager.shared.playFromAllSongs(sortedSongs, startAt: song, fromPlaylist: playlist.name)
                         },
                         onDelete: { selectedSong = song }
                     )
@@ -363,19 +404,9 @@ struct PlaylistDetailsView: View {
     
     // MARK: - Total Duration
     private var totalDuration: String {
-        let total = playlist.songs.reduce(0) { $0 + $1.duration }
+        let total = resolvedSongs.reduce(0) { $0 + $1.duration }
         let hours = Int(total) / 3600
         let minutes = (Int(total) % 3600) / 60
         return hours > 0 ? "\(hours)h \(minutes)m" : "\(minutes)m"
     }
 }
-
-
-// MARK: - Preview
-#Preview {
-    NavigationStack {
-//        PlaylistDetailsView(playlist: <#Playlist#>, onUpdate: <#(Playlist) -> Void#>, onDelete: <#() -> Void#>)
-    }
-    .preferredColorScheme(.dark)
-}
-

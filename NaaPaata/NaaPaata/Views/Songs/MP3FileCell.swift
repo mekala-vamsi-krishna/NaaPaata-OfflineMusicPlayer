@@ -11,52 +11,48 @@ import AVFoundation
 struct MP3FileCell: View {
     let song: Song
     @EnvironmentObject var musicManager: MusicPlayerManager
-    @EnvironmentObject var playlistsVM: PlaylistsViewModel
+    @EnvironmentObject var albumsViewModel: AlbumsViewModel
 
-    // Create Playlist
-    @State private var showCreatePlaylistSheet = false
-    @State private var newPlaylistName = ""
-    @State private var newPlaylistDescription = ""
-    
-    // Song Info
     @State private var showSongInfoSheet = false
-    
-    // Share Properties
     @State private var showShareSheet = false
     @State private var shareItems: [Any] = []
-    
-    // Delete Alert
     @State private var showDeleteAlert = false
-    @State private var playlists: [Playlist] = []
-    
-    // Async Artwork
+    @State private var showAddToPlaylist = false
     @State private var artwork: UIImage?
+    @State private var navigateToAlbum = false
+    @State private var albumForNavigation: (title: String, artwork: UIImage?, songs: [Song])?
+
+    // Create Playlist
+    @State private var newPlaylistName = ""
+    @State private var newPlaylistDescription = ""
 
     var body: some View {
         HStack(spacing: 15) {
             // Artwork
+            // Inside MP3FileCell, where the artwork is shown:
+
             if let artwork = artwork {
                 Image(uiImage: artwork)
                     .resizable()
                     .scaledToFill()
                     .frame(width: 50, height: 50)
-                    .background(AppColors.background.opacity(0.2))
                     .cornerRadius(8)
             } else {
-                Image(systemName: "music.note")
-                    .resizable()
-                    .scaledToFit()
-                    .padding(10)
+                RoundedRectangle(cornerRadius: 8)
+                    .fill(Color.white)
                     .frame(width: 50, height: 50)
-                    .background(AppColors.background.opacity(0.2))
-                    .cornerRadius(8)
-                    .foregroundColor(AppColors.primary)
+                    .overlay(
+                        Image(systemName: "music.note")
+                            .resizable()
+                            .scaledToFit()
+                            .padding(12)
+                            .foregroundColor(AppColors.primary)  // purple
+                    )
                     .task {
                         self.artwork = await musicManager.loadArtworkAsync(for: song)
                     }
             }
 
-            // Song details
             VStack(alignment: .leading, spacing: 4) {
                 Text(song.title)
                     .fontWeight(.semibold)
@@ -71,13 +67,11 @@ struct MP3FileCell: View {
 
             Spacer()
 
-            // Now Playing Indicator
             if musicManager.currentSong == song {
                 EqualizerBars(isPlaying: musicManager.isPlaying)
                     .frame(width: 20, height: 20)
             }
 
-            // Ellipsis menu
             Menu {
                 Button {
                     musicManager.addToQueueNext(song)
@@ -92,6 +86,18 @@ struct MP3FileCell: View {
                 }
 
                 Button {
+                    let matched = albumsViewModel.albums.first(where: { $0.name == song.album })
+                    albumForNavigation = (
+                        title: matched?.name ?? song.album,
+                        artwork: matched?.artworkImage ?? song.artworkImage,
+                        songs: matched?.songs ?? [song]
+                    )
+                    navigateToAlbum = true
+                } label: {
+                    Label("Go to Album", systemImage: "square.stack")
+                }
+
+                Button {
                     if let shareURL = song.resolvedURL ?? song.url {
                         shareItems = [shareURL]
                         showShareSheet = true
@@ -102,31 +108,10 @@ struct MP3FileCell: View {
 
                 Divider()
 
-                // Add to playlist options
-                ForEach(playlists) { playlist in
-                    Button {
-                        // Add only if not already present; view model handles toast
-                        if !playlist.songs.contains(where: { $0.relativePath == song.relativePath }) {
-                            playlistsVM.addSongToPlaylist(song, to: playlist)
-                            loadPlaylists()
-                        }
-                    } label: {
-                        // Show checkmark if the song is already in this playlist
-                        if playlist.songs.contains(where: { $0.relativePath == song.relativePath }) {
-                            Label(playlist.name, systemImage: "checkmark")
-                        } else {
-                            Label(playlist.name, systemImage: "music.note.list")
-                        }
-                    }
-                }
-
-                Divider()
-
-                // Create new playlist
                 Button {
-                    showCreatePlaylistSheet = true
+                    showAddToPlaylist = true
                 } label: {
-                    Label("Create New Playlist", systemImage: "plus.circle")
+                    Label("Add to Playlist", systemImage: "music.note.list")
                 }
 
                 Divider()
@@ -147,24 +132,10 @@ struct MP3FileCell: View {
             }
         }
         .padding(.vertical, 4)
-        // Sheet to create playlist and immediately add the song
-        .sheet(isPresented: $showCreatePlaylistSheet) {
-            CreatePlaylistSheet(
-                name: $newPlaylistName,
-                description: $newPlaylistDescription,
-                onCreate: { coverImage in
-                    playlistsVM.addPlaylist(name: newPlaylistName, description: newPlaylistDescription, coverImage: coverImage)
-                    if let newPlayList = PlaylistManager.shared.loadPlaylist(name: newPlaylistName) {
-                        playlistsVM.addSongToPlaylist(song, to: newPlayList)
-                    }
-                    newPlaylistName = ""
-                    newPlaylistDescription = ""
-                    showCreatePlaylistSheet = false
-                    loadPlaylists()
-                }
-            )
+        .sheet(isPresented: $showAddToPlaylist) {
+            AddToPlaylistView(song: song)
+                .environmentObject(musicManager)
         }
-        // Song Info Sheet
         .sheet(isPresented: $showSongInfoSheet) {
             NavigationStack {
                 SongInfoView(song: song)
@@ -172,12 +143,15 @@ struct MP3FileCell: View {
             .presentationDetents([.fraction(0.7)])
             .presentationDragIndicator(.visible)
         }
-        // Share Sheet
+        .navigationDestination(isPresented: $navigateToAlbum) {
+            if let album = albumForNavigation {
+                AlbumDetailsView(title: album.title, artwork: album.artwork, songs: album.songs)
+            }
+        }
         .sheet(isPresented: $showShareSheet) {
             ActivityViewController(activityItems: shareItems)
                 .presentationDetents([.fraction(0.4)])
         }
-        // Delete Alert
         .alert("Delete Song?", isPresented: $showDeleteAlert) {
             Button("Delete", role: .destructive) {
                 musicManager.delete(song: song)
@@ -186,52 +160,5 @@ struct MP3FileCell: View {
         } message: {
             Text("Are you sure you want to delete \"\(song.title)\" from your device?")
         }
-        .onAppear {
-            loadPlaylists()
-        }
-    }
-
-    private func loadPlaylists() {
-        playlists = PlaylistManager.shared.getAllPlaylists()
     }
 }
-
-
-struct EqualizerBars: View {
-    @State private var heights: [CGFloat] = [5, 10, 7]
-    @Environment(\.scenePhase) private var scenePhase
-    @State private var isAnimating = false
-    
-    let isPlaying: Bool
-    private let timer = Timer.publish(every: 0.3, on: .main, in: .common).autoconnect()
-
-    var body: some View {
-        HStack(spacing: 2) {
-            ForEach(0..<heights.count, id: \.self) { i in
-                RoundedRectangle(cornerRadius: 2)
-                    .fill(Color.purple)
-                    .frame(width: 3, height: heights[i])
-            }
-        }
-        .onReceive(timer) { _ in
-            guard isPlaying else { return } // ✅ Only animate when playing
-            withAnimation(.linear(duration: 0.25)) {
-                heights = heights.map { _ in CGFloat(Int.random(in: 5...15)) }
-            }
-        }
-        .onChange(of: isPlaying) { newValue in
-            // Reset bars when paused
-            if !newValue {
-                withAnimation(.easeOut(duration: 0.3)) {
-                    heights = [5, 5, 5]
-                }
-            }
-        }
-    }
-}
-
-
-
-
-
-

@@ -12,7 +12,7 @@ struct AlbumCellView: View {
     let imageSize: CGFloat
     
     var body: some View {
-        VStack(spacing: 10) {
+        VStack(alignment: .leading, spacing: 10) {
             ZStack {
                 if let artwork = album.artworkImage {
                     Image(uiImage: artwork)
@@ -22,12 +22,17 @@ struct AlbumCellView: View {
                         .cornerRadius(16)
                         .shadow(radius: 10)
                 } else {
-                    Image("default_playlist_cover")
-                        .resizable()
-                        .scaledToFill()
+                    RoundedRectangle(cornerRadius: 16)
+                        .fill(Color.secondary.opacity(0.2))
                         .frame(width: imageSize, height: imageSize)
-                        .cornerRadius(16)
-                        .shadow(radius: 10)
+                        .shadow(radius: 4)
+                        .overlay(
+                            Image(systemName: "opticaldisc")
+                                .resizable()
+                                .scaledToFit()
+                                .frame(width: imageSize * 0.5, height: imageSize * 0.5)
+                                .foregroundColor(.secondary)
+                        )
                 }
             }
             
@@ -37,12 +42,10 @@ struct AlbumCellView: View {
                     .foregroundColor(.primary)
                     .lineLimit(1)
                     .multilineTextAlignment(.leading)
-                    .padding(.horizontal, 6)
                 
                 Text("\(album.songs.count) song\(album.songs.count == 1 ? "" : "s")")
                     .font(.subheadline)
                     .foregroundColor(.secondary)
-                    .padding(.horizontal, 6)
             }
         }
     }

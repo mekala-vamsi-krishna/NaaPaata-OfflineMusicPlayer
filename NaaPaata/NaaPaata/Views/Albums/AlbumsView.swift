@@ -11,7 +11,7 @@ import AVFoundation
 struct AlbumsView: View {
     @EnvironmentObject var viewModel: AlbumsViewModel
     @Environment(\.horizontalSizeClass) var sizeClass
-    
+
     @State private var showingOnboarding = false
 
     var body: some View {
@@ -24,7 +24,7 @@ struct AlbumsView: View {
                 repeating: GridItem(.flexible(), spacing: layout.gridSpacing),
                 count: layout.gridColumns
             )
-            
+
             NavigationStack {
                 ZStack {
                     LinearGradient(
@@ -37,7 +37,7 @@ struct AlbumsView: View {
                         endPoint: .bottomTrailing
                     )
                     .ignoresSafeArea()
-                    
+
                     if viewModel.isLoading {
                         VStack(spacing: 20) {
                             AnimatedDotsLoader()
@@ -86,14 +86,18 @@ struct AlbumsView: View {
                         ScrollView {
                             LazyVGrid(columns: columns, spacing: layout.gridSpacing) {
                                 Section(header:
-                                    AlbumsTopBar(viewModel: viewModel, filteredCount: viewModel.filteredAlbums.count) { key in
+                                    AlbumsTopBar(
+                                        viewModel: viewModel,
+                                        count: viewModel.albums.count
+                                    ) { key in
                                         viewModel.currentSort = key
                                         viewModel.sortAlbums(by: key)
                                     }
-                                    .padding(.horizontal, -layout.horizontalPadding)
-                                    .padding(.bottom, 10)
+                                    .padding(.horizontal, layout.horizontalPadding)
+                                    .padding(.top, 8)
+                                    .padding(.bottom, 8)
                                 ) {
-                                    ForEach(viewModel.filteredAlbums) { album in
+                                    ForEach(viewModel.albums) { album in
                                         NavigationLink {
                                             AlbumDetailsView(
                                                 title: album.name,
@@ -127,7 +131,6 @@ struct AlbumsView: View {
                     }
                 }
                 .navigationTitle("Albums")
-                .searchable(text: $viewModel.searchText, placement: .navigationBarDrawer(displayMode: .automatic), prompt: "Search albums...")
                 .sheet(isPresented: $showingOnboarding) {
                     OnboardingView()
                 }

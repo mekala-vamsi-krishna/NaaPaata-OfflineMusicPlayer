@@ -179,25 +179,19 @@ extension AddSongsView {
     
     // MARK: - Add selected songs to playlist
     private func addSelectedSongsToPlaylist() {
-        // Filter only selected songs
         let songsToAdd = availableSongs.filter { selectedSongs.contains($0.id) }
-        
         var addedCount = 0
         var existsCount = 0
-        
-        // Add each song to playlist using PlaylistManager and keep UI state in sync
+
         for song in songsToAdd {
             let result = playlistManager.addSongToPlaylist(song, playlist: playlist)
             if result == .added {
                 addedCount += 1
-                if !playlist.songs.contains(where: { $0.urlString == song.urlString }) {
-                    playlist.songs.append(song)
-                }
             } else if result == .exists {
                 existsCount += 1
             }
         }
-        
+
         if addedCount > 0 {
             ToastManager.shared.showToast(message: "song added to \(playlist.name) playlist")
         } else if existsCount > 0 {

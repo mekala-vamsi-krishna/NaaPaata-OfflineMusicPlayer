@@ -19,7 +19,8 @@ struct NaaPaataApp: App {
     
     @StateObject private var musicPlayerManager = MusicPlayerManager.shared
     @StateObject private var sleepTimerManager = SleepTimerManager.shared
-    
+    @StateObject private var themeManager = ThemeManager.shared
+
     @StateObject private var songsViewModel = SongsViewModel()
     @StateObject private var albumsViewModel = AlbumsViewModel()
     @StateObject private var playlistsViewModel = PlaylistsViewModel()
@@ -79,6 +80,7 @@ struct NaaPaataApp: App {
                         .environmentObject(tabState)
                         .environmentObject(storeKitManager)
                         .environmentObject(sleepTimerManager)
+                        .environmentObject(themeManager)
                         .onAppear {
                             // Set up model contexts for view models
                             songsViewModel.setup(modelContext: container.mainContext)
@@ -130,9 +132,11 @@ struct NaaPaataApp: App {
                 } else {
                     OnboardingView()
                         .environmentObject(musicPlayerManager)
+                        .environmentObject(themeManager)
                 }
             }
             .withToast()
+            .preferredColorScheme(themeManager.colorScheme.swiftUIScheme)
         }
         .modelContainer(container)
         .onChange(of: scenePhase) { _, newPhase in

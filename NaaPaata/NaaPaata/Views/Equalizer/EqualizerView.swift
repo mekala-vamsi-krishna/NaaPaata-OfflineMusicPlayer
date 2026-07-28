@@ -52,8 +52,7 @@ extension EqualizerView {
 
 extension EqualizerView {
     private var PremiumEqualizerContent: some View {
-        NavigationStack {
-            ZStack {
+        ZStack {
                 // Background
                 if colorScheme == .dark {
                     LinearGradient(
@@ -276,9 +275,8 @@ extension EqualizerView {
                         .padding(.bottom, 80)
                     }
                 }
-            }
-            .navigationBarHidden(true)
         }
+        .navigationBarTitleDisplayMode(.inline)
     }
 }
 
