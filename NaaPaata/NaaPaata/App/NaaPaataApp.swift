@@ -7,7 +7,6 @@
 
 import SwiftUI
 import SwiftData
-import GoogleMobileAds
 
 @main
 struct NaaPaataApp: App {
@@ -33,11 +32,8 @@ struct NaaPaataApp: App {
     let container: ModelContainer
     
     init() {
-        // Initialize Google Mobile Ads
-        MobileAds.shared.start(completionHandler: nil)
-        
         // Setup SwiftData with all models
-        let config = ModelConfiguration()
+        let config = ModelConfiguration("NaaPaata")
         do {
             container = try ModelContainer(
                 for: Song.self,
