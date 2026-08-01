@@ -39,6 +39,29 @@ final class SongsViewModel: ObservableObject {
     // MARK: - Model Context Setup
     func setup(modelContext: ModelContext) {
         self.modelContext = modelContext
+        observeSongDeletion()
+    }
+
+    // MARK: - Song Deletion Observer
+    /// Listens for the songDeleted notification posted by MusicPlayerManager.delete(song:).
+    /// Immediately removes the song from the published `songs` array (so the list updates
+    /// instantly) and deletes its SwiftData record so it doesn't reappear on next sync.
+    private func observeSongDeletion() {
+        NotificationCenter.default.addObserver(
+            forName: .songDeleted,
+            object: nil,
+            queue: .main
+        ) { [weak self] notification in
+            guard let self,
+                  let song = notification.userInfo?["song"] as? Song else { return }
+            // 1. Remove from the published list immediately — updates the UI.
+            self.songs.removeAll { $0.id == song.id }
+            // 2. Delete the SwiftData record so the sync doesn't re-insert it.
+            if let context = self.modelContext {
+                context.delete(song)
+                try? context.save()
+            }
+        }
     }
     
     // MARK: - loadSongs

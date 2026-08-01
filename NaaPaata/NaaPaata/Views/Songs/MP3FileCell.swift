@@ -67,7 +67,7 @@ struct MP3FileCell: View {
 
             Spacer()
 
-            if musicManager.currentSong == song {
+            if musicManager.currentSong?.urlString == song.urlString {
                 EqualizerBars(isPlaying: musicManager.isPlaying)
                     .frame(width: 20, height: 20)
             }

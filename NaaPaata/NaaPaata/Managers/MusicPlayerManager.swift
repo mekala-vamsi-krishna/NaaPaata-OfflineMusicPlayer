@@ -527,6 +527,68 @@ final class MusicPlayerManager: NSObject, ObservableObject {
         }
     }
     
+    func restorePlaybackStateWithoutPlaying() {
+        guard let state = PlaybackStateService.shared.loadPlaybackState() else { return }
+        loadPlaybackStateWithoutPlaying(state)
+    }
+
+    private func loadPlaybackStateWithoutPlaying(_ state: PlaybackState) {
+        guard let songURL = URL(string: state.songURL),
+              FileManager.default.fileExists(atPath: songURL.path) else {
+            PlaybackStateService.shared.clearPlaybackState()
+            return
+        }
+
+        let artwork = state.artworkData.flatMap { UIImage(data: $0) }
+    
+        let docsPath = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!.path + "/"
+        let relativePath = songURL.path.replacingOccurrences(of: docsPath, with: "")
+        let song = Song(
+            relativePath: relativePath,
+            urlString: songURL.path,
+            title: state.songTitle,
+            artist: state.songArtist,
+            duration: 0,
+            artworkImage: artwork
+        )
+
+        // Which song is played last time will be shown, but music does NOT start.
+        currentSong = song
+        artworkImage = artwork ?? generateDefaultArtwork()
+        currentTime  = state.playbackPosition
+        isPlaying    = false
+
+        // Set index in the playlist so next/prev work when the user eventually plays.
+        if !allSongs.isEmpty,
+           let index = allSongs.firstIndex(where: { $0.urlString == song.urlString }) {
+            currentIndex = index
+        }
+
+        // Load the audio file so seek/duration work but don't play.
+        if !engine.isRunning {
+            try? engine.start()
+        }
+        if let audioFile = try? AVAudioFile(forReading: songURL) {
+            self.audioFile = audioFile
+            duration = Double(audioFile.length) / audioFile.processingFormat.sampleRate
+            playerNode.stop()
+            // Schedule the file starting at the saved position so the first play
+            // resumes from the right frame.
+            let sampleRate = audioFile.processingFormat.sampleRate
+            let startFrame = AVAudioFramePosition(state.playbackPosition * sampleRate)
+            let remaining  = AVAudioFrameCount(max(0, audioFile.length - startFrame))
+            seekFrame = startFrame
+            if remaining > 1000 {
+                playerNode.scheduleSegment(audioFile, startingFrame: startFrame, frameCount: remaining, at: nil) { [weak self] in
+                    DispatchQueue.main.async { self?.handlePlaybackFinished(token: self?.playbackToken ?? UUID()) }
+                }
+            }
+        }
+
+        setupRemoteTransportControls()
+        updateNowPlayingInfo()
+    }
+
     // MARK: - Playlist Setup (without playing)
     func setPlaylist(_ songs: [Song]) {
         allSongs = songs
@@ -644,12 +706,17 @@ final class MusicPlayerManager: NSObject, ObservableObject {
     }
     
     func delete(song: Song) {
+        let wasPlayingDeletedSong = currentSong == song && isPlaying
+
         if currentSong == song {
             stop()
             PlaybackStateService.shared.clearPlaybackState()
         }
         allSongs.removeAll { $0 == song }
+        originalPlaylist.removeAll { $0 == song }
+        shuffledPlaylist.removeAll { $0 == song }
         playQueue.removeAll { $0 == song }
+
         guard let fileURL = song.resolvedURL ?? song.url else {
             print("Failed to delete file: invalid song URL")
             return
@@ -657,8 +724,17 @@ final class MusicPlayerManager: NSObject, ObservableObject {
         do {
             try FileManager.default.removeItem(at: fileURL)
             NotificationCenter.default.post(name: .songDeleted, object: nil, userInfo: ["song": song])
-        } catch { print("Failed to delete file: \(error.localizedDescription)") }
-        if !allSongs.isEmpty { playNext() }
+        } catch {
+            print("Failed to delete file: \(error.localizedDescription)")
+        }
+
+        updateWidgetData()
+
+        // Only advance to the next song if the deleted song was the one actively playing.
+        // Deleting any other song in the list must NOT start playback.
+        if wasPlayingDeletedSong && !allSongs.isEmpty {
+            playNext()
+        }
     }
     
     func seek(to time: TimeInterval) {

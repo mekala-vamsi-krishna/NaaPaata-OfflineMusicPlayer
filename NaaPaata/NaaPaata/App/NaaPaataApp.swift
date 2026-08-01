@@ -140,7 +140,7 @@ struct NaaPaataApp: App {
             case .background:
                 musicPlayerManager.saveCurrentPlaybackState()
             case .active:
-                musicPlayerManager.restoreLastPlaybackState()
+                musicPlayerManager.restorePlaybackStateWithoutPlaying()
                 Task {
                     await storeKitManager.loadProducts()
                     await storeKitManager.updateSubscriptionStatus()
