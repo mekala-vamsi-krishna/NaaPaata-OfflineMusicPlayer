@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import Combine
 import AVFoundation
 import MediaPlayer
 import Foundation
@@ -13,6 +14,10 @@ import Foundation
 #if canImport(WidgetKit)
 import WidgetKit
 #endif
+
+final class PlaybackClock: ObservableObject {
+    @Published var currentTime: TimeInterval = 0
+}
 
 final class MusicPlayerManager: NSObject, ObservableObject {
     static let shared = MusicPlayerManager()
@@ -32,9 +37,14 @@ final class MusicPlayerManager: NSObject, ObservableObject {
     // MARK: - Published Properties
     @Published var artworkImage: UIImage?
     @Published var isPlaying: Bool = false
-    @Published var currentTime: TimeInterval = 0
     @Published var duration: TimeInterval = 0
     @Published var currentSong: Song?
+
+    let clock = PlaybackClock()
+    var currentTime: TimeInterval {
+        get { clock.currentTime }
+        set { clock.currentTime = newValue }
+    }
     
     @Published var shuffleIsActive: Bool = false {
         didSet { print("🔄 shuffleIsActive changed to: \(shuffleIsActive)") }
@@ -69,6 +79,7 @@ final class MusicPlayerManager: NSObject, ObservableObject {
         setupAudioEngine()
         setupNotifications()
         setupWidgetCommandObserver()
+        handleWidgetCommand()
     }
     
     // MARK: - Audio Engine Setup
@@ -351,6 +362,10 @@ final class MusicPlayerManager: NSObject, ObservableObject {
     }
     
     func togglePlayPause() {
+        guard currentSong != nil else {
+            restoreLastPlaybackState()
+            return
+        }
         if isPlaying {
             playerNode.pause()
             isPlaying = false
@@ -528,6 +543,7 @@ final class MusicPlayerManager: NSObject, ObservableObject {
     }
     
     func restorePlaybackStateWithoutPlaying() {
+        guard currentSong == nil else { return }
         guard let state = PlaybackStateService.shared.loadPlaybackState() else { return }
         loadPlaybackStateWithoutPlaying(state)
     }

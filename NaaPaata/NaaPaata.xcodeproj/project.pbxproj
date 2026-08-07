@@ -43,6 +43,12 @@
 		AC6FFBE42FEE844C0017897E /* SharedDataManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = AC6FFBD62FEE7E530017897E /* SharedDataManager.swift */; };
 		AC6FFBE52FEE86010017897E /* SharedDataManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = AC6FFBD62FEE7E530017897E /* SharedDataManager.swift */; };
 		AC6FFBE62FEE86490017897E /* SongModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = ACD23E222E9285F60054344D /* SongModel.swift */; };
+		7695777ECD2C5935CB4FB1C9 /* MusicPlayerManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = AC6F41882E7FD29A00B5BE35 /* MusicPlayerManager.swift */; };
+		7A4763E360C0263E0630D038 /* EqualizerSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = ACCBA9362EDB70AF00531C3A /* EqualizerSettings.swift */; };
+		AEFE911F175ECA8D9E779F79 /* PlaybackStateModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = ACAB2BA92EBFC80B005F84D8 /* PlaybackStateModel.swift */; };
+		7E3561A2FEDA56E137ECF966 /* PlaybackStateService.swift in Sources */ = {isa = PBXBuildFile; fileRef = ACAB2BA72EBFC7D9005F84D8 /* PlaybackStateService.swift */; };
+		0C7A7AC8D107B9618242B0D7 /* AppColors.swift in Sources */ = {isa = PBXBuildFile; fileRef = AC6F416E2E7FD05F00B5BE35 /* AppColors.swift */; };
+		E2A930898F320E6E242E9C8E /* ThemeManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = AC17AEE73017AD0A00E4124D /* ThemeManager.swift */; };
 		AC6FFBEB2FEE8F5B0017897E /* MusicPlayerWidgetExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = AC6FFBC02FEE7D950017897E /* MusicPlayerWidgetExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		AC6FFC0E2FF0010A0017897E /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = AC6FFC052FF0010A0017897E /* Assets.xcassets */; };
 		AC6FFC102FF0010A0017897E /* MediumWidgetView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AC6FFC072FF0010A0017897E /* MediumWidgetView.swift */; };
@@ -779,6 +785,12 @@
 				AC6FFC152FF0010A0017897E /* WidgetIntents.swift in Sources */,
 				AC6FFBE62FEE86490017897E /* SongModel.swift in Sources */,
 				AC6FFBE42FEE844C0017897E /* SharedDataManager.swift in Sources */,
+				7695777ECD2C5935CB4FB1C9 /* MusicPlayerManager.swift in Sources */,
+				7A4763E360C0263E0630D038 /* EqualizerSettings.swift in Sources */,
+				AEFE911F175ECA8D9E779F79 /* PlaybackStateModel.swift in Sources */,
+				7E3561A2FEDA56E137ECF966 /* PlaybackStateService.swift in Sources */,
+				0C7A7AC8D107B9618242B0D7 /* AppColors.swift in Sources */,
+				E2A930898F320E6E242E9C8E /* ThemeManager.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

@@ -250,12 +250,10 @@ struct MusicPlayerView: View {
                     .padding(.horizontal, 24)
 
                     // Progress Bar
-                    ProgressBar(
-                        currentTime: $musicPlayerManager.currentTime,
+                    PlayerProgressSection(
+                        clock: musicPlayerManager.clock,
                         duration: musicPlayerManager.duration,
-                        onDragChanged: { time in
-                            musicPlayerManager.seek(to: time)
-                        }
+                        onSeek: { time in musicPlayerManager.seek(to: time) }
                     )
                     .padding(.horizontal, 24)
 
@@ -446,12 +444,10 @@ struct MusicPlayerView: View {
                     .padding(.horizontal, 24)
 
                     // Progress Bar
-                    ProgressBar(
-                        currentTime: $musicPlayerManager.currentTime,
+                    PlayerProgressSection(
+                        clock: musicPlayerManager.clock,
                         duration: musicPlayerManager.duration,
-                        onDragChanged: { time in
-                            musicPlayerManager.seek(to: time)
-                        }
+                        onSeek: { time in musicPlayerManager.seek(to: time) }
                     )
                     .padding(.horizontal, 24)
 
@@ -531,5 +527,22 @@ struct MusicPlayerView: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
         }
+    }
+}
+
+private struct PlayerProgressSection: View {
+    @ObservedObject var clock: PlaybackClock
+    let duration: TimeInterval
+    let onSeek: (TimeInterval) -> Void
+
+    var body: some View {
+        ProgressBar(
+            currentTime: Binding(
+                get: { clock.currentTime },
+                set: { clock.currentTime = $0 }
+            ),
+            duration: duration,
+            onDragChanged: onSeek
+        )
     }
 }

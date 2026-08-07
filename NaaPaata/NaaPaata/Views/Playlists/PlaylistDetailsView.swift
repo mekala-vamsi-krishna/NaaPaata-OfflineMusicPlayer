@@ -13,11 +13,9 @@ struct PlaylistDetailsView: View {
     private let playlistManager = PlaylistManager.shared
     
     @State private var playlist: Playlist
-    @State private var refreshID = UUID()
     let onUpdate: (Playlist) -> Void
     let onDelete: () -> Void
     
-    @State private var showAddSongs = false
     @State private var showEditPlaylist = false
     @State private var showDeletePlaylistConfirmation = false
     @State private var selectedSong: Song?
@@ -94,7 +92,6 @@ struct PlaylistDetailsView: View {
                         songsListSection
                     }
                 }
-                .id(refreshID)
             }
         }
         .navigationBarTitleDisplayMode(.inline)
@@ -122,9 +119,6 @@ struct PlaylistDetailsView: View {
                 }
             }
         }
-        .sheet(isPresented: $showAddSongs) {
-            AddSongsView(playlist: $playlist)
-        }
         .sheet(isPresented: $showEditPlaylist) {
             EditPlaylistView(playlist: $playlist)
         }
@@ -135,7 +129,6 @@ struct PlaylistDetailsView: View {
                   let updatedPlaylist = playlistManager.getPlaylist(id: playlist.id)
             else { return }
             playlist = updatedPlaylist
-            refreshID = UUID()
         }
         .alert("Remove Song", isPresented: .constant(selectedSong != nil), presenting: selectedSong) { song in
             Button("Cancel", role: .cancel) { selectedSong = nil }
@@ -361,21 +354,8 @@ struct PlaylistDetailsView: View {
                     .padding(.vertical, 4)
                 }
             }
-            
-            Button(action: { showAddSongs = true }) {
-                HStack {
-                    Image(systemName: "plus.circle.fill").font(.system(size: 24))
-                    Text("Add Songs").font(.system(size: 16, weight: .semibold))
-                }
-                .foregroundColor(AppColors.primary)
-                .frame(maxWidth: .infinity, minHeight: 56)
-                .background(.ultraThinMaterial)
-                .clipShape(RoundedRectangle(cornerRadius: 14))
-            }
-            .padding(.horizontal, 20)
-            .padding(.top, 16)
-            .padding(.bottom, 85)
         }
+        .padding(.bottom, 85)
     }
     
     // MARK: - Empty & No Results Views

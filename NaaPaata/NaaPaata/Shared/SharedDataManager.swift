@@ -78,9 +78,9 @@ class SharedDataManager {
     
     func readCommand() -> String? {
         guard let defaults = userDefaults else { return nil }
-        // Only return command if it's fresh (within last 2 seconds)
+        // Only return command if it's fresh (within last 30 seconds)
         let timestamp = defaults.double(forKey: commandTimestampKey)
-        if Date().timeIntervalSince1970 - timestamp < 2.0 {
+        if Date().timeIntervalSince1970 - timestamp < 30.0 {
             return defaults.string(forKey: commandKey)
         }
         return nil
