@@ -95,6 +95,7 @@
 		ACEB86962F4329DB007DA2D8 /* SleepTimerManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = ACEB86952F4329DB007DA2D8 /* SleepTimerManager.swift */; };
 		ACEB86982F4329EF007DA2D8 /* SleepTimerModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = ACEB86972F4329EF007DA2D8 /* SleepTimerModel.swift */; };
 		ACEB869A2F4329FD007DA2D8 /* SleepTimerPickerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = ACEB86992F4329FD007DA2D8 /* SleepTimerPickerView.swift */; };
+		ACEF0DE630237EF800D31928 /* CarPlaySceneDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = ACEF0DE530237EF800D31928 /* CarPlaySceneDelegate.swift */; };
 		ACF3FD512FF96B180071D76C /* InstructionView.swift in Sources */ = {isa = PBXBuildFile; fileRef = ACF3FD502FF96B180071D76C /* InstructionView.swift */; };
 		CD63CE544952496DAE492533 /* PurchaseError.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5663AB6C319A4DD894CFE9E3 /* PurchaseError.swift */; };
 		CE7907E02E92E5E9006D517C /* LoadAllSongsFromDocuments.swift in Sources */ = {isa = PBXBuildFile; fileRef = CE7907DF2E92E5E9006D517C /* LoadAllSongsFromDocuments.swift */; };
@@ -219,6 +220,7 @@
 		ACEB86952F4329DB007DA2D8 /* SleepTimerManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SleepTimerManager.swift; sourceTree = "<group>"; };
 		ACEB86972F4329EF007DA2D8 /* SleepTimerModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SleepTimerModel.swift; sourceTree = "<group>"; };
 		ACEB86992F4329FD007DA2D8 /* SleepTimerPickerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SleepTimerPickerView.swift; sourceTree = "<group>"; };
+		ACEF0DE530237EF800D31928 /* CarPlaySceneDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CarPlaySceneDelegate.swift; sourceTree = "<group>"; };
 		ACF3FD502FF96B180071D76C /* InstructionView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InstructionView.swift; sourceTree = "<group>"; };
 		CE7907DF2E92E5E9006D517C /* LoadAllSongsFromDocuments.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LoadAllSongsFromDocuments.swift; sourceTree = "<group>"; };
 		CE7907E12E92F01B006D517C /* PlaylistManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaylistManager.swift; sourceTree = "<group>"; };
@@ -426,6 +428,7 @@
 		AC6F41782E7FD05F00B5BE35 /* NaaPaata */ = {
 			isa = PBXGroup;
 			children = (
+				ACEF0DE430237EE400D31928 /* CarPlay */,
 				AC6FFBF12FEEC1910017897E /* NaaPaataDebug.entitlements */,
 				AC6FFBD42FEE7DCB0017897E /* NaaPaataRelease.entitlements */,
 				AC279E802E90325000E33715 /* App */,
@@ -568,6 +571,14 @@
 			path = "UIImage+Ext";
 			sourceTree = "<group>";
 		};
+		ACEF0DE430237EE400D31928 /* CarPlay */ = {
+			isa = PBXGroup;
+			children = (
+				ACEF0DE530237EF800D31928 /* CarPlaySceneDelegate.swift */,
+			);
+			path = CarPlay;
+			sourceTree = "<group>";
+		};
 		CE090E5B2F26373F00B45930 /* Shared */ = {
 			isa = PBXGroup;
 			children = (
@@ -699,6 +710,7 @@
 			files = (
 				AC6F417C2E7FD05F00B5BE35 /* AlbumsView.swift in Sources */,
 				AC6774092EA2CAA70059C86C /* AlbumModel.swift in Sources */,
+				ACEF0DE630237EF800D31928 /* CarPlaySceneDelegate.swift in Sources */,
 				ACB638973015E6E200FAEE2F /* MatchedGeometryIfAvailable.swift in Sources */,
 				ACB6388F3015E2E500FAEE2F /* AudioDocumentPicker.swift in Sources */,
 				ACEB86962F4329DB007DA2D8 /* SleepTimerManager.swift in Sources */,
@@ -949,7 +961,6 @@
 				INFOPLIST_KEY_CFBundleDisplayName = "Naa Paata";
 				INFOPLIST_KEY_LSSupportsOpeningDocumentsInPlace = YES;
 				INFOPLIST_KEY_NSUserTrackingUsageDescription = "This identifier will be used to deliver personalized ads to you.";
-				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchStoryboardName = "Launch Screen";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
@@ -991,7 +1002,6 @@
 				INFOPLIST_KEY_CFBundleDisplayName = "Naa Paata";
 				INFOPLIST_KEY_LSSupportsOpeningDocumentsInPlace = YES;
 				INFOPLIST_KEY_NSUserTrackingUsageDescription = "This identifier will be used to deliver personalized ads to you.";
-				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchStoryboardName = "Launch Screen";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";

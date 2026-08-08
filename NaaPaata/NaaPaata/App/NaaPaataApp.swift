@@ -10,6 +10,8 @@ import SwiftData
 
 @main
 struct NaaPaataApp: App {
+    @UIApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
+    
     @Environment(\.scenePhase) private var scenePhase
     
     @AppStorage("hasCompletedOnboarding") var hasCompletedOnboarding = false
@@ -126,7 +128,7 @@ struct NaaPaataApp: App {
                             }
                         }
                 } else {
-                    OnboardingView()
+                    InstructionView()
                         .environmentObject(musicPlayerManager)
                         .environmentObject(themeManager)
                 }
@@ -149,5 +151,23 @@ struct NaaPaataApp: App {
                 break
             }
         }
+    }
+}
+
+final class PersistenceController {
+
+    static let shared = PersistenceController()
+
+    let container: ModelContainer
+
+    private init() {
+        let config = ModelConfiguration("NaaPaata")
+
+        container = try! ModelContainer(
+            for: Song.self,
+            Playlist.self,
+            SleepTimerModel.self,
+            configurations: config
+        )
     }
 }
