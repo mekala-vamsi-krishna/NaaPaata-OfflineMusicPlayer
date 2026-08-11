@@ -10,6 +10,8 @@ import SwiftData
 
 @main
 struct NaaPaataApp: App {
+    @UIApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
+    
     @Environment(\.scenePhase) private var scenePhase
     
     @AppStorage("hasCompletedOnboarding") var hasCompletedOnboarding = false
@@ -24,9 +26,6 @@ struct NaaPaataApp: App {
     @StateObject private var albumsViewModel = AlbumsViewModel()
     @StateObject private var playlistsViewModel = PlaylistsViewModel()
     @StateObject private var storeKitManager = StoreManager()
-    
-    // MARK: - Widget Action Flag
-//    @State private var isWidgetAction = false
     
     // MARK: - SwiftData Container
     let container: ModelContainer
@@ -82,13 +81,11 @@ struct NaaPaataApp: App {
                         .onAppear {
                             // Set up model contexts for view models
                             songsViewModel.setup(modelContext: container.mainContext)
-                            albumsViewModel.setup(modelContext: container.mainContext)
                             sleepTimerManager.setup(modelContext: container.mainContext)
                             
-                            // Load songs & albums from cache (async)
                             Task {
                                 await songsViewModel.loadSongs()
-                                await albumsViewModel.loadAlbums()
+                                albumsViewModel.fetchAlbums(from: songsViewModel.songs)
                             }
                             
                             // Migration: ensure all songs have relativePath
@@ -128,7 +125,7 @@ struct NaaPaataApp: App {
                             }
                         }
                 } else {
-                    OnboardingView()
+                    InstructionView()
                         .environmentObject(musicPlayerManager)
                         .environmentObject(themeManager)
                 }
@@ -151,5 +148,23 @@ struct NaaPaataApp: App {
                 break
             }
         }
+    }
+}
+
+final class PersistenceController {
+
+    static let shared = PersistenceController()
+
+    let container: ModelContainer
+
+    private init() {
+        let config = ModelConfiguration("NaaPaata")
+
+        container = try! ModelContainer(
+            for: Song.self,
+            Playlist.self,
+            SleepTimerModel.self,
+            configurations: config
+        )
     }
 }

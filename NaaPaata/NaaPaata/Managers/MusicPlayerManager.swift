@@ -1,10 +1,3 @@
-//
-//  MusicPlayerManager.swift
-//  NaaPaata
-//
-//  Created by Mekala Vamsi Krishna on 9/21/25.
-//
-
 import SwiftUI
 import Combine
 import SwiftData
@@ -16,6 +9,13 @@ import Foundation
 import WidgetKit
 #endif
 
+protocol MusicPlayerManagerDelegate: AnyObject {
+    func musicPlayerManager(_ manager: MusicPlayerManager, didChangeCurrentSong song: Song?)
+    func musicPlayerManagerDidChangePlaybackState(_ manager: MusicPlayerManager)
+    func musicPlayerManagerDidChangeShuffle(_ manager: MusicPlayerManager)
+    func musicPlayerManagerDidChangeRepeat(_ manager: MusicPlayerManager)
+}
+
 final class PlaybackClock: ObservableObject {
     @Published var currentTime: TimeInterval = 0
 }
@@ -24,8 +24,8 @@ final class MusicPlayerManager: NSObject, ObservableObject {
     static let shared = MusicPlayerManager()
     
     private var allSongs: [Song] = []
-    private var originalPlaylist: [Song] = []  /// Store original order
-    private var shuffledPlaylist: [Song] = []  /// Store shuffled order when shuffle is active
+    private var originalPlaylist: [Song] = []
+    private var shuffledPlaylist: [Song] = []
     private var playQueue: [Song] = []
 
     private var modelContainer: ModelContainer?
@@ -34,7 +34,7 @@ final class MusicPlayerManager: NSObject, ObservableObject {
         self.modelContainer = container
     }
     
-    private var currentPlaylistName: String? = nil
+    private var currentPlaylistName: String?
     private var isPlayingFromPlaylist: Bool = false
     private var currentIndex: Int = 0
     
@@ -43,9 +43,22 @@ final class MusicPlayerManager: NSObject, ObservableObject {
     
     // MARK: - Published Properties
     @Published var artworkImage: UIImage?
-    @Published var isPlaying: Bool = false
+    
+    weak var delegate: MusicPlayerManagerDelegate?
+    
+    @Published var isPlaying: Bool = false {
+        didSet {
+            delegate?.musicPlayerManagerDidChangePlaybackState(self)
+            updateNowPlayingInfo()
+            updateWidgetData()
+        }
+    }
     @Published var duration: TimeInterval = 0
-    @Published var currentSong: Song?
+    @Published var currentSong: Song? {
+        didSet {
+            delegate?.musicPlayerManager(self, didChangeCurrentSong: currentSong)
+        }
+    }
 
     let clock = PlaybackClock()
     var currentTime: TimeInterval {
@@ -54,10 +67,15 @@ final class MusicPlayerManager: NSObject, ObservableObject {
     }
     
     @Published var shuffleIsActive: Bool = false {
-        didSet { print("🔄 shuffleIsActive changed to: \(shuffleIsActive)") }
+        didSet {
+            delegate?.musicPlayerManagerDidChangeShuffle(self)
+        }
     }
+
     @Published var currentRepeatMode: RepeatMode = .off {
-        didSet { print("🔁 currentRepeatMode changed to: \(currentRepeatMode)") }
+        didSet {
+            delegate?.musicPlayerManagerDidChangeRepeat(self)
+        }
     }
     
     // MARK: - Audio Engine Properties
@@ -234,7 +252,6 @@ final class MusicPlayerManager: NSObject, ObservableObject {
             updateNowPlayingInfo()
             startTimer()
             saveCurrentPlaybackState()
-            updateNowPlayingInfo()
             updateWidgetData()
         } catch {
             print("Error playing song: \(error.localizedDescription)")
@@ -274,7 +291,6 @@ final class MusicPlayerManager: NSObject, ObservableObject {
             shuffledPlaylist = []
             currentIndex = 0
         }
-        
         
         let playlistToUse = shuffleIsActive ? shuffledPlaylist : allSongs
         guard !playlistToUse.isEmpty else { return }
@@ -374,6 +390,18 @@ final class MusicPlayerManager: NSObject, ObservableObject {
         }
     }
     
+    func play() {
+        if !isPlaying {
+            togglePlayPause()
+        }
+    }
+    
+    func pause() {
+        if isPlaying {
+            togglePlayPause()
+        }
+    }
+    
     func togglePlayPause() {
         guard currentSong != nil else {
             ensurePlaybackState()
@@ -394,15 +422,6 @@ final class MusicPlayerManager: NSObject, ObservableObject {
         updateNowPlayingInfo()
         saveCurrentPlaybackState()
         updateWidgetData()
-    }
-    
-    func pause() {
-        if isPlaying {
-            playerNode.pause()
-            isPlaying = false
-            updateNowPlayingInfo()
-            updateWidgetData()
-        }
     }
     
     func stop() {
@@ -538,12 +557,10 @@ final class MusicPlayerManager: NSObject, ObservableObject {
             artworkImage: playbackState.artworkData != nil ? UIImage(data: playbackState.artworkData!) : nil
         )
         
-        // ✅ If we have a playlist, set the index so next/prev work
         if !allSongs.isEmpty {
             if let index = allSongs.firstIndex(where: { $0.urlString == restoredSong.urlString }) {
                 currentIndex = index
             } else {
-                // Song not in current playlist – fallback to 0
                 currentIndex = 0
             }
         }
@@ -583,19 +600,16 @@ final class MusicPlayerManager: NSObject, ObservableObject {
             artworkImage: artwork
         )
 
-        // Which song is played last time will be shown, but music does NOT start.
         currentSong = song
-        artworkImage = artwork ?? generateDefaultArtwork()
+        artworkImage = artwork ?? generateDefaultArtwork(size: CGSize(width: 100, height: 100))
         currentTime  = state.playbackPosition
         isPlaying    = false
 
-        // Set index in the playlist so next/prev work when the user eventually plays.
         if !allSongs.isEmpty,
            let index = allSongs.firstIndex(where: { $0.urlString == song.urlString }) {
             currentIndex = index
         }
 
-        // Load the audio file so seek/duration work but don't play.
         if !engine.isRunning {
             try? engine.start()
         }
@@ -603,8 +617,6 @@ final class MusicPlayerManager: NSObject, ObservableObject {
             self.audioFile = audioFile
             duration = Double(audioFile.length) / audioFile.processingFormat.sampleRate
             playerNode.stop()
-            // Schedule the file starting at the saved position so the first play
-            // resumes from the right frame.
             let sampleRate = audioFile.processingFormat.sampleRate
             let startFrame = AVAudioFramePosition(state.playbackPosition * sampleRate)
             let remaining  = AVAudioFrameCount(max(0, audioFile.length - startFrame))
@@ -627,14 +639,13 @@ final class MusicPlayerManager: NSObject, ObservableObject {
         shuffledPlaylist = []
         shuffleIsActive = false
         currentIndex = 0
-        // Do not play anything – just prepare the playlist.
     }
     
     // MARK: - Artwork
     func getArtwork(for song: Song) -> UIImage {
         if let artwork = song.artworkImage { return artwork }
         guard let fileURL = song.resolvedURL ?? song.url as URL? else {
-            return generateDefaultArtwork()
+            return generateDefaultArtwork(size: CGSize(width: 600, height: 600))
         }
         let asset = AVAsset(url: fileURL)
         for meta in asset.commonMetadata {
@@ -644,7 +655,7 @@ final class MusicPlayerManager: NSObject, ObservableObject {
                 return image
             }
         }
-        return generateDefaultArtwork()
+        return generateDefaultArtwork(size: CGSize(width: 600, height: 600))
     }
     
     func loadArtworkAsync(for song: Song) async -> UIImage {
@@ -655,9 +666,9 @@ final class MusicPlayerManager: NSObject, ObservableObject {
             return artwork
         }
         return await Task.detached(priority: .userInitiated) { [weak self] in
-            guard let self = self else { return self?.generateDefaultArtwork() ?? UIImage() }
+            guard let self = self else { return self?.generateDefaultArtwork(size: CGSize(width: 600, height: 600)) ?? UIImage() }
             guard let fileURL = song.resolvedURL ?? song.url else {
-                return self.generateDefaultArtwork()
+                return self.generateDefaultArtwork(size: CGSize(width: 600, height: 600))
             }
             let asset = AVAsset(url: fileURL)
             var image: UIImage?
@@ -672,47 +683,28 @@ final class MusicPlayerManager: NSObject, ObservableObject {
                     }
                 }
             }
-            let result = image ?? self.generateDefaultArtwork()
+            let result = image ?? self.generateDefaultArtwork(size: CGSize(width: 600, height: 600))
             self.artworkCache.setObject(result, forKey: key)
             return result
         }.value
     }
 
-    private func fallbackArtwork() -> UIImage {
-        let size = CGSize(width: 100, height: 100)
+    // MARK: - High‑quality default artwork generator
+    private func generateDefaultArtwork(size: CGSize = CGSize(width: 600, height: 600)) -> UIImage {
         let renderer = UIGraphicsImageRenderer(size: size)
-        return renderer.image { context in
-            // 1. White background
+        return renderer.image { _ in
+            // White background with rounded corners
             UIColor.white.setFill()
-            context.fill(CGRect(origin: .zero, size: size))
-
-            // 2. Purple music note
-            let config = UIImage.SymbolConfiguration(pointSize: 44, weight: .medium)
-            if let noteImage = UIImage(systemName: "music.note", withConfiguration: config) {
-                // Convert SwiftUI Color to UIColor (assuming AppColors.primary is a Color)
-                let tintColor = UIColor(AppColors.primary)
-                tintColor.setFill()
-                let rect = CGRect(x: (size.width - 44) / 2, y: (size.height - 44) / 2, width: 44, height: 44)
-                noteImage.draw(in: rect, blendMode: .normal, alpha: 1.0)
-            }
-        }
-    }
-    
-    private func generateDefaultArtwork() -> UIImage {
-        let size = CGSize(width: 100, height: 100)
-        let renderer = UIGraphicsImageRenderer(size: size)
-        return renderer.image { context in
-            // 1. White background
-            UIColor.white.setFill()
-            context.fill(CGRect(origin: .zero, size: size))
-
-            // 2. Purple music note (tinted)
-            let config = UIImage.SymbolConfiguration(pointSize: 44, weight: .medium)
-            if let noteImage = UIImage(systemName: "music.note", withConfiguration: config) {
-                // Tint the image with the primary color
-                let tintedImage = noteImage.withTintColor(UIColor(AppColors.primary), renderingMode: .alwaysOriginal)
-                let rect = CGRect(x: (size.width - 44) / 2, y: (size.height - 44) / 2, width: 44, height: 44)
-                tintedImage.draw(in: rect)
+            UIBezierPath(roundedRect: CGRect(origin: .zero, size: size), cornerRadius: size.width * 0.08).fill()
+            
+            // Music note in primary color
+            let config = UIImage.SymbolConfiguration(pointSize: size.width * 0.35, weight: .medium)
+            if let note = UIImage(systemName: "music.note", withConfiguration: config)?
+                .withTintColor(UIColor(AppColors.primary), renderingMode: .alwaysOriginal) {
+                note.draw(at: CGPoint(
+                    x: (size.width  - note.size.width)  / 2,
+                    y: (size.height - note.size.height) / 2
+                ))
             }
         }
     }
@@ -761,8 +753,6 @@ final class MusicPlayerManager: NSObject, ObservableObject {
 
         updateWidgetData()
 
-        // Only advance to the next song if the deleted song was the one actively playing.
-        // Deleting any other song in the list must NOT start playback.
         if wasPlayingDeletedSong && !allSongs.isEmpty {
             playNext()
         }
@@ -798,7 +788,7 @@ final class MusicPlayerManager: NSObject, ObservableObject {
         }
     }
     
-    // MARK: - Lock Screen
+    // MARK: - Lock Screen & CarPlay Now Playing
     private func setupAudioSession() {
         do {
             try AVAudioSession.sharedInstance().setCategory(.playback, mode: .default)
@@ -806,8 +796,11 @@ final class MusicPlayerManager: NSObject, ObservableObject {
         } catch { print("Audio Session Error: \(error.localizedDescription)") }
     }
     
-    private func updateNowPlayingInfo() {
-        guard let song = currentSong else { return }
+    public func updateNowPlayingInfo() {
+        guard let song = currentSong else {
+            MPNowPlayingInfoCenter.default().nowPlayingInfo = nil
+            return
+        }
         var info: [String : Any] = [
             MPMediaItemPropertyTitle: song.title,
             MPMediaItemPropertyArtist: song.artist,
@@ -815,12 +808,14 @@ final class MusicPlayerManager: NSObject, ObservableObject {
             MPNowPlayingInfoPropertyElapsedPlaybackTime: currentTime,
             MPNowPlayingInfoPropertyPlaybackRate: isPlaying ? 1.0 : 0.0
         ]
-        if let img = currentSong?.artworkImage {
-            info[MPMediaItemPropertyArtwork] = MPMediaItemArtwork(boundsSize: img.size) { _ in img }
+        // Use high‑quality artwork (either embedded or generated)
+        let artworkImage: UIImage
+        if let img = song.artworkImage {
+            artworkImage = img
         } else {
-            let fallback = UIImage(systemName: "music.note")!
-            info[MPMediaItemPropertyArtwork] = MPMediaItemArtwork(boundsSize: CGSize(width: 600, height: 600)) { _ in fallback }
+            artworkImage = generateDefaultArtwork(size: CGSize(width: 600, height: 600))
         }
+        info[MPMediaItemPropertyArtwork] = MPMediaItemArtwork(boundsSize: artworkImage.size) { _ in artworkImage }
         MPNowPlayingInfoCenter.default().nowPlayingInfo = info
     }
     
@@ -832,12 +827,13 @@ final class MusicPlayerManager: NSObject, ObservableObject {
         cc.previousTrackCommand.isEnabled = true
         cc.changePlaybackPositionCommand.isEnabled = true
         
+        // Explicit play and pause commands
         cc.playCommand.addTarget { [weak self] _ in
-            self?.togglePlayPause()
+            self?.play()
             return .success
         }
         cc.pauseCommand.addTarget { [weak self] _ in
-            self?.togglePlayPause()
+            self?.pause()
             return .success
         }
         cc.nextTrackCommand.addTarget { [weak self] _ in
@@ -868,7 +864,8 @@ final class MusicPlayerManager: NSObject, ObservableObject {
     
     // MARK: - Ensure Playback State (for widget actions)
     private func ensurePlaybackState() {
-        if currentSong == nil {
+        
+        if currentSong == nil && allSongs.isEmpty {
             restoreLastPlaybackState()
         }
 
