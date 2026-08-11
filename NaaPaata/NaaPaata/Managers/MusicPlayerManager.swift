@@ -7,6 +7,7 @@
 
 import SwiftUI
 import Combine
+import SwiftData
 import AVFoundation
 import MediaPlayer
 import Foundation
@@ -26,6 +27,12 @@ final class MusicPlayerManager: NSObject, ObservableObject {
     private var originalPlaylist: [Song] = []  /// Store original order
     private var shuffledPlaylist: [Song] = []  /// Store shuffled order when shuffle is active
     private var playQueue: [Song] = []
+
+    private var modelContainer: ModelContainer?
+
+    func setModelContainer(_ container: ModelContainer) {
+        self.modelContainer = container
+    }
     
     private var currentPlaylistName: String? = nil
     private var isPlayingFromPlaylist: Bool = false
@@ -308,8 +315,8 @@ final class MusicPlayerManager: NSObject, ObservableObject {
     }
     
     func playNext() {
-        ensurePlaybackState()
-        
+        if ensurePlaybackStateAndCheckIfJustStarted() { return }
+
         if !playQueue.isEmpty {
             let nextSong = playQueue.removeFirst()
             if let originalIndex = allSongs.firstIndex(where: { $0.url == nextSong.url }) {
@@ -334,7 +341,13 @@ final class MusicPlayerManager: NSObject, ObservableObject {
                     let nextSong = playlistToUse[currentIndex]
                     playSong(nextSong)
                 } else {
-                    stop()
+                    playerNode.stop()
+                    isPlaying = false
+                    stopTimer()
+                    currentTime = duration
+                    updateNowPlayingInfo()
+                    saveCurrentPlaybackState()
+                    updateWidgetData()
                 }
             }
             saveCurrentPlaybackState()
@@ -342,8 +355,8 @@ final class MusicPlayerManager: NSObject, ObservableObject {
     }
     
     func playPrevious() {
-        ensurePlaybackState()
-        
+        if ensurePlaybackStateAndCheckIfJustStarted() { return }
+
         let playlistToUse = shuffleIsActive ? (shuffledPlaylist.isEmpty ? allSongs : shuffledPlaylist) : allSongs
         guard !playlistToUse.isEmpty else { return }
         if currentTime > 3 {
@@ -363,12 +376,14 @@ final class MusicPlayerManager: NSObject, ObservableObject {
     
     func togglePlayPause() {
         guard currentSong != nil else {
-            restoreLastPlaybackState()
+            ensurePlaybackState()
             return
         }
         if isPlaying {
             playerNode.pause()
             isPlaying = false
+        } else if duration > 0 && currentTime >= duration, let song = currentSong {
+            playSong(song)
         } else {
             if !engine.isRunning {
                 try? engine.start()
@@ -853,15 +868,22 @@ final class MusicPlayerManager: NSObject, ObservableObject {
     
     // MARK: - Ensure Playback State (for widget actions)
     private func ensurePlaybackState() {
-        // If we have a current song, we're already good.
-        if currentSong != nil && !allSongs.isEmpty {
-            return
+        if currentSong == nil {
+            restoreLastPlaybackState()
         }
-        
-        // Try to restore last playback state (if any)
-        restoreLastPlaybackState()
-        
-        // If still no song, but we have songs, start from the first
+
+        if allSongs.isEmpty, let container = modelContainer, Thread.isMainThread {
+            let context = MainActor.assumeIsolated { container.mainContext }
+            let descriptor = FetchDescriptor<Song>(sortBy: [SortDescriptor(\.title)])
+            if let songs = try? context.fetch(descriptor), !songs.isEmpty {
+                setPlaylist(songs)
+                if let current = currentSong,
+                   let index = allSongs.firstIndex(where: { $0.relativePath == current.relativePath }) {
+                    currentIndex = index
+                }
+            }
+        }
+
         if currentSong == nil && !allSongs.isEmpty {
             playSong(allSongs[0])
         }
@@ -870,7 +892,13 @@ final class MusicPlayerManager: NSObject, ObservableObject {
             print("⚠️ No songs available to play.")
         }
     }
-    
+
+    private func ensurePlaybackStateAndCheckIfJustStarted() -> Bool {
+        let hadSongBefore = currentSong != nil
+        ensurePlaybackState()
+        return !hadSongBefore && currentSong != nil
+    }
+
     private func setupWidgetCommandObserver() {
         let notificationCenter = CFNotificationCenterGetDarwinNotifyCenter()
         CFNotificationCenterAddObserver(

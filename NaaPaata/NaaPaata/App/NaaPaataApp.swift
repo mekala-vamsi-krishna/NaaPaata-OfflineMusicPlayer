@@ -42,6 +42,7 @@ struct NaaPaataApp: App {
                 configurations: config
             )
             PlaylistManager.shared.setModelContainer(container)
+            MusicPlayerManager.shared.setModelContainer(container)
         } catch {
             // Attempt to recover by deleting corrupted database files
             let storeURL = config.url
@@ -57,6 +58,7 @@ struct NaaPaataApp: App {
                     configurations: config
                 )
                 PlaylistManager.shared.setModelContainer(container)
+                MusicPlayerManager.shared.setModelContainer(container)
             } catch {
                 fatalError("Failed to initialize ModelContainer after reset: \(error)")
             }
