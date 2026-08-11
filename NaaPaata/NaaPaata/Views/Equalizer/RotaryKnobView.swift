@@ -43,7 +43,7 @@ struct RotaryKnobView: View {
                     .trim(from: 0.0, to: CGFloat(mapValueToProgress(value)) * 0.5)
                     .stroke(
                         LinearGradient(
-                            colors: [AppColors.primary, AppColors.secondary],
+                            colors: [AppColors.primary, AppColors.primary],
                             startPoint: .leading,
                             endPoint: .trailing
                         ),
