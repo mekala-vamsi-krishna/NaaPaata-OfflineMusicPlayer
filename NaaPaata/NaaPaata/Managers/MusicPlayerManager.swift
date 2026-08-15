@@ -87,6 +87,13 @@ final class MusicPlayerManager: NSObject, ObservableObject {
     private var playbackToken: UUID?
     private var timer: Timer?
     
+    // Fade control
+    private var fadeTimer: Timer?
+    private var isFading = false
+    
+    // Settings
+    private var settings = SettingsManager.shared
+    
     private var currentFrame: AVAudioFramePosition {
         guard let lastRenderTime = playerNode.lastRenderTime,
               let playerTime = playerNode.playerTime(forNodeTime: lastRenderTime) else {
@@ -402,32 +409,83 @@ final class MusicPlayerManager: NSObject, ObservableObject {
         }
     }
     
+    // MARK: - Fade Helper
+    private func fadeVolume(from start: Float, to end: Float, duration: TimeInterval, completion: (() -> Void)? = nil) {
+        guard duration > 0 else {
+            playerNode.volume = end
+            completion?()
+            return
+        }
+
+        isFading = true
+        let startTime = Date()
+        let totalChange = end - start
+        var timer: Timer? = nil
+        timer = Timer.scheduledTimer(withTimeInterval: 0.02, repeats: true) { [weak self] _ in
+            guard let self = self else { return }
+            let elapsed = Date().timeIntervalSince(startTime)
+            let progress = min(elapsed / duration, 1.0)
+            let currentVolume = start + totalChange * Float(progress)
+            self.playerNode.volume = currentVolume
+
+            if progress >= 1.0 {
+                timer?.invalidate()
+                self.isFading = false
+                self.playerNode.volume = end
+                completion?()
+            }
+        }
+        self.fadeTimer = timer
+    }
+    
+    // MARK: - Toggle Play/Pause with Fade
     func togglePlayPause() {
-        guard currentSong != nil else {
+        guard let currentSong = currentSong else {
             ensurePlaybackState()
             return
         }
+
+        fadeTimer?.invalidate()
+        isFading = false
+
         if isPlaying {
             playerNode.pause()
             isPlaying = false
-        } else if duration > 0 && currentTime >= duration, let song = currentSong {
-            playSong(song)
+            updateNowPlayingInfo()
+            saveCurrentPlaybackState()
+            updateWidgetData()
         } else {
-            if !engine.isRunning {
-                try? engine.start()
+            if duration > 0 && currentTime >= duration {
+                playSong(currentSong)
+                return
             }
-            playerNode.play()
-            isPlaying = true
+            
+            if settings.fadeEnabled && settings.fadeDuration > 0 {
+                if !engine.isRunning { try? engine.start() }
+                playerNode.volume = 0.0
+                playerNode.play()
+                isPlaying = true
+                let fadeSeconds = settings.fadeDuration / 1000.0
+                fadeVolume(from: 0.0, to: 1.0, duration: fadeSeconds) { [weak self] in
+                    self?.playerNode.volume = 1.0
+                    self?.updateNowPlayingInfo()
+                    self?.saveCurrentPlaybackState()
+                    self?.updateWidgetData()
+                }
+            } else {
+                if !engine.isRunning { try? engine.start() }
+                playerNode.play()
+                isPlaying = true
+                updateNowPlayingInfo()
+                saveCurrentPlaybackState()
+                updateWidgetData()
+            }
         }
-        updateNowPlayingInfo()
-        saveCurrentPlaybackState()
-        updateWidgetData()
     }
     
     func stop() {
         playbackToken = nil
         playerNode.stop()
-        engine.stop()
         isPlaying = false
         currentSong = nil
         artworkImage = nil
@@ -693,11 +751,8 @@ final class MusicPlayerManager: NSObject, ObservableObject {
     private func generateDefaultArtwork(size: CGSize = CGSize(width: 600, height: 600)) -> UIImage {
         let renderer = UIGraphicsImageRenderer(size: size)
         return renderer.image { _ in
-            // White background with rounded corners
             UIColor.white.setFill()
             UIBezierPath(roundedRect: CGRect(origin: .zero, size: size), cornerRadius: size.width * 0.08).fill()
-            
-            // Music note in primary color
             let config = UIImage.SymbolConfiguration(pointSize: size.width * 0.35, weight: .medium)
             if let note = UIImage(systemName: "music.note", withConfiguration: config)?
                 .withTintColor(UIColor(AppColors.primary), renderingMode: .alwaysOriginal) {
@@ -707,25 +762,6 @@ final class MusicPlayerManager: NSObject, ObservableObject {
                 ))
             }
         }
-    }
-    
-    func loadSong(from url: URL) -> Song {
-        let asset = AVAsset(url: url)
-        var title = url.deletingPathExtension().lastPathComponent
-        var artist = "Unknown Artist"
-        var duration: TimeInterval = 0
-        var artwork: UIImage? = nil
-        duration = CMTimeGetSeconds(asset.duration)
-        for item in asset.commonMetadata {
-            guard let key = item.commonKey else { continue }
-            switch key {
-            case .commonKeyTitle: if let value = item.stringValue { title = value }
-            case .commonKeyArtist: if let value = item.stringValue { artist = value }
-            case .commonKeyArtwork: if let data = item.dataValue, let image = UIImage(data: data) { artwork = image }
-            default: break
-            }
-        }
-        return Song(url: url, title: title, artist: artist, duration: duration, artworkImage: artwork)
     }
     
     func delete(song: Song) {
@@ -808,7 +844,6 @@ final class MusicPlayerManager: NSObject, ObservableObject {
             MPNowPlayingInfoPropertyElapsedPlaybackTime: currentTime,
             MPNowPlayingInfoPropertyPlaybackRate: isPlaying ? 1.0 : 0.0
         ]
-        // Use high‑quality artwork (either embedded or generated)
         let artworkImage: UIImage
         if let img = song.artworkImage {
             artworkImage = img
@@ -827,7 +862,6 @@ final class MusicPlayerManager: NSObject, ObservableObject {
         cc.previousTrackCommand.isEnabled = true
         cc.changePlaybackPositionCommand.isEnabled = true
         
-        // Explicit play and pause commands
         cc.playCommand.addTarget { [weak self] _ in
             self?.play()
             return .success
@@ -864,7 +898,6 @@ final class MusicPlayerManager: NSObject, ObservableObject {
     
     // MARK: - Ensure Playback State (for widget actions)
     private func ensurePlaybackState() {
-        
         if currentSong == nil && allSongs.isEmpty {
             restoreLastPlaybackState()
         }

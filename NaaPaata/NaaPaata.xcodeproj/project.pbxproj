@@ -23,6 +23,8 @@
 		AC2CBA702ECA027B005DD432 /* HapticManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = AC2CBA6F2ECA027B005DD432 /* HapticManager.swift */; };
 		AC2F170E2FEB95AD002AE3A0 /* AnimatedDotsLoader.swift in Sources */ = {isa = PBXBuildFile; fileRef = AC2F170D2FEB95AD002AE3A0 /* AnimatedDotsLoader.swift */; };
 		AC3A0F682E761869000CFC19 /* Launch Screen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = AC3A0F672E761869000CFC19 /* Launch Screen.storyboard */; };
+		AC50AE7D302FA6890068EDEE /* SettingsManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = AC50AE7C302FA6890068EDEE /* SettingsManager.swift */; };
+		AC50AE7E302FA74A0068EDEE /* SettingsManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = AC50AE7C302FA6890068EDEE /* SettingsManager.swift */; };
 		AC524C972F9E28AC00914B76 /* ToastManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = AC524C962F9E28AC00914B76 /* ToastManager.swift */; };
 		AC524C992F9E28CA00914B76 /* ToastModifier.swift in Sources */ = {isa = PBXBuildFile; fileRef = AC524C982F9E28CA00914B76 /* ToastModifier.swift */; };
 		AC5B78A42EA5891E004AD706 /* SongInfoView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AC5B78A32EA5891E004AD706 /* SongInfoView.swift */; };
@@ -150,6 +152,7 @@
 		AC2F170D2FEB95AD002AE3A0 /* AnimatedDotsLoader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnimatedDotsLoader.swift; sourceTree = "<group>"; };
 		AC3A0F2F2E7538B9000CFC19 /* NaaPaata.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = NaaPaata.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		AC3A0F672E761869000CFC19 /* Launch Screen.storyboard */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; path = "Launch Screen.storyboard"; sourceTree = "<group>"; };
+		AC50AE7C302FA6890068EDEE /* SettingsManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsManager.swift; sourceTree = "<group>"; };
 		AC524C962F9E28AC00914B76 /* ToastManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ToastManager.swift; sourceTree = "<group>"; };
 		AC524C982F9E28CA00914B76 /* ToastModifier.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ToastModifier.swift; sourceTree = "<group>"; };
 		AC5B78A32EA5891E004AD706 /* SongInfoView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SongInfoView.swift; sourceTree = "<group>"; };
@@ -388,6 +391,7 @@
 				AC2CBA6F2ECA027B005DD432 /* HapticManager.swift */,
 				ACEB86952F4329DB007DA2D8 /* SleepTimerManager.swift */,
 				AC524C962F9E28AC00914B76 /* ToastManager.swift */,
+				AC50AE7C302FA6890068EDEE /* SettingsManager.swift */,
 			);
 			path = Managers;
 			sourceTree = "<group>";
@@ -719,6 +723,7 @@
 				ACEB86962F4329DB007DA2D8 /* SleepTimerManager.swift in Sources */,
 				AC6F417D2E7FD05F00B5BE35 /* AppColors.swift in Sources */,
 				AC6FFBE52FEE86010017897E /* SharedDataManager.swift in Sources */,
+				AC50AE7D302FA6890068EDEE /* SettingsManager.swift in Sources */,
 				AC17AEF13017BC8C00E4124D /* SearchViewModel.swift in Sources */,
 				AC6774072EA2CA260059C86C /* AlbumsViewModel.swift in Sources */,
 				AC2CBA702ECA027B005DD432 /* HapticManager.swift in Sources */,
@@ -804,6 +809,7 @@
 				7695777ECD2C5935CB4FB1C9 /* MusicPlayerManager.swift in Sources */,
 				7A4763E360C0263E0630D038 /* EqualizerSettings.swift in Sources */,
 				AEFE911F175ECA8D9E779F79 /* PlaybackStateModel.swift in Sources */,
+				AC50AE7E302FA74A0068EDEE /* SettingsManager.swift in Sources */,
 				7E3561A2FEDA56E137ECF966 /* PlaybackStateService.swift in Sources */,
 				0C7A7AC8D107B9618242B0D7 /* AppColors.swift in Sources */,
 				E2A930898F320E6E242E9C8E /* ThemeManager.swift in Sources */,
