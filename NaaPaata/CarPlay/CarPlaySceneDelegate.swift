@@ -211,26 +211,12 @@ class CarPlaySceneDelegate: UIResponder,
         return tabBar
     }
 
-    // MARK: - Dummy item
-
-    private func makeDummyItem(with text: String) -> CPListItem {
-        let item = CPListItem(text: text, detailText: nil)
-        item.handler = { _, done in
-            done()
-        }
-        return item
-    }
-
     // MARK: - Songs tab
 
     private func makeSongsListTemplate() -> CPListTemplate {
         let manager = MusicPlayerManager.shared
         songListItems.removeAll()
         currentlyHighlightedSongID = nil
-
-        var items: [CPListItem] = []
-
-        items.append(makeDummyItem(with: "Songs"))
 
         let songItems = songsViewModel.songs.map { song in
             let item = CPListItem(
@@ -249,9 +235,8 @@ class CarPlaySceneDelegate: UIResponder,
             }
             return item
         }
-        items.append(contentsOf: songItems)
 
-        let tmpl = CPListTemplate(title: "Songs", sections: [CPListSection(items: items)])
+        let tmpl = CPListTemplate(title: "Songs", sections: [CPListSection(items: songItems)])
         tmpl.tabImage = UIImage(systemName: "music.quarternote.3")
         return tmpl
     }
@@ -259,10 +244,6 @@ class CarPlaySceneDelegate: UIResponder,
     // MARK: - Albums tab
 
     private func makeAlbumsListTemplate() -> CPListTemplate {
-        var items: [CPListItem] = []
-
-        items.append(makeDummyItem(with: "Albums"))
-
         let albumItems = albumsViewModel.albums.map { album in
             let artwork: UIImage = album.artworkImage ?? placeholderArtwork
             let item = CPListItem(
@@ -276,10 +257,9 @@ class CarPlaySceneDelegate: UIResponder,
             }
             return item
         }
-        items.append(contentsOf: albumItems)
 
         let section = CPListSection(
-            items: items.isEmpty ? [CPListItem(text: "No Albums", detailText: nil)] : items
+            items: albumItems.isEmpty ? [CPListItem(text: "No Albums", detailText: nil)] : albumItems
         )
         let tmpl = CPListTemplate(title: "Albums", sections: [section])
         tmpl.tabImage = UIImage(systemName: "rectangle.stack.badge.play")
@@ -337,12 +317,9 @@ class CarPlaySceneDelegate: UIResponder,
     }
 
     // MARK: - Playlists tab
-    
+
     private func makePlaylistsListTemplate() -> CPListTemplate {
         let playlists = PlaylistManager.shared.getAllPlaylists()
-        var items: [CPListItem] = []
-
-        items.append(makeDummyItem(with: playlists.count == 1 ? "Playlist" : "Playlists"))
 
         let playlistItems = playlists.map { playlist in
             let songCount = playlist.songPaths.count
@@ -358,10 +335,9 @@ class CarPlaySceneDelegate: UIResponder,
             }
             return item
         }
-        items.append(contentsOf: playlistItems)
 
         let section = CPListSection(
-            items: items.isEmpty ? [CPListItem(text: "No Playlists", detailText: nil)] : items
+            items: playlistItems.isEmpty ? [CPListItem(text: "No Playlists", detailText: nil)] : playlistItems
         )
         let tmpl = CPListTemplate(title: "Playlists", sections: [section])
         tmpl.tabImage = UIImage(systemName: "music.note.list")
@@ -418,7 +394,7 @@ class CarPlaySceneDelegate: UIResponder,
     }
 
     // MARK: - Shared helpers
-    
+
     private func pushNowPlayingIfNeeded() {
         guard !hasEnteredNowPlaying else { return }
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) { [weak self] in

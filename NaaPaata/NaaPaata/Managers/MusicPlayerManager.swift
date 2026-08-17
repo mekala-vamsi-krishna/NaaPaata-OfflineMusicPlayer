@@ -112,6 +112,7 @@ final class MusicPlayerManager: NSObject, ObservableObject {
         setupNotifications()
         setupWidgetCommandObserver()
         handleWidgetCommand()
+        setupRemoteCommandCenter()
     }
     
     // MARK: - Audio Engine Setup
@@ -251,7 +252,6 @@ final class MusicPlayerManager: NSObject, ObservableObject {
                     self?.handlePlaybackFinished(token: token)
                 }
             }
-            setupRemoteTransportControls()
             playerNode.play()
             isPlaying = true
             duration = Double(audioFile.length) / audioFile.processingFormat.sampleRate
@@ -686,7 +686,6 @@ final class MusicPlayerManager: NSObject, ObservableObject {
             }
         }
 
-        setupRemoteTransportControls()
         updateNowPlayingInfo()
     }
 
@@ -854,35 +853,49 @@ final class MusicPlayerManager: NSObject, ObservableObject {
         MPNowPlayingInfoCenter.default().nowPlayingInfo = info
     }
     
-    private func setupRemoteTransportControls() {
-        let cc = MPRemoteCommandCenter.shared()
-        cc.playCommand.isEnabled = true
-        cc.pauseCommand.isEnabled = true
-        cc.nextTrackCommand.isEnabled = true
-        cc.previousTrackCommand.isEnabled = true
-        cc.changePlaybackPositionCommand.isEnabled = true
+    // MARK: - Remote Command Center
+    private func setupRemoteCommandCenter() {
+        let commandCenter = MPRemoteCommandCenter.shared()
         
-        cc.playCommand.addTarget { [weak self] _ in
+        commandCenter.playCommand.removeTarget(nil)
+        commandCenter.pauseCommand.removeTarget(nil)
+        commandCenter.nextTrackCommand.removeTarget(nil)
+        commandCenter.previousTrackCommand.removeTarget(nil)
+        commandCenter.changePlaybackPositionCommand.removeTarget(nil)
+        
+        // Play
+        commandCenter.playCommand.addTarget { [weak self] _ in
             self?.play()
             return .success
         }
-        cc.pauseCommand.addTarget { [weak self] _ in
+        // Pause
+        commandCenter.pauseCommand.addTarget { [weak self] _ in
             self?.pause()
             return .success
         }
-        cc.nextTrackCommand.addTarget { [weak self] _ in
+        // Next Track
+        commandCenter.nextTrackCommand.addTarget { [weak self] _ in
             self?.playNext()
             return .success
         }
-        cc.previousTrackCommand.addTarget { [weak self] _ in
+        // Previous Track
+        commandCenter.previousTrackCommand.addTarget { [weak self] _ in
             self?.playPrevious()
             return .success
         }
-        cc.changePlaybackPositionCommand.addTarget { [weak self] event in
+        // Seek
+        commandCenter.changePlaybackPositionCommand.addTarget { [weak self] event in
             guard let self = self, let positionEvent = event as? MPChangePlaybackPositionCommandEvent else { return .commandFailed }
             self.seek(to: positionEvent.positionTime)
             return .success
         }
+        
+        // Enable commands
+        commandCenter.playCommand.isEnabled = true
+        commandCenter.pauseCommand.isEnabled = true
+        commandCenter.nextTrackCommand.isEnabled = true
+        commandCenter.previousTrackCommand.isEnabled = true
+        commandCenter.changePlaybackPositionCommand.isEnabled = true
     }
     
     // MARK: - Widget Data Update

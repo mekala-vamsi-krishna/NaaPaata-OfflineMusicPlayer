@@ -13,24 +13,19 @@ struct MP3FileCell: View {
     @EnvironmentObject var musicManager: MusicPlayerManager
     @EnvironmentObject var albumsViewModel: AlbumsViewModel
 
+    // Callback for navigation to album detail
+    var onGoToAlbum: ((_ albumTitle: String, _ artwork: UIImage?, _ songs: [Song]) -> Void)?
+
     @State private var showSongInfoSheet = false
     @State private var showShareSheet = false
     @State private var shareItems: [Any] = []
     @State private var showDeleteAlert = false
     @State private var showAddToPlaylist = false
     @State private var artwork: UIImage?
-    @State private var navigateToAlbum = false
-    @State private var albumForNavigation: (title: String, artwork: UIImage?, songs: [Song])?
-
-    // Create Playlist
-    @State private var newPlaylistName = ""
-    @State private var newPlaylistDescription = ""
 
     var body: some View {
         HStack(spacing: 15) {
             // Artwork
-            // Inside MP3FileCell, where the artwork is shown:
-
             if let artwork = artwork {
                 Image(uiImage: artwork)
                     .resizable()
@@ -46,7 +41,7 @@ struct MP3FileCell: View {
                             .resizable()
                             .scaledToFit()
                             .padding(12)
-                            .foregroundColor(AppColors.primary)  // purple
+                            .foregroundColor(AppColors.primary)
                     )
                     .task {
                         self.artwork = await musicManager.loadArtworkAsync(for: song)
@@ -87,12 +82,10 @@ struct MP3FileCell: View {
 
                 Button {
                     let matched = albumsViewModel.albums.first(where: { $0.name == song.album })
-                    albumForNavigation = (
-                        title: matched?.name ?? song.album,
-                        artwork: matched?.artworkImage ?? song.artworkImage,
-                        songs: matched?.songs ?? [song]
-                    )
-                    navigateToAlbum = true
+                    let albumTitle = matched?.name ?? song.album
+                    let artwork = matched?.artworkImage ?? song.artworkImage
+                    let songs = matched?.songs ?? [song]
+                    onGoToAlbum?(albumTitle, artwork, songs)
                 } label: {
                     Label("Go to Album", systemImage: "square.stack")
                 }
@@ -142,11 +135,6 @@ struct MP3FileCell: View {
             }
             .presentationDetents([.fraction(0.7)])
             .presentationDragIndicator(.visible)
-        }
-        .navigationDestination(isPresented: $navigateToAlbum) {
-            if let album = albumForNavigation {
-                AlbumDetailsView(title: album.title, artwork: album.artwork, songs: album.songs)
-            }
         }
         .sheet(isPresented: $showShareSheet) {
             ActivityViewController(activityItems: shareItems)

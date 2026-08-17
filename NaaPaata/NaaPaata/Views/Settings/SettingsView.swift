@@ -293,7 +293,7 @@ struct SettingsView: View {
                                     labels: ["Off", "250", "500", "750", "1000"],
                                     valueFormatter: { $0 == 0 ? "Off" : "\(Int($0)) ms" }
                                 )
-                                .padding(.leading, 54)
+                                .padding(.horizontal)
                                 .transition(.opacity.combined(with: .move(edge: .top)))
                                 .animation(.easeInOut(duration: 0.25), value: settings.fadeEnabled)
                             }
