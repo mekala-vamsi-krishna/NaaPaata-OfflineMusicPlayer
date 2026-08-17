@@ -207,6 +207,7 @@ struct SettingsView: View {
 
                     // MARK: - Playback Section
                     Section {
+                        /*
                         // Crossfade
                         VStack(alignment: .leading, spacing: 6) {
                             HStack(spacing: 14) {
@@ -237,6 +238,7 @@ struct SettingsView: View {
                                     }
                             }
 
+                            
                             if settings.crossfadeEnabled {
                                 SteppedSliderWithLabels(
                                     value: $settings.crossfadeDuration,
@@ -251,7 +253,8 @@ struct SettingsView: View {
                             }
                         }
                         .padding(.vertical, 4)
-
+                         */
+                        
                         // Fade on Play/Pause
                         VStack(alignment: .leading, spacing: 6) {
                             HStack(spacing: 14) {
@@ -297,6 +300,7 @@ struct SettingsView: View {
                         }
                         .padding(.vertical, 4)
 
+                        /*
                         // Gapless Playback
                         HStack(spacing: 14) {
                             ZStack {
@@ -321,7 +325,7 @@ struct SettingsView: View {
                                 .labelsHidden()
                         }
                         .padding(.vertical, 4)
-
+                        */
                     } header: {
                         Text("Playback")
                             .font(.system(size: 16, weight: .bold))
