@@ -21,9 +21,10 @@ class CarPlaySceneDelegate: UIResponder,
     var interfaceController: CPInterfaceController?
     private lazy var placeholderArtwork = defaultArtworkImage()
 
-    let songsViewModel    = SongsViewModel()
-    let albumsViewModel   = AlbumsViewModel()
-    let playlistsViewModel = PlaylistsViewModel()
+    // View models
+    var songsViewModel: SongsViewModel!
+    var albumsViewModel: AlbumsViewModel!
+    var playlistsViewModel: PlaylistsViewModel!
 
     private var isNowPlayingActive   = false
     private var hasEnteredNowPlaying = false
@@ -42,13 +43,21 @@ class CarPlaySceneDelegate: UIResponder,
     ) {
         self.interfaceController = interfaceController
         MusicPlayerManager.shared.delegate = self
-
-        let context = PersistenceController.shared.container.mainContext
-        songsViewModel.setup(modelContext: context)
-
+        
+        guard let songsViewModel = AppDelegate.songsViewModel,
+              let albumsViewModel = AppDelegate.albumsViewModel,
+              let playlistsViewModel = AppDelegate.playlistsViewModel else {
+            fatalError("Services not initialized – NaaPaataApp must set them up before CarPlay connects")
+        }
+        
+        self.songsViewModel = songsViewModel
+        self.albumsViewModel = albumsViewModel
+        self.playlistsViewModel = playlistsViewModel
+        
         Task {
             await songsViewModel.loadSongs()
             albumsViewModel.fetchAlbums(from: songsViewModel.songs)
+            playlistsViewModel.loadPlaylists()
 
             let root = makeRootTabBarTemplate()
             root.delegate = self
@@ -71,7 +80,6 @@ class CarPlaySceneDelegate: UIResponder,
     }
 
     // MARK: - MusicPlayerManagerDelegate
-
     func musicPlayerManager(_ manager: MusicPlayerManager, didChangeCurrentSong song: Song?) {
         updatePlayingIndicators(currentSong: song, isPlaying: manager.isPlaying)
         if song != nil && !isNowPlayingActive && !hasEnteredNowPlaying {
@@ -105,7 +113,6 @@ class CarPlaySceneDelegate: UIResponder,
     }
 
     // MARK: - CPTabBarTemplateDelegate
-
     func tabBarTemplate(_ tabBarTemplate: CPTabBarTemplate, didSelect selectedTemplate: CPTemplate) {
         if let index = tabBarTemplate.templates.firstIndex(where: { $0 === selectedTemplate }) {
             selectedTabIndex = index
@@ -113,7 +120,6 @@ class CarPlaySceneDelegate: UIResponder,
     }
 
     // MARK: - Now playing indicator update
-
     private func updatePlayingIndicators(currentSong: Song?, isPlaying: Bool) {
         let newID = isPlaying ? currentSong?.id : nil
 
@@ -131,7 +137,6 @@ class CarPlaySceneDelegate: UIResponder,
     }
 
     // MARK: - Shared UI helpers
-
     private func selectTab(at index: Int, in tabBar: CPTabBarTemplate) {
         guard index < tabBar.templates.count else { return }
         tabBar.selectTemplate(at: index)
@@ -146,7 +151,6 @@ class CarPlaySceneDelegate: UIResponder,
     }
 
     // MARK: - Now Playing navigation
-
     private func pushNowPlayingTemplate() {
         guard let interface = interfaceController else { return }
         hasEnteredNowPlaying = true
@@ -172,7 +176,6 @@ class CarPlaySceneDelegate: UIResponder,
     }
 
     // MARK: - Button builders
-
     private func makeShuffleButton(isActive: Bool) -> CPNowPlayingImageButton {
         let image = makeButtonImage(symbol: "shuffle", isActive: isActive)
         return CPNowPlayingImageButton(image: image) { _ in
@@ -201,7 +204,6 @@ class CarPlaySceneDelegate: UIResponder,
     }
 
     // MARK: - Root tab bar
-
     private func makeRootTabBarTemplate() -> CPTabBarTemplate {
         let songs     = makeSongsListTemplate()
         let albums    = makeAlbumsListTemplate()
@@ -212,7 +214,6 @@ class CarPlaySceneDelegate: UIResponder,
     }
 
     // MARK: - Songs tab
-
     private func makeSongsListTemplate() -> CPListTemplate {
         let manager = MusicPlayerManager.shared
         songListItems.removeAll()
@@ -242,7 +243,6 @@ class CarPlaySceneDelegate: UIResponder,
     }
 
     // MARK: - Albums tab
-
     private func makeAlbumsListTemplate() -> CPListTemplate {
         let albumItems = albumsViewModel.albums.map { album in
             let artwork: UIImage = album.artworkImage ?? placeholderArtwork
@@ -317,9 +317,8 @@ class CarPlaySceneDelegate: UIResponder,
     }
 
     // MARK: - Playlists tab
-
     private func makePlaylistsListTemplate() -> CPListTemplate {
-        let playlists = PlaylistManager.shared.getAllPlaylists()
+        let playlists = playlistsViewModel.getAllPlaylists()
 
         let playlistItems = playlists.map { playlist in
             let songCount = playlist.songPaths.count
@@ -346,8 +345,8 @@ class CarPlaySceneDelegate: UIResponder,
 
     private func pushPlaylistDetail(playlist: Playlist) {
         guard let interface = interfaceController else { return }
-        let manager   = MusicPlayerManager.shared
-        let songs     = PlaylistManager.shared.getSongs(for: playlist)
+        let manager = MusicPlayerManager.shared
+        let songs = playlistsViewModel.getSongs(for: playlist)
 
         let playAllItem = CPListItem(
             text: "Play All",

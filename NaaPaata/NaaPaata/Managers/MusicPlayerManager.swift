@@ -91,6 +91,9 @@ final class MusicPlayerManager: NSObject, ObservableObject {
     private var fadeTimer: Timer?
     private var isFading = false
     
+    private var pendingPlaybackState: PlaybackState?
+    private var hasRestoredFromPending = false
+    
     // Settings
     private var settings = SettingsManager.shared
     
@@ -113,6 +116,11 @@ final class MusicPlayerManager: NSObject, ObservableObject {
         setupWidgetCommandObserver()
         handleWidgetCommand()
         setupRemoteCommandCenter()
+        
+        pendingPlaybackState = PlaybackStateService.shared.loadPlaybackState()
+        if pendingPlaybackState != nil {
+            hasRestoredFromPending = false
+        }
     }
     
     // MARK: - Audio Engine Setup
@@ -601,92 +609,24 @@ final class MusicPlayerManager: NSObject, ObservableObject {
     }
     
     func restoreLastPlaybackState() {
-        guard let playbackState = PlaybackStateService.shared.loadPlaybackState() else { return }
-        guard let songURL = URL(string: playbackState.songURL),
-              FileManager.default.fileExists(atPath: songURL.path) else {
-            PlaybackStateService.shared.clearPlaybackState()
+        guard let state = PlaybackStateService.shared.loadPlaybackState() else { return }
+        if allSongs.isEmpty {
+            pendingPlaybackState = state
+            hasRestoredFromPending = false
             return
         }
-        let restoredSong = Song(
-            url: songURL,
-            title: playbackState.songTitle,
-            artist: playbackState.songArtist,
-            duration: 0,
-            artworkImage: playbackState.artworkData != nil ? UIImage(data: playbackState.artworkData!) : nil
-        )
         
-        if !allSongs.isEmpty {
-            if let index = allSongs.firstIndex(where: { $0.urlString == restoredSong.urlString }) {
-                currentIndex = index
-            } else {
-                currentIndex = 0
-            }
-        }
-        
-        playSong(restoredSong)
-        
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-            if playbackState.playbackPosition > 0 {
-                self.seek(to: playbackState.playbackPosition)
-            }
-        }
+        applySavedState(state)
     }
     
     func restorePlaybackStateWithoutPlaying() {
-        guard currentSong == nil else { return }
         guard let state = PlaybackStateService.shared.loadPlaybackState() else { return }
-        loadPlaybackStateWithoutPlaying(state)
-    }
-
-    private func loadPlaybackStateWithoutPlaying(_ state: PlaybackState) {
-        guard let songURL = URL(string: state.songURL),
-              FileManager.default.fileExists(atPath: songURL.path) else {
-            PlaybackStateService.shared.clearPlaybackState()
+        if allSongs.isEmpty {
+            pendingPlaybackState = state
+            hasRestoredFromPending = false
             return
         }
-
-        let artwork = state.artworkData.flatMap { UIImage(data: $0) }
-    
-        let docsPath = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!.path + "/"
-        let relativePath = songURL.path.replacingOccurrences(of: docsPath, with: "")
-        let song = Song(
-            relativePath: relativePath,
-            urlString: songURL.path,
-            title: state.songTitle,
-            artist: state.songArtist,
-            duration: 0,
-            artworkImage: artwork
-        )
-
-        currentSong = song
-        artworkImage = artwork ?? generateDefaultArtwork(size: CGSize(width: 100, height: 100))
-        currentTime  = state.playbackPosition
-        isPlaying    = false
-
-        if !allSongs.isEmpty,
-           let index = allSongs.firstIndex(where: { $0.urlString == song.urlString }) {
-            currentIndex = index
-        }
-
-        if !engine.isRunning {
-            try? engine.start()
-        }
-        if let audioFile = try? AVAudioFile(forReading: songURL) {
-            self.audioFile = audioFile
-            duration = Double(audioFile.length) / audioFile.processingFormat.sampleRate
-            playerNode.stop()
-            let sampleRate = audioFile.processingFormat.sampleRate
-            let startFrame = AVAudioFramePosition(state.playbackPosition * sampleRate)
-            let remaining  = AVAudioFrameCount(max(0, audioFile.length - startFrame))
-            seekFrame = startFrame
-            if remaining > 1000 {
-                playerNode.scheduleSegment(audioFile, startingFrame: startFrame, frameCount: remaining, at: nil) { [weak self] in
-                    DispatchQueue.main.async { self?.handlePlaybackFinished(token: self?.playbackToken ?? UUID()) }
-                }
-            }
-        }
-
-        updateNowPlayingInfo()
+        applySavedState(state)
     }
 
     // MARK: - Playlist Setup (without playing)
@@ -696,6 +636,69 @@ final class MusicPlayerManager: NSObject, ObservableObject {
         shuffledPlaylist = []
         shuffleIsActive = false
         currentIndex = 0
+
+        if let state = pendingPlaybackState, !hasRestoredFromPending {
+            applySavedState(state)
+            hasRestoredFromPending = true
+            pendingPlaybackState = nil
+        }
+    }
+    
+    private func applySavedState(_ state: PlaybackState) {
+        guard let songURL = URL(string: state.songURL),
+              FileManager.default.fileExists(atPath: songURL.path) else {
+            PlaybackStateService.shared.clearPlaybackState()
+            return
+        }
+
+        guard let index = allSongs.firstIndex(where: { $0.urlString == songURL.path }) else {
+            PlaybackStateService.shared.clearPlaybackState()
+            return
+        }
+
+        currentIndex = index
+        let restoredSong = allSongs[index]
+
+        // Perform file I/O on a background thread
+        Task.detached(priority: .userInitiated) { [weak self] in
+            await self?.loadSongWithoutPlaying(restoredSong, atPosition: state.playbackPosition)
+        }
+    }
+
+    private func loadSongWithoutPlaying(_ song: Song, atPosition position: TimeInterval) async {
+        guard let fileURL = song.resolvedURL ?? song.url else { return }
+        do {
+            let audioFile = try AVAudioFile(forReading: fileURL)
+            let duration = Double(audioFile.length) / audioFile.processingFormat.sampleRate
+            let sampleRate = audioFile.processingFormat.sampleRate
+            let startFrame = AVAudioFramePosition(position * sampleRate)
+            let remaining = AVAudioFrameCount(max(0, audioFile.length - startFrame))
+            
+            // All I/O done; now update UI on main thread
+            await MainActor.run {
+                self.audioFile = audioFile
+                self.duration = duration
+                self.playerNode.stop()
+                self.seekFrame = startFrame
+                if remaining > 1000 {
+                    let token = UUID()
+                    self.playbackToken = token
+                    self.playerNode.scheduleSegment(audioFile, startingFrame: startFrame, frameCount: remaining, at: nil) { [weak self] in
+                        DispatchQueue.main.async {
+                            self?.handlePlaybackFinished(token: token)
+                        }
+                    }
+                }
+                self.currentSong = song
+                self.artworkImage = song.artworkImage ?? self.getArtwork(for: song)
+                self.currentTime = position
+                self.isPlaying = false
+                self.updateNowPlayingInfo()
+                self.startTimer()
+            }
+        } catch {
+            print("Failed to load song without playing: \(error)")
+        }
     }
     
     // MARK: - Artwork
@@ -746,15 +749,17 @@ final class MusicPlayerManager: NSObject, ObservableObject {
         }.value
     }
 
-    // MARK: - High‑quality default artwork generator
+    // MARK: - High‑quality default artwork generator (thread‑safe)
     private func generateDefaultArtwork(size: CGSize = CGSize(width: 600, height: 600)) -> UIImage {
         let renderer = UIGraphicsImageRenderer(size: size)
         return renderer.image { _ in
             UIColor.white.setFill()
             UIBezierPath(roundedRect: CGRect(origin: .zero, size: size), cornerRadius: size.width * 0.08).fill()
             let config = UIImage.SymbolConfiguration(pointSize: size.width * 0.35, weight: .medium)
+            // Use fixed purple color to avoid concurrency issues
+            let purple = UIColor(red: 0.5, green: 0.2, blue: 0.8, alpha: 1.0)
             if let note = UIImage(systemName: "music.note", withConfiguration: config)?
-                .withTintColor(UIColor(AppColors.primary), renderingMode: .alwaysOriginal) {
+                .withTintColor(purple, renderingMode: .alwaysOriginal) {
                 note.draw(at: CGPoint(
                     x: (size.width  - note.size.width)  / 2,
                     y: (size.height - note.size.height) / 2
@@ -779,17 +784,21 @@ final class MusicPlayerManager: NSObject, ObservableObject {
             print("Failed to delete file: invalid song URL")
             return
         }
-        do {
-            try FileManager.default.removeItem(at: fileURL)
-            NotificationCenter.default.post(name: .songDeleted, object: nil, userInfo: ["song": song])
-        } catch {
-            print("Failed to delete file: \(error.localizedDescription)")
-        }
-
-        updateWidgetData()
-
-        if wasPlayingDeletedSong && !allSongs.isEmpty {
-            playNext()
+        
+        // Perform file deletion on a background queue
+        DispatchQueue.global(qos: .userInitiated).async {
+            do {
+                try FileManager.default.removeItem(at: fileURL)
+                DispatchQueue.main.async {
+                    NotificationCenter.default.post(name: .songDeleted, object: nil, userInfo: ["song": song])
+                    self.updateWidgetData()
+                    if wasPlayingDeletedSong && !self.allSongs.isEmpty {
+                        self.playNext()
+                    }
+                }
+            } catch {
+                print("Failed to delete file: \(error.localizedDescription)")
+            }
         }
     }
     
@@ -908,11 +917,11 @@ final class MusicPlayerManager: NSObject, ObservableObject {
         WidgetCenter.shared.reloadTimelines(ofKind: "MusicPlayerWidget")
         #endif
     }
-    
-    // MARK: - Ensure Playback State (for widget actions)
+
+    // MARK: - Ensure Playback State
     private func ensurePlaybackState() {
-        if currentSong == nil && allSongs.isEmpty {
-            restoreLastPlaybackState()
+        if currentSong != nil && !allSongs.isEmpty {
+            return
         }
 
         if allSongs.isEmpty, let container = modelContainer, Thread.isMainThread {
@@ -920,17 +929,32 @@ final class MusicPlayerManager: NSObject, ObservableObject {
             let descriptor = FetchDescriptor<Song>(sortBy: [SortDescriptor(\.title)])
             if let songs = try? context.fetch(descriptor), !songs.isEmpty {
                 setPlaylist(songs)
-                if let current = currentSong,
-                   let index = allSongs.firstIndex(where: { $0.relativePath == current.relativePath }) {
-                    currentIndex = index
+            }
+        }
+
+        if allSongs.isEmpty {
+            restoreLastPlaybackState()
+        }
+
+        // If we still have no current song after loading, we need to set one.
+        // But note: applySavedState now loads asynchronously, so we might not have it yet.
+        // However, we want to ensure UI is not blocked. We'll check again after a short delay if needed.
+        if currentSong == nil && !allSongs.isEmpty {
+            if currentIndex >= 0 && currentIndex < allSongs.count {
+                let song = allSongs[currentIndex]
+                // Load without playing asynchronously
+                Task.detached(priority: .userInitiated) { [weak self] in
+                    await self?.loadSongWithoutPlaying(song, atPosition: 0)
+                }
+            } else {
+                // Fallback to first song – but also async
+                let song = allSongs[0]
+                Task.detached(priority: .userInitiated) { [weak self] in
+                    await self?.loadSongWithoutPlaying(song, atPosition: 0)
                 }
             }
         }
 
-        if currentSong == nil && !allSongs.isEmpty {
-            playSong(allSongs[0])
-        }
-        
         if allSongs.isEmpty {
             print("⚠️ No songs available to play.")
         }
@@ -963,6 +987,7 @@ final class MusicPlayerManager: NSObject, ObservableObject {
         SharedDataManager.shared.clearCommand()
         
         DispatchQueue.main.async {
+            self.ensurePlaybackState()
             switch command {
             case "playpause":
                 self.togglePlayPause()

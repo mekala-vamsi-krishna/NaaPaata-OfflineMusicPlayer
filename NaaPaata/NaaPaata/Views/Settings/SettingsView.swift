@@ -455,7 +455,6 @@ struct SettingsView: View {
 
 #Preview {
     SettingsView()
-        .environmentObject(SongsViewModel())
         .environmentObject(StoreManager())
         .environmentObject(ThemeManager.shared)
 }

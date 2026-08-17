@@ -1,8 +1,6 @@
 //
-//  PlaylistViewModel.swift
+//  PlaylistsViewModel.swift
 //  NaaPaata
-//
-//  Created by Mekala Vamsi Krishna on 06/10/25.
 //
 
 import SwiftUI
@@ -11,21 +9,25 @@ import AVFoundation
 
 @MainActor
 final class PlaylistsViewModel: ObservableObject {
-    private let playlistManager = PlaylistManager.shared
+    private let dataService: DataServiceProtocol
+
+    @Published var playlists: [Playlist] = []
     @Published var isLoading: Bool = false
 
-    init() {}
-
-    // MARK: - addPlaylist (called from PlayListsView — delegates to createPlaylist)
-    func addPlaylist(name: String, description: String = "", coverImage: UIImage? = nil, playlists: [Playlist] = []) {
-        createPlaylist(name: name, description: description, coverImage: coverImage)
+    init(dataService: DataServiceProtocol) {
+        self.dataService = dataService
     }
 
-    // MARK: - createPlaylist (with unique name deduplication)
+    // MARK: - Load
+    func loadPlaylists() {
+        playlists = dataService.fetchPlaylists()
+    }
+
+    // MARK: - Create
     func createPlaylist(name: String, description: String = "", coverImage: UIImage? = nil) {
         let trimmedName = name.trimmingCharacters(in: .whitespaces)
         guard !trimmedName.isEmpty else { return }
-        let existing = playlistManager.getAllPlaylists()
+        let existing = dataService.fetchPlaylists()
         var uniqueName = trimmedName
         var counter = 1
         while existing.contains(where: { $0.name == uniqueName }) {
@@ -33,65 +35,75 @@ final class PlaylistsViewModel: ObservableObject {
             counter += 1
         }
         let playlist = Playlist(name: uniqueName, coverImage: coverImage, desc: description, dateCreated: Date())
-        playlistManager.savePlaylist(playlist)
+        dataService.savePlaylist(playlist)
+        loadPlaylists()
     }
 
-    // MARK: - deletePlaylist
+    // MARK: - Delete
     func deletePlaylist(_ playlist: Playlist) {
-        playlistManager.deletePlaylistById(id: playlist.id)
+        dataService.deletePlaylist(playlist)
+        loadPlaylists()
     }
 
-    // MARK: - updatePlaylist
+    // MARK: - Update
     func updatePlaylist(_ playlist: Playlist) {
-        playlistManager.savePlaylist(playlist)
+        dataService.savePlaylist(playlist)
+        loadPlaylists()
     }
 
-    // MARK: - addSongToPlaylist
+    // MARK: - Add Song to Playlist
     func addSongToPlaylist(_ song: Song, to playlist: Playlist) {
-        let result = playlistManager.addSongToPlaylist(song, playlist: playlist)
+        let result = dataService.addSongToPlaylist(song, playlist: playlist)
         switch result {
         case .added:
-            ToastManager.shared.showToast(message: "Song added to \(playlist.name) playlist")
+            ToastManager.shared.showToast(message: "Song added to \(playlist.name)")
         case .exists:
             ToastManager.shared.showToast(message: "Song already exists in playlist")
         case .error(let msg):
             print("Error: \(msg)")
         }
+        loadPlaylists()
     }
 
-    // MARK: - removeSongFromPlaylist
+    // MARK: - Remove Song from Playlist
     func removeSongFromPlaylist(_ song: Song, from playlist: Playlist) {
-        playlistManager.removeSongFromPlaylist(song, from: playlist)
+        dataService.removeSongFromPlaylist(song, from: playlist)
+        loadPlaylists()
     }
 
-    // MARK: - addSongToPlaylists (batch, for multi-playlist selection)
+    // MARK: - Batch Add
     @discardableResult
     func addSongToPlaylists(_ song: Song, playlistIDs: Set<UUID>) -> [UUID: AddSongResult] {
-        return playlistManager.addSongToPlaylists(song, playlistIDs: playlistIDs)
+        let results = dataService.addSongToPlaylists(song, playlistIDs: playlistIDs)
+        loadPlaylists()
+        return results
     }
 
-    // MARK: - removeSongFromPlaylists (batch)
+    // MARK: - Batch Remove
     func removeSongFromPlaylists(_ song: Song, playlistIDs: Set<UUID>) {
-        playlistManager.removeSongFromPlaylists(song, playlistIDs: playlistIDs)
+        dataService.removeSongFromPlaylists(song, playlistIDs: playlistIDs)
+        loadPlaylists()
     }
 
-    // MARK: - getSongs(for:)
+    // MARK: - Queries
     func getSongs(for playlist: Playlist) -> [Song] {
-        return playlistManager.getSongs(for: playlist)
+        return dataService.getSongs(for: playlist)
     }
 
-    // MARK: - getPlaylist(id:)
     func getPlaylist(id: UUID) -> Playlist? {
-        return playlistManager.getPlaylist(id: id)
+        return dataService.fetchPlaylist(byId: id)
     }
 
-    // MARK: - getAllPlaylists
     func getAllPlaylists() -> [Playlist] {
-        return playlistManager.getAllPlaylists()
+        return dataService.fetchPlaylists()
     }
 
-    // MARK: - loadPlaylist(name:)
     func loadPlaylist(name: String) -> Playlist? {
-        return playlistManager.loadPlaylist(name: name)
+        return dataService.fetchPlaylist(byName: name)
+    }
+
+    // MARK: - Convenience
+    func addPlaylist(name: String, description: String = "", coverImage: UIImage? = nil) {
+        createPlaylist(name: name, description: description, coverImage: coverImage)
     }
 }

@@ -177,6 +177,5 @@ struct SearchView: View {
 #Preview {
     SearchView()
         .environmentObject(SearchViewModel())
-        .environmentObject(SongsViewModel())
         .environmentObject(AlbumsViewModel())
 }

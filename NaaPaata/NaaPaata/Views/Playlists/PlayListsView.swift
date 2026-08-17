@@ -72,8 +72,7 @@ struct PlayListsView: View {
                             viewModel.addPlaylist(
                                 name: newPlaylistName,
                                 description: newPlaylistDescription,
-                                coverImage: coverImage,
-                                playlists: playlists
+                                coverImage: coverImage
                             )
                             newPlaylistName = ""
                             newPlaylistDescription = ""
