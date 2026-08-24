@@ -11,7 +11,8 @@ struct SteppedSlider: UIViewRepresentable {
     let range: ClosedRange<Double>
     let step: Double
     let steps: [Double]
-
+    let tintColor: Color
+    
     func makeUIView(context: Context) -> UISlider {
         let slider = UISlider()
         slider.minimumValue = Float(range.lowerBound)
@@ -20,7 +21,7 @@ struct SteppedSlider: UIViewRepresentable {
         slider.addTarget(context.coordinator,
                          action: #selector(Coordinator.valueChanged(_:)),
                          for: .valueChanged)
-        slider.tintColor = UIColor(AppColors.primary)
+        slider.tintColor = UIColor(tintColor)
         return slider
     }
 
@@ -55,7 +56,8 @@ struct SteppedSliderWithLabels: View {
     let step: Double
     let labels: [String]
     let valueFormatter: (Double) -> String
-
+    let tintColor: Color
+    
     private var steps: [Double] {
         stride(from: range.lowerBound, through: range.upperBound, by: step).map { $0 }
     }
@@ -65,7 +67,7 @@ struct SteppedSliderWithLabels: View {
             VStack(alignment: .leading, spacing: 4) {
                 // Slider + Dots
                 ZStack(alignment: .leading) {
-                    SteppedSlider(value: $value, range: range, step: step, steps: steps)
+                    SteppedSlider(value: $value, range: range, step: step, steps: steps, tintColor: tintColor)
                         .frame(height: 30)
                         .frame(width: geometry.size.width)
 
@@ -113,14 +115,6 @@ struct SettingsView: View {
     @State private var isImporting = false
     @State private var showPaywall = false
 
-    // Playback settings
-    @State private var crossfadeEnabled: Bool = false
-    @State private var crossfadeDuration: Double = 250
-
-    @State private var fadeEnabled: Bool = false
-    @State private var fadeDuration: Double = 3
-
-    @State private var gaplessPlayback: Bool = false
 
     private let audioTypes: [UTType] = [
         .audio, .mp3,
@@ -207,7 +201,6 @@ struct SettingsView: View {
 
                     // MARK: - Playback Section
                     Section {
-                        /*
                         // Crossfade
                         VStack(alignment: .leading, spacing: 6) {
                             HStack(spacing: 14) {
@@ -223,37 +216,26 @@ struct SettingsView: View {
                                     Text("Crossfade")
                                         .font(.system(size: 16, weight: .medium))
                                         .foregroundColor(AppColors.textPrimary)
-                                    Text("Duration between songs")
+                                    Text("Overlap tracks during transitions")
                                         .font(.system(size: 13))
                                         .foregroundColor(AppColors.textSecondary)
                                 }
                                 Spacer()
-                                Toggle("", isOn: $crossfadeEnabled)
-                                    .tint(AppColors.primary)
-                                    .labelsHidden()
-                                    .onChange(of: settings.crossfadeEnabled) { newValue in
-                                        if newValue && settings.crossfadeDuration == 0 {
-                                            settings.crossfadeDuration = 3  // default 3s
-                                        }
-                                    }
+                                Text(settings.crossfadeDuration == 0 ? "Off" : "\(Int(settings.crossfadeDuration)) s")
+                                    .font(.system(size: 13, weight: .medium))
+                                    .foregroundColor(AppColors.textSecondary)
                             }
 
-                            
-                            if settings.crossfadeEnabled {
-                                SteppedSliderWithLabels(
-                                    value: $settings.crossfadeDuration,
-                                    range: 0...12,
-                                    step: 3,
-                                    labels: ["Off", "3", "6", "9", "12"],
-                                    valueFormatter: { $0 == 0 ? "Off" : "\(Int($0)) s" }
-                                )
-                                .padding(.leading, 54)
-                                .transition(.opacity.combined(with: .move(edge: .top)))
-                                .animation(.easeInOut(duration: 0.25), value: settings.crossfadeEnabled)
-                            }
+                            SteppedSliderWithLabels(
+                                value: $settings.crossfadeDuration,
+                                range: 0...12,
+                                step: 3,
+                                labels: ["0s", "3s", "6s", "9s", "12s"],
+                                valueFormatter: { "\(Int($0)) s" }, tintColor: themeManager.current.color
+                            )
+                            .padding(.leading, 54)
                         }
                         .padding(.vertical, 4)
-                         */
                         
                         // Fade on Play/Pause
                         VStack(alignment: .leading, spacing: 6) {
@@ -275,32 +257,22 @@ struct SettingsView: View {
                                         .foregroundColor(AppColors.textSecondary)
                                 }
                                 Spacer()
-                                Toggle("", isOn: $settings.fadeEnabled)
-                                    .tint(AppColors.primary)
-                                    .labelsHidden()
-                                    .onChange(of: settings.fadeEnabled) { newValue in
-                                        if newValue && settings.fadeDuration == 0 {
-                                            settings.fadeDuration = 250
-                                        }
-                                    }
+                                Text(settings.fadeDuration == 0 ? "Off" : "\(Int(settings.fadeDuration)) s")
+                                    .font(.system(size: 13, weight: .medium))
+                                    .foregroundColor(AppColors.textSecondary)
                             }
 
-                            if settings.fadeEnabled {
-                                SteppedSliderWithLabels(
-                                    value: $settings.fadeDuration,
-                                    range: 0...1000,
-                                    step: 250,
-                                    labels: ["Off", "250", "500", "750", "1000"],
-                                    valueFormatter: { $0 == 0 ? "Off" : "\(Int($0)) ms" }
-                                )
-                                .padding(.horizontal)
-                                .transition(.opacity.combined(with: .move(edge: .top)))
-                                .animation(.easeInOut(duration: 0.25), value: settings.fadeEnabled)
-                            }
+                            SteppedSliderWithLabels(
+                                value: $settings.fadeDuration,
+                                range: 0...1000,
+                                step: 250,
+                                labels: ["Off", "250", "500", "750", "1000"],
+                                valueFormatter: { $0 == 0 ? "Off" : "\(Int($0)) ms" }, tintColor: themeManager.current.color
+                            )
+                            .padding(.leading, 54)
                         }
                         .padding(.vertical, 4)
 
-                        /*
                         // Gapless Playback
                         HStack(spacing: 14) {
                             ZStack {
@@ -315,17 +287,16 @@ struct SettingsView: View {
                                 Text("Gapless Playback")
                                     .font(.system(size: 16, weight: .medium))
                                     .foregroundColor(AppColors.textPrimary)
-                                Text("Seamless transition between tracks")
+                                Text("Minimize silence between tracks")
                                     .font(.system(size: 13))
                                     .foregroundColor(AppColors.textSecondary)
                             }
                             Spacer()
-                            Toggle("", isOn: $gaplessPlayback)
+                            Toggle("", isOn: $settings.gaplessPlayback)
                                 .tint(AppColors.primary)
                                 .labelsHidden()
                         }
                         .padding(.vertical, 4)
-                        */
                     } header: {
                         Text("Playback")
                             .font(.system(size: 16, weight: .bold))

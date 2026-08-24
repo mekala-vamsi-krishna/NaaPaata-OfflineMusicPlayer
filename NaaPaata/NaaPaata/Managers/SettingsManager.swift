@@ -14,47 +14,53 @@ final class SettingsManager: ObservableObject {
     private let defaults = UserDefaults.standard
 
     private enum Keys {
-//        static let crossfadeEnabled = "crossfadeEnabled"
-//        static let crossfadeDuration = "crossfadeDuration"
+        static let crossfadeDuration = "crossfadeDuration"
         static let fadeEnabled = "fadeEnabled"
         static let fadeDuration = "fadeDuration"
-//        static let gaplessPlayback = "gaplessPlayback"
+        static let gaplessPlayback = "gaplessPlayback"
     }
 
-    /*
-    @Published var crossfadeEnabled: Bool {
-        didSet { defaults.set(crossfadeEnabled, forKey: Keys.crossfadeEnabled) }
-    }
+    static let crossfadeDurations: [Double] = [0, 3, 6, 9, 12]
+
     @Published var crossfadeDuration: Double {
-        didSet { defaults.set(crossfadeDuration, forKey: Keys.crossfadeDuration) }
+        didSet {
+            defaults.set(crossfadeDuration, forKey: Keys.crossfadeDuration)
+            if crossfadeDuration > 0 && gaplessPlayback {
+                gaplessPlayback = false
+            }
+        }
     }
-     */
-    
+
     @Published var fadeEnabled: Bool {
         didSet { defaults.set(fadeEnabled, forKey: Keys.fadeEnabled) }
     }
+
     @Published var fadeDuration: Double {
         didSet { defaults.set(fadeDuration, forKey: Keys.fadeDuration) }
     }
-    
-    /*
-    @Published var gaplessPlayback: Bool {
-        didSet { defaults.set(gaplessPlayback, forKey: Keys.gaplessPlayback) }
-    }
-     */
-    
-    private init() {
-//        let crossfadeEnabled = defaults.bool(forKey: Keys.crossfadeEnabled)
-//        let crossfadeDuration = defaults.double(forKey: Keys.crossfadeDuration)
-        let fadeEnabled = defaults.bool(forKey: Keys.fadeEnabled)
-        let fadeDuration = defaults.double(forKey: Keys.fadeDuration)
-//        let gaplessPlayback = defaults.bool(forKey: Keys.gaplessPlayback)
 
-//        self.crossfadeEnabled = crossfadeEnabled
-//        self.crossfadeDuration = crossfadeDuration == 0 ? 3 : crossfadeDuration
-        self.fadeEnabled = fadeEnabled
-        self.fadeDuration = fadeDuration == 0 ? 250 : fadeDuration
-//        self.gaplessPlayback = gaplessPlayback
+    @Published var gaplessPlayback: Bool {
+        didSet {
+            defaults.set(gaplessPlayback, forKey: Keys.gaplessPlayback)
+            if gaplessPlayback && crossfadeDuration > 0 {
+                crossfadeDuration = 0
+            }
+        }
+    }
+
+    private init() {
+        let storedCrossfadeDuration = defaults.object(forKey: Keys.crossfadeDuration) == nil
+            ? 0
+            : defaults.double(forKey: Keys.crossfadeDuration)
+        let normalizedCrossfadeDuration = Self.crossfadeDurations.min {
+            abs($0 - storedCrossfadeDuration) < abs($1 - storedCrossfadeDuration)
+        } ?? 0
+        crossfadeDuration = normalizedCrossfadeDuration
+
+        fadeEnabled = defaults.bool(forKey: Keys.fadeEnabled)
+        let storedFadeDuration = defaults.double(forKey: Keys.fadeDuration)
+        fadeDuration = storedFadeDuration == 0 ? 250 : storedFadeDuration
+        gaplessPlayback = normalizedCrossfadeDuration == 0 && defaults.bool(forKey: Keys.gaplessPlayback)
     }
 }
 
