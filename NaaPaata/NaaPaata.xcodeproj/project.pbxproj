@@ -73,6 +73,7 @@
 		ACB638933015E48800FAEE2F /* AddToPlaylistCell.swift in Sources */ = {isa = PBXBuildFile; fileRef = ACB638923015E48800FAEE2F /* AddToPlaylistCell.swift */; };
 		ACB638973015E6E200FAEE2F /* MatchedGeometryIfAvailable.swift in Sources */ = {isa = PBXBuildFile; fileRef = ACB638963015E6E200FAEE2F /* MatchedGeometryIfAvailable.swift */; };
 		ACC27B4D2ED8B2F10037273C /* AdaptiveLayout.swift in Sources */ = {isa = PBXBuildFile; fileRef = ACC27B4B2ED8B2F10037273C /* AdaptiveLayout.swift */; };
+		ACC5FB67303D8DD0000BD975 /* PlaybackDetailsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = ACC5FB66303D8DD0000BD975 /* PlaybackDetailsView.swift */; };
 		ACCBA9332EDB5FFE00531C3A /* EqualizerViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = ACCBA9322EDB5FFE00531C3A /* EqualizerViewModel.swift */; };
 		ACCBA9352EDB65AB00531C3A /* RotaryKnobView.swift in Sources */ = {isa = PBXBuildFile; fileRef = ACCBA9342EDB65AB00531C3A /* RotaryKnobView.swift */; };
 		ACCBA9372EDB70AF00531C3A /* EqualizerSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = ACCBA9362EDB70AF00531C3A /* EqualizerSettings.swift */; };
@@ -200,6 +201,7 @@
 		ACB638923015E48800FAEE2F /* AddToPlaylistCell.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddToPlaylistCell.swift; sourceTree = "<group>"; };
 		ACB638963015E6E200FAEE2F /* MatchedGeometryIfAvailable.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MatchedGeometryIfAvailable.swift; sourceTree = "<group>"; };
 		ACC27B4B2ED8B2F10037273C /* AdaptiveLayout.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AdaptiveLayout.swift; sourceTree = "<group>"; };
+		ACC5FB66303D8DD0000BD975 /* PlaybackDetailsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaybackDetailsView.swift; sourceTree = "<group>"; };
 		ACCBA9322EDB5FFE00531C3A /* EqualizerViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EqualizerViewModel.swift; sourceTree = "<group>"; };
 		ACCBA9342EDB65AB00531C3A /* RotaryKnobView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RotaryKnobView.swift; sourceTree = "<group>"; };
 		ACCBA9362EDB70AF00531C3A /* EqualizerSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EqualizerSettings.swift; sourceTree = "<group>"; };
@@ -520,6 +522,7 @@
 				ACB6388A3015197A00FAEE2F /* SettingsView.swift */,
 				AC17AEE53017ACF100E4124D /* AppThemePickerView.swift */,
 				AC17AEF23018611100E4124D /* AppColourPickerView.swift */,
+				ACC5FB66303D8DD0000BD975 /* PlaybackDetailsView.swift */,
 			);
 			path = Settings;
 			sourceTree = "<group>";
@@ -782,6 +785,7 @@
 				AC6F41892E7FD29A00B5BE35 /* MusicPlayerManager.swift in Sources */,
 				ACD23E1F2E927D580054344D /* PlaylistDetailsView.swift in Sources */,
 				AC5B78A42EA5891E004AD706 /* SongInfoView.swift in Sources */,
+				ACC5FB67303D8DD0000BD975 /* PlaybackDetailsView.swift in Sources */,
 				AC6F41842E7FD05F00B5BE35 /* SongsView.swift in Sources */,
 				ACAB2BA82EBFC7E4005F84D8 /* PlaybackStateService.swift in Sources */,
 				ACD23E252E9286170054344D /* PlayListModel.swift in Sources */,

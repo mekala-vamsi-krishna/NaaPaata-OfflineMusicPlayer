@@ -104,6 +104,9 @@ struct SongsView: View {
                     }
                     .listStyle(.plain)
                     .scrollContentBackground(.hidden)
+                    .safeAreaInset(edge: .bottom) {
+                        Color.clear.frame(height: 60)
+                    }
                 }
             }
             .navigationTitle("Naa Paata ♪")

@@ -616,7 +616,7 @@ final class MusicPlayerManager: NSObject, ObservableObject {
                 return
             }
 
-            if settings.fadeEnabled && settings.fadeDuration > 0 {
+            if settings.fadeDuration > 0 {
                 if !engine.isRunning { try? engine.start() }
                 playerNode.volume = 0
                 playerNode.play()

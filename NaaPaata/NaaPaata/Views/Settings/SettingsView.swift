@@ -201,102 +201,32 @@ struct SettingsView: View {
 
                     // MARK: - Playback Section
                     Section {
-                        // Crossfade
-                        VStack(alignment: .leading, spacing: 6) {
+                        NavigationLink {
+                            PlaybackDetailsView()
+                                .environmentObject(themeManager)
+                        } label: {
                             HStack(spacing: 14) {
                                 ZStack {
                                     RoundedRectangle(cornerRadius: 10)
                                         .fill(AppColors.primary.opacity(0.15))
                                         .frame(width: 40, height: 40)
-                                    Image(systemName: "arrow.left.arrow.right")
+                                    Image(systemName: "music.note")
                                         .font(.system(size: 18, weight: .medium))
                                         .foregroundColor(AppColors.primary)
                                 }
                                 VStack(alignment: .leading, spacing: 2) {
-                                    Text("Crossfade")
+                                    Text("Audio")
                                         .font(.system(size: 16, weight: .medium))
                                         .foregroundColor(AppColors.textPrimary)
-                                    Text("Overlap tracks during transitions")
+                                    Text("Crossfade, fade on Play/Pause, gapless playback")
                                         .font(.system(size: 13))
                                         .foregroundColor(AppColors.textSecondary)
+                                        .lineLimit(2)
                                 }
-                                Spacer()
-                                Text(settings.crossfadeDuration == 0 ? "Off" : "\(Int(settings.crossfadeDuration)) s")
-                                    .font(.system(size: 13, weight: .medium))
-                                    .foregroundColor(AppColors.textSecondary)
                             }
-
-                            SteppedSliderWithLabels(
-                                value: $settings.crossfadeDuration,
-                                range: 0...12,
-                                step: 3,
-                                labels: ["0s", "3s", "6s", "9s", "12s"],
-                                valueFormatter: { "\(Int($0)) s" }, tintColor: themeManager.current.color
-                            )
-                            .padding(.leading, 54)
+                            .padding(.vertical, 4)
                         }
-                        .padding(.vertical, 4)
-                        
-                        // Fade on Play/Pause
-                        VStack(alignment: .leading, spacing: 6) {
-                            HStack(spacing: 14) {
-                                ZStack {
-                                    RoundedRectangle(cornerRadius: 10)
-                                        .fill(AppColors.primary.opacity(0.15))
-                                        .frame(width: 40, height: 40)
-                                    Image(systemName: "waveform")
-                                        .font(.system(size: 18, weight: .medium))
-                                        .foregroundColor(AppColors.primary)
-                                }
-                                VStack(alignment: .leading, spacing: 2) {
-                                    Text("Fade on Play/Pause")
-                                        .font(.system(size: 16, weight: .medium))
-                                        .foregroundColor(AppColors.textPrimary)
-                                    Text("Smooth volume transition")
-                                        .font(.system(size: 13))
-                                        .foregroundColor(AppColors.textSecondary)
-                                }
-                                Spacer()
-                                Text(settings.fadeDuration == 0 ? "Off" : "\(Int(settings.fadeDuration)) s")
-                                    .font(.system(size: 13, weight: .medium))
-                                    .foregroundColor(AppColors.textSecondary)
-                            }
-
-                            SteppedSliderWithLabels(
-                                value: $settings.fadeDuration,
-                                range: 0...1000,
-                                step: 250,
-                                labels: ["Off", "250", "500", "750", "1000"],
-                                valueFormatter: { $0 == 0 ? "Off" : "\(Int($0)) ms" }, tintColor: themeManager.current.color
-                            )
-                            .padding(.leading, 54)
-                        }
-                        .padding(.vertical, 4)
-
-                        // Gapless Playback
-                        HStack(spacing: 14) {
-                            ZStack {
-                                RoundedRectangle(cornerRadius: 10)
-                                    .fill(AppColors.primary.opacity(0.15))
-                                    .frame(width: 40, height: 40)
-                                Image(systemName: "infinity")
-                                    .font(.system(size: 18, weight: .medium))
-                                    .foregroundColor(AppColors.primary)
-                            }
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text("Gapless Playback")
-                                    .font(.system(size: 16, weight: .medium))
-                                    .foregroundColor(AppColors.textPrimary)
-                                Text("Minimize silence between tracks")
-                                    .font(.system(size: 13))
-                                    .foregroundColor(AppColors.textSecondary)
-                            }
-                            Spacer()
-                            Toggle("", isOn: $settings.gaplessPlayback)
-                                .tint(AppColors.primary)
-                                .labelsHidden()
-                        }
-                        .padding(.vertical, 4)
+                        .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
                     } header: {
                         Text("Playback")
                             .font(.system(size: 16, weight: .bold))
@@ -413,6 +343,9 @@ struct SettingsView: View {
                 }
                 .listStyle(.insetGrouped)
                 .scrollContentBackground(.hidden)
+                .safeAreaInset(edge: .bottom) {
+                    Color.clear.frame(height: 60)
+                }
             }
             .navigationTitle("Settings")
             .navigationBarTitleDisplayMode(.large)
