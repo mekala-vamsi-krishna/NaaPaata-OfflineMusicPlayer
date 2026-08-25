@@ -1,0 +1,124 @@
+[
+  {
+    "version": "1.0",
+    "date": "March 2025",
+    "sections": {
+      "newFeatures": [
+        "Initial release of Naa Paata music player",
+        "Local music library with import from Files app",
+        "Basic playback controls (play, pause, next, previous)",
+        "Sort songs by title, artist, duration",
+        "Now Playing screen with artwork display",
+        "Dark and light theme support"
+      ],
+      "enhancements": [],
+      "bugFixes": [],
+      "patches": []
+    }
+  },
+  {
+    "version": "2.0",
+    "date": "May 2025",
+    "sections": {
+      "newFeatures": [
+        "Equalizer with 9 bands (Bass, Treble, and 7 frequency bands)",
+        "Repeat modes: Off, One, All",
+        "Shuffle playback",
+        "Add songs to 'Play Next' queue",
+        "Search songs by title or artist"
+      ],
+      "enhancements": [
+        "Improved audio engine for better performance",
+        "Faster loading of large music libraries"
+      ],
+      "bugFixes": [
+        "Fixed crash when importing certain FLAC files",
+        "Fixed UI lag when scrolling large lists"
+      ],
+      "patches": []
+    }
+  },
+  {
+    "version": "3.0",
+    "date": "August 2025",
+    "sections": {
+      "newFeatures": [
+        "Gapless playback for seamless transitions",
+        "Crossfade between tracks (0–12 seconds)",
+        "Fade on Play/Pause (0–1000 ms)",
+        "Widget support: control playback from Home Screen",
+        "Lock Screen controls with artwork"
+      ],
+      "enhancements": [
+        "Redesigned Now Playing screen with larger artwork",
+        "Smart sorting: remember last used sort option"
+      ],
+      "bugFixes": [
+        "Fixed audio stutter on some devices",
+        "Fixed artwork not displaying for some songs"
+      ],
+      "patches": []
+    }
+  },
+  {
+    "version": "4.0",
+    "date": "November 2025",
+    "sections": {
+      "newFeatures": [
+        "Playlists: create, edit, and delete custom playlists",
+        "Add songs to playlists from Now Playing or Library",
+        "Favorites: mark songs as favorites for quick access",
+        "Recent played: history of last 50 songs"
+      ],
+      "enhancements": [
+        "Optimised database queries for faster playlist loading",
+        "Improved memory usage for large libraries"
+      ],
+      "bugFixes": [
+        "Fixed playlist songs not persisting after app restart",
+        "Fixed crash when adding a song to a playlist"
+      ],
+      "patches": []
+    }
+  },
+  {
+    "version": "4.1.0",
+    "date": "January 2026",
+    "sections": {
+      "newFeatures": [
+        "AirPlay support: stream music to AirPlay devices",
+        "CarPlay integration: control playback in the car"
+      ],
+      "enhancements": [
+        "Now Playing screen now shows waveform animation",
+        "Better error handling for corrupted audio files"
+      ],
+      "bugFixes": [
+        "Fixed audio cutting off when receiving notifications",
+        "Fixed shuffle not working correctly with large playlists"
+      ],
+      "patches": [
+        "Patch for iOS 17 compatibility"
+      ]
+    }
+  },
+  {
+    "version": "4.1.1",
+    "date": "February 2026",
+    "sections": {
+      "newFeatures": [],
+      "enhancements": [
+        "Minor performance improvements",
+        "Update to latest SwiftUI version"
+      ],
+      "bugFixes": [
+        "Fixed crash when opening the app on some devices",
+        "Fixed missing artwork for certain MP3 files",
+        "Fixed 'Play Next' not working when queue is empty"
+      ],
+      "patches": [
+        "Security patch for URL handling"
+      ]
+    }
+  }
+]
