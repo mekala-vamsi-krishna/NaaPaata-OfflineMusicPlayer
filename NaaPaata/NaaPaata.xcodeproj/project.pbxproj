@@ -74,6 +74,12 @@
 		ACB638973015E6E200FAEE2F /* MatchedGeometryIfAvailable.swift in Sources */ = {isa = PBXBuildFile; fileRef = ACB638963015E6E200FAEE2F /* MatchedGeometryIfAvailable.swift */; };
 		ACC27B4D2ED8B2F10037273C /* AdaptiveLayout.swift in Sources */ = {isa = PBXBuildFile; fileRef = ACC27B4B2ED8B2F10037273C /* AdaptiveLayout.swift */; };
 		ACC5FB67303D8DD0000BD975 /* PlaybackDetailsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = ACC5FB66303D8DD0000BD975 /* PlaybackDetailsView.swift */; };
+		ACC5FB69303DE60A000BD975 /* VersionHistoryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = ACC5FB68303DE60A000BD975 /* VersionHistoryView.swift */; };
+		ACC5FB6B303DE61B000BD975 /* AboutView.swift in Sources */ = {isa = PBXBuildFile; fileRef = ACC5FB6A303DE61B000BD975 /* AboutView.swift */; };
+		ACC5FB6D303DE62F000BD975 /* SettingsRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = ACC5FB6C303DE62F000BD975 /* SettingsRow.swift */; };
+		ACC5FB6F303DF10B000BD975 /* version_history.json in Resources */ = {isa = PBXBuildFile; fileRef = ACC5FB6E303DF10B000BD975 /* version_history.json */; };
+		ACC5FB71303DF20C000BD975 /* NetworkService.swift in Sources */ = {isa = PBXBuildFile; fileRef = ACC5FB70303DF20C000BD975 /* NetworkService.swift */; };
+		ACC5FB72303DF20C000BD975 /* NetworkService.swift in Sources */ = {isa = PBXBuildFile; fileRef = ACC5FB70303DF20C000BD975 /* NetworkService.swift */; };
 		ACCBA9332EDB5FFE00531C3A /* EqualizerViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = ACCBA9322EDB5FFE00531C3A /* EqualizerViewModel.swift */; };
 		ACCBA9352EDB65AB00531C3A /* RotaryKnobView.swift in Sources */ = {isa = PBXBuildFile; fileRef = ACCBA9342EDB65AB00531C3A /* RotaryKnobView.swift */; };
 		ACCBA9372EDB70AF00531C3A /* EqualizerSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = ACCBA9362EDB70AF00531C3A /* EqualizerSettings.swift */; };
@@ -202,6 +208,11 @@
 		ACB638963015E6E200FAEE2F /* MatchedGeometryIfAvailable.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MatchedGeometryIfAvailable.swift; sourceTree = "<group>"; };
 		ACC27B4B2ED8B2F10037273C /* AdaptiveLayout.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AdaptiveLayout.swift; sourceTree = "<group>"; };
 		ACC5FB66303D8DD0000BD975 /* PlaybackDetailsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaybackDetailsView.swift; sourceTree = "<group>"; };
+		ACC5FB68303DE60A000BD975 /* VersionHistoryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VersionHistoryView.swift; sourceTree = "<group>"; };
+		ACC5FB6A303DE61B000BD975 /* AboutView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AboutView.swift; sourceTree = "<group>"; };
+		ACC5FB6C303DE62F000BD975 /* SettingsRow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsRow.swift; sourceTree = "<group>"; };
+		ACC5FB6E303DF10B000BD975 /* version_history.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = version_history.json; sourceTree = "<group>"; };
+		ACC5FB70303DF20C000BD975 /* NetworkService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NetworkService.swift; sourceTree = "<group>"; };
 		ACCBA9322EDB5FFE00531C3A /* EqualizerViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EqualizerViewModel.swift; sourceTree = "<group>"; };
 		ACCBA9342EDB65AB00531C3A /* RotaryKnobView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RotaryKnobView.swift; sourceTree = "<group>"; };
 		ACCBA9362EDB70AF00531C3A /* EqualizerSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EqualizerSettings.swift; sourceTree = "<group>"; };
@@ -448,6 +459,7 @@
 				AC6F416F2E7FD05F00B5BE35 /* Assets.xcassets */,
 				AC6F41712E7FD05F00B5BE35 /* Info.plist */,
 				AC6F416C2E7FD05F00B5BE35 /* Preview Content */,
+				ACC5FB6E303DF10B000BD975 /* version_history.json */,
 			);
 			path = NaaPaata;
 			sourceTree = "<group>";
@@ -523,6 +535,9 @@
 				AC17AEE53017ACF100E4124D /* AppThemePickerView.swift */,
 				AC17AEF23018611100E4124D /* AppColourPickerView.swift */,
 				ACC5FB66303D8DD0000BD975 /* PlaybackDetailsView.swift */,
+				ACC5FB68303DE60A000BD975 /* VersionHistoryView.swift */,
+				ACC5FB6A303DE61B000BD975 /* AboutView.swift */,
+				ACC5FB6C303DE62F000BD975 /* SettingsRow.swift */,
 			);
 			path = Settings;
 			sourceTree = "<group>";
@@ -600,6 +615,7 @@
 				ACAB2BA72EBFC7D9005F84D8 /* PlaybackStateService.swift */,
 				CE7907DF2E92E5E9006D517C /* SongLibraryService.swift */,
 				AC50AE83303342050068EDEE /* DataService.swift */,
+				ACC5FB70303DF20C000BD975 /* NetworkService.swift */,
 			);
 			path = Services;
 			sourceTree = "<group>";
@@ -695,6 +711,7 @@
 			files = (
 				ACCBA9482EDC2EAF00531C3A /* Naa Paata.storekit in Resources */,
 				AC6F41792E7FD05F00B5BE35 /* Preview Assets.xcassets in Resources */,
+				ACC5FB6F303DF10B000BD975 /* version_history.json in Resources */,
 				AC6F417A2E7FD05F00B5BE35 /* Assets.xcassets in Resources */,
 				AC3A0F682E761869000CFC19 /* Launch Screen.storyboard in Resources */,
 			);
@@ -717,6 +734,7 @@
 			files = (
 				AC6F417C2E7FD05F00B5BE35 /* AlbumsView.swift in Sources */,
 				AC6774092EA2CAA70059C86C /* AlbumModel.swift in Sources */,
+				ACC5FB69303DE60A000BD975 /* VersionHistoryView.swift in Sources */,
 				ACEF0DE630237EF800D31928 /* CarPlaySceneDelegate.swift in Sources */,
 				ACB638973015E6E200FAEE2F /* MatchedGeometryIfAvailable.swift in Sources */,
 				ACB6388F3015E2E500FAEE2F /* AudioDocumentPicker.swift in Sources */,
@@ -746,6 +764,7 @@
 				AC6F41802E7FD05F00B5BE35 /* MP3FileCell.swift in Sources */,
 				AC17AEF33018611100E4124D /* AppColourPickerView.swift in Sources */,
 				AC17AEE83017AD0A00E4124D /* ThemeManager.swift in Sources */,
+				ACC5FB71303DF20C000BD975 /* NetworkService.swift in Sources */,
 				AC17AEEF3017BC6F00E4124D /* SearchView.swift in Sources */,
 				AC6F41812E7FD05F00B5BE35 /* MusicPlayerView.swift in Sources */,
 				ACB6388C3015197B00FAEE2F /* SettingsView.swift in Sources */,
@@ -771,6 +790,7 @@
 				ACB638913015E45400FAEE2F /* AddToPlaylistView.swift in Sources */,
 				AC8269AB2EB678D400722433 /* OnboardingView.swift in Sources */,
 				ACC27B4D2ED8B2F10037273C /* AdaptiveLayout.swift in Sources */,
+				ACC5FB6B303DE61B000BD975 /* AboutView.swift in Sources */,
 				AC6F41832E7FD05F00B5BE35 /* PlayListsView.swift in Sources */,
 				ACD23E292E9286BB0054344D /* PlaylistSongRowView.swift in Sources */,
 				AC17AEF53018C22900E4124D /* EqualizerBars.swift in Sources */,
@@ -778,6 +798,7 @@
 				ACCBA9352EDB65AB00531C3A /* RotaryKnobView.swift in Sources */,
 				ACD23E2D2E92871D0054344D /* EditPlaylistView.swift in Sources */,
 				ACAB2BAA2EBFC80B005F84D8 /* PlaybackStateModel.swift in Sources */,
+				ACC5FB6D303DE62F000BD975 /* SettingsRow.swift in Sources */,
 				ACF2E095302B6E970077042D /* AppDelegate.swift in Sources */,
 				ACCBA9372EDB70AF00531C3A /* EqualizerSettings.swift in Sources */,
 				AC6F41872E7FD26300B5BE35 /* MiniPlayerView.swift in Sources */,
@@ -812,6 +833,7 @@
 				AC50AE863033424A0068EDEE /* SleepTimerModel.swift in Sources */,
 				AC50AE7E302FA74A0068EDEE /* SettingsManager.swift in Sources */,
 				7E3561A2FEDA56E137ECF966 /* PlaybackStateService.swift in Sources */,
+				ACC5FB72303DF20C000BD975 /* NetworkService.swift in Sources */,
 				0C7A7AC8D107B9618242B0D7 /* AppColors.swift in Sources */,
 				E2A930898F320E6E242E9C8E /* ThemeManager.swift in Sources */,
 				AC50AE853033421C0068EDEE /* DataService.swift in Sources */,

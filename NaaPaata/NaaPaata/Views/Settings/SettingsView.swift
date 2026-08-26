@@ -5,105 +5,6 @@
 import SwiftUI
 import UniformTypeIdentifiers
 
-// MARK: - Custom Stepped Slider (UIViewRepresentable)
-struct SteppedSlider: UIViewRepresentable {
-    @Binding var value: Double
-    let range: ClosedRange<Double>
-    let step: Double
-    let steps: [Double]
-    let tintColor: Color
-    
-    func makeUIView(context: Context) -> UISlider {
-        let slider = UISlider()
-        slider.minimumValue = Float(range.lowerBound)
-        slider.maximumValue = Float(range.upperBound)
-        slider.isContinuous = true
-        slider.addTarget(context.coordinator,
-                         action: #selector(Coordinator.valueChanged(_:)),
-                         for: .valueChanged)
-        slider.tintColor = UIColor(tintColor)
-        return slider
-    }
-
-    func updateUIView(_ uiView: UISlider, context: Context) {
-        uiView.setValue(Float(value), animated: true)
-        uiView.tintColor = UIColor(AppColors.primary)
-    }
-
-    func makeCoordinator() -> Coordinator {
-        Coordinator(self)
-    }
-
-    class Coordinator: NSObject {
-        var parent: SteppedSlider
-
-        init(_ parent: SteppedSlider) {
-            self.parent = parent
-        }
-
-        @objc func valueChanged(_ sender: UISlider) {
-            let rawValue = Double(sender.value)
-            let steppedValue = parent.steps.min(by: { abs($0 - rawValue) < abs($1 - rawValue) }) ?? rawValue
-            parent.value = steppedValue
-        }
-    }
-}
-
-// MARK: - SteppedSlider with Dots and Labels (Perfectly Aligned)
-struct SteppedSliderWithLabels: View {
-    @Binding var value: Double
-    let range: ClosedRange<Double>
-    let step: Double
-    let labels: [String]
-    let valueFormatter: (Double) -> String
-    let tintColor: Color
-    
-    private var steps: [Double] {
-        stride(from: range.lowerBound, through: range.upperBound, by: step).map { $0 }
-    }
-
-    var body: some View {
-        GeometryReader { geometry in
-            VStack(alignment: .leading, spacing: 4) {
-                // Slider + Dots
-                ZStack(alignment: .leading) {
-                    SteppedSlider(value: $value, range: range, step: step, steps: steps, tintColor: tintColor)
-                        .frame(height: 30)
-                        .frame(width: geometry.size.width)
-
-                    // Dots at exact step positions
-                    ForEach(steps, id: \.self) { stepValue in
-                        let fraction = (stepValue - range.lowerBound) / (range.upperBound - range.lowerBound)
-                        let x = fraction * geometry.size.width
-                        Circle()
-                            .fill(AppColors.primary)
-                            .frame(width: 6, height: 6)
-                            .position(x: x, y: 15) // vertically centered on the slider
-                    }
-                }
-                .frame(height: 30)
-
-                // Labels – positioned at the exact same x coordinates
-                ZStack(alignment: .leading) {
-                    ForEach(steps.indices, id: \.self) { index in
-                        let stepValue = steps[index]
-                        let fraction = (stepValue - range.lowerBound) / (range.upperBound - range.lowerBound)
-                        let x = fraction * geometry.size.width
-                        let isSelected = abs(value - stepValue) < 0.001
-                        Text(labels[index])
-                            .font(.system(size: 11, weight: isSelected ? .bold : .regular))
-                            .foregroundColor(isSelected ? AppColors.primary : AppColors.textSecondary.opacity(0.6))
-                            .position(x: x, y: 10) // adjust vertical offset as needed
-                    }
-                }
-                .frame(height: 20)
-            }
-        }
-        .frame(height: 30 + 4 + 20)
-        .padding(.top, 6)
-    }
-}
-
 // MARK: - SettingsView
 struct SettingsView: View {
     @EnvironmentObject private var songsViewModel: SongsViewModel
@@ -114,7 +15,6 @@ struct SettingsView: View {
 
     @State private var isImporting = false
     @State private var showPaywall = false
-
 
     private let audioTypes: [UTType] = [
         .audio, .mp3,
@@ -205,26 +105,14 @@ struct SettingsView: View {
                             PlaybackDetailsView()
                                 .environmentObject(themeManager)
                         } label: {
-                            HStack(spacing: 14) {
-                                ZStack {
-                                    RoundedRectangle(cornerRadius: 10)
-                                        .fill(AppColors.primary.opacity(0.15))
-                                        .frame(width: 40, height: 40)
-                                    Image(systemName: "music.note")
-                                        .font(.system(size: 18, weight: .medium))
-                                        .foregroundColor(AppColors.primary)
-                                }
-                                VStack(alignment: .leading, spacing: 2) {
-                                    Text("Audio")
-                                        .font(.system(size: 16, weight: .medium))
-                                        .foregroundColor(AppColors.textPrimary)
-                                    Text("Crossfade, fade on Play/Pause, gapless playback")
-                                        .font(.system(size: 13))
-                                        .foregroundColor(AppColors.textSecondary)
-                                        .lineLimit(2)
-                                }
+                            SettingsRow(
+                                icon: "music.note",
+                                title: "Audio",
+                                subtitle: "Crossfade, fade on Play/Pause, gapless playback",
+                                tintColor: themeManager.current.color
+                            ) {
+                                EmptyView()
                             }
-                            .padding(.vertical, 4)
                         }
                         .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
                     } header: {
@@ -240,29 +128,16 @@ struct SettingsView: View {
                             AppThemePickerView()
                                 .environmentObject(themeManager)
                         } label: {
-                            HStack(spacing: 14) {
-                                ZStack {
-                                    RoundedRectangle(cornerRadius: 10)
-                                        .fill(AppColors.primary.opacity(0.15))
-                                        .frame(width: 40, height: 40)
-                                    Image(systemName: "sun.max.fill")
-                                        .font(.system(size: 18, weight: .medium))
-                                        .foregroundColor(AppColors.primary)
-                                }
-                                VStack(alignment: .leading, spacing: 2) {
-                                    Text("App Theme")
-                                        .font(.system(size: 16, weight: .medium))
-                                        .foregroundColor(AppColors.textPrimary)
-                                    Text("Light, Dark, or System")
-                                        .font(.system(size: 13))
-                                        .foregroundColor(AppColors.textSecondary)
-                                }
-                                Spacer()
+                            SettingsRow(
+                                icon: "sun.max.fill",
+                                title: "App Theme",
+                                subtitle: "Light, Dark, or System",
+                                tintColor: themeManager.current.color
+                            ) {
                                 Text(themeManager.colorScheme.label)
                                     .font(.system(size: 13, weight: .medium))
                                     .foregroundColor(AppColors.textSecondary)
                             }
-                            .padding(.vertical, 4)
                         }
                         .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
 
@@ -270,30 +145,17 @@ struct SettingsView: View {
                             AppColourPickerView()
                                 .environmentObject(themeManager)
                         } label: {
-                            HStack(spacing: 14) {
-                                ZStack {
-                                    RoundedRectangle(cornerRadius: 10)
-                                        .fill(AppColors.primary.opacity(0.15))
-                                        .frame(width: 40, height: 40)
-                                    Image(systemName: "paintpalette.fill")
-                                        .font(.system(size: 18, weight: .medium))
-                                        .foregroundColor(AppColors.primary)
-                                }
-                                VStack(alignment: .leading, spacing: 2) {
-                                    Text("App Colour")
-                                        .font(.system(size: 16, weight: .medium))
-                                        .foregroundColor(AppColors.textPrimary)
-                                    Text("Choose your app accent colour")
-                                        .font(.system(size: 13))
-                                        .foregroundColor(AppColors.textSecondary)
-                                }
-                                Spacer()
+                            SettingsRow(
+                                icon: "paintpalette.fill",
+                                title: "App Colour",
+                                subtitle: "Choose your app accent colour",
+                                tintColor: themeManager.current.color
+                            ) {
                                 Circle()
                                     .fill(themeManager.current.color)
                                     .frame(width: 16, height: 16)
                                     .shadow(color: themeManager.current.color.opacity(0.4), radius: 3)
                             }
-                            .padding(.vertical, 4)
                         }
                         .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
 
@@ -302,6 +164,86 @@ struct SettingsView: View {
                             .font(.system(size: 16, weight: .bold))
                             .foregroundColor(.secondary)
                             .textCase(.uppercase)
+                    }
+
+                    // MARK: - Support & Feedback Section
+                    Section {
+                        Button {
+                            rateApp()
+                        } label: {
+                            SettingsRow(
+                                icon: "star.fill",
+                                title: "Rate on App Store",
+                                tintColor: themeManager.current.color
+                            ) {
+                                Image(systemName: "arrow.up.right")
+                                    .font(.system(size: 13, weight: .semibold))
+                                    .foregroundColor(AppColors.textSecondary.opacity(0.5))
+                            }
+                        }
+                        .buttonStyle(.plain)
+
+                        Button {
+                            sendFeedback()
+                        } label: {
+                            SettingsRow(
+                                icon: "envelope.open.fill",
+                                title: "Provide your feedback",
+                                tintColor: themeManager.current.color
+                            ) {
+                                Image(systemName: "arrow.up.right")
+                                    .font(.system(size: 13, weight: .semibold))
+                                    .foregroundColor(AppColors.textSecondary.opacity(0.5))
+                            }
+                        }
+                        .buttonStyle(.plain)
+
+                    } header: {
+                        Text("Support & Feedback")
+                            .font(.system(size: 16, weight: .bold))
+                            .foregroundColor(.secondary)
+                            .textCase(.uppercase)
+                    }
+
+                    // MARK: - About Section
+                    Section {
+                        NavigationLink {
+                            VersionHistoryView()
+                        } label: {
+                            SettingsRow(
+                                icon: "clock.arrow.circlepath",
+                                title: "Version History",
+                                tintColor: themeManager.current.color
+                            ) {
+                                EmptyView()
+                            }
+                        }
+
+                        NavigationLink {
+                            AboutView()
+                        } label: {
+                            SettingsRow(
+                                icon: "info.circle",
+                                title: "About Naa Paata",
+                                tintColor: themeManager.current.color
+                            ) {
+                                EmptyView()
+                            }
+                        }
+                    } header: {
+                        Text("About")
+                            .font(.system(size: 16, weight: .bold))
+                            .foregroundColor(.secondary)
+                            .textCase(.uppercase)
+                    } footer: {
+                        VStack(spacing: 4) {
+                            Text("Carved Naa Paata with ♥")
+                                .font(.subheadline)
+                                .fontWeight(.heavy)
+                                .foregroundColor(.secondary)
+                        }
+                        .frame(maxWidth: .infinity, alignment: .center)
+                        .padding(.top, 8)
                     }
 
                     // MARK: - Premium Section
@@ -354,6 +296,25 @@ struct SettingsView: View {
                     .environmentObject(store)
             }
         }
+    }
+
+    // MARK: - rateApp
+
+    func rateApp() {
+        let appID = "6755621058"
+        guard let url = URL(string: "https://apps.apple.com/sa/app/naa-paata-music-player/id\(appID)") else { return }
+        UIApplication.shared.open(url)
+    }
+    
+    // MARK: - sendFeedback
+
+    func sendFeedback() {
+        let email = "techpalle2026@gmail.com"
+        let subject = "Feedback about Naa Paata"
+        let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "Unknown"
+        let body = "App Version: \(version)\n\n\n"
+        guard let url = URL(string: "mailto:\(email)?subject=\(subject.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? "")&body=\(body.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? "")") else { return }
+        UIApplication.shared.open(url)
     }
 }
 

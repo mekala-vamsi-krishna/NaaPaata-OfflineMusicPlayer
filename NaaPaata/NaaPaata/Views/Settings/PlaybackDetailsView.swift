@@ -7,6 +7,105 @@
 
 import SwiftUI
 
+// MARK: - Custom Stepped Slider
+
+struct SteppedSlider: UIViewRepresentable {
+    @Binding var value: Double
+    let range: ClosedRange<Double>
+    let step: Double
+    let steps: [Double]
+    let tintColor: Color
+    
+    func makeUIView(context: Context) -> UISlider {
+        let slider = UISlider()
+        slider.minimumValue = Float(range.lowerBound)
+        slider.maximumValue = Float(range.upperBound)
+        slider.isContinuous = true
+        slider.addTarget(context.coordinator,
+                         action: #selector(Coordinator.valueChanged(_:)),
+                         for: .valueChanged)
+        slider.tintColor = UIColor(tintColor)
+        return slider
+    }
+
+    func updateUIView(_ uiView: UISlider, context: Context) {
+        uiView.setValue(Float(value), animated: true)
+        uiView.tintColor = UIColor(tintColor)
+    }
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator(self)
+    }
+
+    class Coordinator: NSObject {
+        var parent: SteppedSlider
+
+        init(_ parent: SteppedSlider) {
+            self.parent = parent
+        }
+
+        @objc func valueChanged(_ sender: UISlider) {
+            let rawValue = Double(sender.value)
+            let steppedValue = parent.steps.min(by: { abs($0 - rawValue) < abs($1 - rawValue) }) ?? rawValue
+            parent.value = steppedValue
+        }
+    }
+}
+
+// MARK: - SteppedSlider with Dots and Labels
+
+struct SteppedSliderWithLabels: View {
+    @Binding var value: Double
+    let range: ClosedRange<Double>
+    let step: Double
+    let labels: [String]
+    let valueFormatter: (Double) -> String
+    let tintColor: Color
+    
+    private var steps: [Double] {
+        stride(from: range.lowerBound, through: range.upperBound, by: step).map { $0 }
+    }
+
+    var body: some View {
+        GeometryReader { geometry in
+            VStack(alignment: .leading, spacing: 4) {
+                ZStack(alignment: .leading) {
+                    SteppedSlider(value: $value, range: range, step: step, steps: steps, tintColor: tintColor)
+                        .frame(height: 30)
+                        .frame(width: geometry.size.width)
+
+                    ForEach(steps, id: \.self) { stepValue in
+                        let fraction = (stepValue - range.lowerBound) / (range.upperBound - range.lowerBound)
+                        let x = fraction * geometry.size.width
+                        Circle()
+                            .fill(tintColor)
+                            .frame(width: 6, height: 6)
+                            .position(x: x, y: 15)
+                    }
+                }
+                .frame(height: 30)
+
+                ZStack(alignment: .leading) {
+                    ForEach(steps.indices, id: \.self) { index in
+                        let stepValue = steps[index]
+                        let fraction = (stepValue - range.lowerBound) / (range.upperBound - range.lowerBound)
+                        let x = fraction * geometry.size.width
+                        let isSelected = abs(value - stepValue) < 0.001
+                        Text(labels[index])
+                            .font(.system(size: 11, weight: isSelected ? .bold : .regular))
+                            .foregroundColor(isSelected ? tintColor : AppColors.textSecondary.opacity(0.6))
+                            .position(x: x, y: 10)
+                    }
+                }
+                .frame(height: 20)
+            }
+        }
+        .frame(height: 30 + 4 + 20)
+        .padding(.top, 6)
+    }
+}
+
+// MARK: - PlaybackDetailsView
 
 struct PlaybackDetailsView: View {
     @StateObject var settings = SettingsManager.shared
