@@ -68,7 +68,9 @@ struct NaaPaataApp: App {
             fatalError("ModelContainer is not available")
         }
         self.container = container
-
+        if let documentsPath = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first?.path {
+            print("===> Documents directory:\n\(documentsPath)")
+        }
         // Instantiate services and view models
         let context = container.mainContext
         self.dataService = DataService(modelContext: context)
@@ -142,7 +144,7 @@ struct NaaPaataApp: App {
                             }
                         }
                 } else {
-                    InstructionView()
+                    OnboardingView()
                         .environmentObject(musicPlayerManager)
                         .environmentObject(themeManager)
                 }

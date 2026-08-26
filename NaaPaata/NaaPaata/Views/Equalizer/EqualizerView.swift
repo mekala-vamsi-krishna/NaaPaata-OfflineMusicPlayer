@@ -11,21 +11,17 @@ extension EqualizerView {
     private var LockedView: some View {
         VStack(spacing: 20) {
             Spacer()
-
             Image(systemName: "lock.shield.fill")
                 .font(.system(size: 54))
                 .foregroundColor(AppColors.primary)
-
             Text("Unlock Equalizer")
                 .font(.title.bold())
                 .foregroundColor(AppColors.textPrimary)
-
             Text("Subscribe to enable the Equalizer and enjoy enhanced audio quality.")
                 .font(.subheadline)
                 .multilineTextAlignment(.center)
                 .foregroundColor(.secondary)
                 .padding(.horizontal, 26)
-
             Button(action: { showPaywall = true }) {
                 Text("Get Premium")
                     .font(.headline)
@@ -36,14 +32,12 @@ extension EqualizerView {
                     .cornerRadius(12)
             }
             .padding(.horizontal, 26)
-
             Button("Restore Purchases") {
                 Task { await store.restorePurchases() }
             }
             .padding(.top, 4)
             .font(.subheadline)
             .foregroundColor(.secondary)
-
             Spacer()
         }
         .padding()
@@ -52,13 +46,14 @@ extension EqualizerView {
 
 extension EqualizerView {
     private var PremiumEqualizerContent: some View {
-        ZStack {
+        GeometryReader { geo in
+            ZStack {
                 // Background
                 if colorScheme == .dark {
                     LinearGradient(
                         colors: [
                             AppColors.background,
-                            Color(hex: "#1A1A2E"), // Deep dark blue/purple
+                            Color(hex: "#1A1A2E"),
                             AppColors.primary.opacity(0.1)
                         ],
                         startPoint: .topLeading,
@@ -69,12 +64,12 @@ extension EqualizerView {
                     Color(UIColor.systemGroupedBackground)
                         .ignoresSafeArea()
                 }
-                
+
                 VStack(spacing: 0) {
                     // Header / Toggle
                     HStack {
                         Text("Equalizer")
-                            .font(.system(size: 34, weight: .bold, design: .rounded))
+                            .font(.system(size: geo.size.width > 600 ? 40 : 34, weight: .bold, design: .rounded))
                             .foregroundStyle(
                                 LinearGradient(
                                     colors: [AppColors.textPrimary, AppColors.primary],
@@ -82,9 +77,7 @@ extension EqualizerView {
                                     endPoint: .trailing
                                 )
                             )
-                        
                         Spacer()
-                        
                         Toggle("", isOn: $viewModel.isEnabled)
                             .labelsHidden()
                             .tint(AppColors.primary)
@@ -92,13 +85,12 @@ extension EqualizerView {
                     .padding(.horizontal)
                     .padding(.top)
                     .padding(.bottom, 10)
-                    
+
                     ScrollView(showsIndicators: false) {
-                        VStack(spacing: 12) {
-                            
-                            // 1. Presets (Top)
+                        VStack(spacing: geo.size.width > 600 ? 20 : 12) {
+                            // 1. Presets
                             ScrollView(.horizontal, showsIndicators: false) {
-                                HStack(spacing: 12) {
+                                HStack(spacing: geo.size.width > 600 ? 16 : 12) {
                                     ForEach(viewModel.presets, id: \.self) { preset in
                                         Button(action: {
                                             withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
@@ -106,9 +98,9 @@ extension EqualizerView {
                                             }
                                         }) {
                                             Text(preset)
-                                                .font(.system(size: 14, weight: viewModel.selectedPreset == preset ? .bold : .medium))
-                                                .padding(.horizontal, 16)
-                                                .padding(.vertical, 10)
+                                                .font(.system(size: geo.size.width > 600 ? 16 : 14, weight: viewModel.selectedPreset == preset ? .bold : .medium))
+                                                .padding(.horizontal, geo.size.width > 600 ? 24 : 16)
+                                                .padding(.vertical, geo.size.width > 600 ? 14 : 10)
                                                 .background(
                                                     Capsule()
                                                         .fill(
@@ -145,40 +137,44 @@ extension EqualizerView {
                                 }
                                 .padding(.horizontal)
                             }
-                            
-                            // 2. Rotary Knobs (Middle)
-                            HStack(spacing: 30) {
+
+                            // 2. Rotary Knobs
+                            HStack(spacing: geo.size.width > 600 ? 50 : 30) {
                                 RotaryKnobView(title: "Pre-Amp", value: $viewModel.preAmpValue, isEnabled: $viewModel.isPreAmpEnabled)
+                                    .frame(width: geo.size.width > 600 ? 100 : 80)
                                 RotaryKnobView(title: "Bass", value: $viewModel.bassValue, isEnabled: $viewModel.isBassEnabled)
+                                    .frame(width: geo.size.width > 600 ? 100 : 80)
                                 RotaryKnobView(title: "Treble", value: $viewModel.trebleValue, isEnabled: $viewModel.isTrebleEnabled)
+                                    .frame(width: geo.size.width > 600 ? 100 : 80)
                             }
                             .padding(.horizontal)
                             .opacity(viewModel.isEnabled ? 1 : 0.5)
                             .disabled(!viewModel.isEnabled)
-                            
-                            // 3. Frequency Sliders (In Container)
+
+                            // 3. Frequency Sliders (adaptive height & width)
                             VStack(spacing: 8) {
                                 Text("Frequency Bands")
-                                    .font(.system(size: 14, weight: .semibold))
+                                    .font(.system(size: geo.size.width > 600 ? 18 : 14, weight: .semibold))
                                     .foregroundColor(AppColors.textPrimary)
                                     .frame(maxWidth: .infinity, alignment: .leading)
                                     .padding(.horizontal)
-                                
-                                HStack(spacing: 12) {
+
+                                // Determine slider height based on screen size
+                                let sliderHeight: CGFloat = geo.size.width > 600 ? 220 : 160
+                                let sliderWidth: CGFloat = geo.size.width > 600 ? max(40, (geo.size.width - 80) / 9) : 30
+
+                                HStack(spacing: geo.size.width > 600 ? 16 : 12) {
                                     ForEach(0..<viewModel.bands.count, id: \.self) { index in
                                         VStack(spacing: 16) {
-                                            // dB Label Top
                                             Text("+12")
-                                                .font(.system(size: 9, weight: .medium))
+                                                .font(.system(size: geo.size.width > 600 ? 11 : 9, weight: .medium))
                                                 .foregroundColor(AppColors.textSecondary.opacity(0.7))
-                                            
+
                                             ZStack(alignment: .bottom) {
-                                                // Track
                                                 Capsule()
                                                     .fill(colorScheme == .dark ? Color.white.opacity(0.05) : Color.black.opacity(0.03))
-                                                    .frame(width: 4, height: 160)
-                                                
-                                                // Fill (Glowing)
+                                                    .frame(width: 4, height: sliderHeight)
+
                                                 Capsule()
                                                     .fill(
                                                         LinearGradient(
@@ -187,41 +183,39 @@ extension EqualizerView {
                                                             endPoint: .top
                                                         )
                                                     )
-                                                    .frame(width: 4, height: 80 + (CGFloat(viewModel.bands[index]) * 6.6))
+                                                    .frame(width: 4, height: (sliderHeight / 2) + (CGFloat(viewModel.bands[index]) * (sliderHeight / 24)))
                                                     .shadow(color: AppColors.primary.opacity(0.5), radius: 4, x: 0, y: 0)
-                                                
-                                                // Thumb (Minimalist)
+
                                                 Circle()
                                                     .fill(Color.white)
-                                                    .frame(width: 12, height: 12)
+                                                    .frame(width: geo.size.width > 600 ? 16 : 12, height: geo.size.width > 600 ? 16 : 12)
                                                     .shadow(color: .black.opacity(0.2), radius: 2, x: 0, y: 1)
-                                                    .offset(y: -(80 + (CGFloat(viewModel.bands[index]) * 6.6)))
+                                                    .offset(y: -((sliderHeight / 2) + (CGFloat(viewModel.bands[index]) * (sliderHeight / 24))))
                                                     .padding(.bottom, 0)
                                             }
                                             .gesture(
                                                 DragGesture()
                                                     .onChanged { value in
-                                                        let height = 160.0
-                                                        let y = min(max(0, 160 - value.location.y), height)
-                                                        let normalized = (y / height) * 24 - 12 // -12 to +12 range
+                                                        let y = min(max(0, sliderHeight - value.location.y), sliderHeight)
+                                                        let normalized = (y / sliderHeight) * 24 - 12
                                                         viewModel.bandChanged(index: index, value: Double(normalized))
                                                     }
                                             )
-                                            
-                                            // Frequency Label
+
                                             Text(viewModel.frequencies[index])
-                                                .font(.system(size: 10, weight: .bold))
+                                                .font(.system(size: geo.size.width > 600 ? 12 : 10, weight: .bold))
                                                 .foregroundColor(AppColors.textSecondary)
-                                                .rotationEffect(.degrees(-90))
-                                                .frame(height: 30)
+                                                .rotationEffect(.degrees(geo.size.width > 600 ? 0 : -90))
+                                                .frame(width: geo.size.width > 600 ? 40 : 30, height: geo.size.width > 600 ? 20 : 30)
+                                                .multilineTextAlignment(.center)
                                         }
-                                        .frame(minWidth: 30)
+                                        .frame(minWidth: sliderWidth)
                                     }
                                 }
                                 .padding(.horizontal)
                                 .frame(maxWidth: .infinity, alignment: .center)
                             }
-                            .padding(16)
+                            .padding(geo.size.width > 600 ? 24 : 16)
                             .background(
                                 RoundedRectangle(cornerRadius: 20)
                                     .fill(colorScheme == .dark ? Color.white.opacity(0.05) : Color.black.opacity(0.03))
@@ -230,41 +224,36 @@ extension EqualizerView {
                             .padding(.top, 10)
                             .opacity(viewModel.isEnabled ? 1 : 0.5)
                             .disabled(!viewModel.isEnabled)
-                            
+
                             // 4. Volume Control
                             VStack(spacing: 12) {
                                 HStack {
                                     Image(systemName: "speaker.fill")
-                                        .font(.system(size: 16))
+                                        .font(.system(size: geo.size.width > 600 ? 20 : 16))
                                         .foregroundColor(AppColors.textSecondary)
-                                    
                                     Text("Volume")
-                                        .font(.system(size: 14, weight: .semibold))
+                                        .font(.system(size: geo.size.width > 600 ? 16 : 14, weight: .semibold))
                                         .foregroundColor(AppColors.textPrimary)
-                                    
                                     Spacer()
-                                    
                                     Text("\(Int(viewModel.volume * 100))%")
-                                        .font(.system(size: 13, weight: .medium, design: .monospaced))
+                                        .font(.system(size: geo.size.width > 600 ? 16 : 13, weight: .medium, design: .monospaced))
                                         .foregroundColor(AppColors.textSecondary)
                                 }
                                 .padding(.horizontal)
-                                
+
                                 HStack(spacing: 12) {
                                     Image(systemName: "speaker.wave.1.fill")
-                                        .font(.system(size: 14))
+                                        .font(.system(size: geo.size.width > 600 ? 18 : 14))
                                         .foregroundColor(AppColors.textSecondary.opacity(0.7))
-                                    
                                     Slider(value: $viewModel.volume, in: 0...1)
                                         .tint(AppColors.primary)
-                                    
                                     Image(systemName: "speaker.wave.3.fill")
-                                        .font(.system(size: 14))
+                                        .font(.system(size: geo.size.width > 600 ? 18 : 14))
                                         .foregroundColor(AppColors.textSecondary.opacity(0.7))
                                 }
                                 .padding(.horizontal)
                             }
-                            .padding(16)
+                            .padding(geo.size.width > 600 ? 24 : 16)
                             .background(
                                 RoundedRectangle(cornerRadius: 20)
                                     .fill(colorScheme == .dark ? Color.white.opacity(0.05) : Color.black.opacity(0.03))
@@ -275,6 +264,7 @@ extension EqualizerView {
                         .padding(.bottom, 80)
                     }
                 }
+            }
         }
         .navigationBarTitleDisplayMode(.inline)
     }
@@ -304,6 +294,9 @@ struct EqualizerView: View {
                 .environmentObject(store)
         }
         .animation(.easeInOut, value: store.isPremimumUser)
+        .navigationTitle(store.isPremimumUser ? "Equalizer" : "")
+        .navigationBarTitleDisplayMode(.inline)
+        .navigationBarBackButtonHidden(false)
     }
 }
 

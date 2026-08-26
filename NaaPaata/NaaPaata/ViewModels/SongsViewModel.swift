@@ -53,11 +53,16 @@ final class SongsViewModel: ObservableObject {
                 self.loadingProgress = progress
             }
         }
+        
+        try? await Task.sleep(nanoseconds: 100_000_000)
+
         await MainActor.run {
             songs = fetchedSongs
             sortSongs(by: currentSort)
             isLoading = false
             loadingProgress = 1.0
+            
+            MusicPlayerManager.shared.ensureEngineReady()
             musicManager.setPlaylist(songs)
         }
     }

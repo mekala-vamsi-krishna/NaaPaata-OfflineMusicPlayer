@@ -11,6 +11,7 @@ import AVFoundation
 import UIKit
 
 /// The one service that handles everything related to loading songs from disk.
+@MainActor
 final class SongLibraryService {
     private let dataService: DataServiceProtocol
     
