@@ -73,12 +73,7 @@ struct AlbumDetailsView: View {
                 // Songs List
                 VStack(spacing: 0) {
                     ForEach(Array(sortedSongs.enumerated()), id: \.1.id) { index, song in
-                        SongRow(
-                            song: song,
-                            index: index + 1,
-                            isSelected: musicPlayerManager.currentSong == song && musicPlayerManager.isPlaying
-                        )
-                        .onTapGesture {
+                        SongRow(song: song, index: index + 1, isSelected: musicPlayerManager.currentSong == song && musicPlayerManager.isPlaying) {
                             musicPlayerManager.playFromAllSongs(sortedSongs, startAt: song, fromPlaylist: title)
                             showFullPlayer = true
                         }
@@ -135,44 +130,48 @@ struct SongRow: View {
     let song: Song
     let index: Int
     let isSelected: Bool
-    
+    let action: () -> Void
+
     var body: some View {
-        HStack(spacing: 16) {
-            // Track number or playing waveform
-            Text("\(index)")
-                .font(.subheadline)
-                .foregroundColor(AppColors.textSecondary)
-                .frame(width: 32)
-            
-            // Song title and artist
-            VStack(alignment: .leading, spacing: 2) {
-                Text(song.title)
-                    .font(.body)
-                    .foregroundColor(.primary)
-                    .lineLimit(1)
+        Button(action: action) {
+            HStack(spacing: 16) {
+                // Track number or playing waveform
+                Text("\(index)")
+                    .font(.subheadline)
+                    .foregroundColor(AppColors.textSecondary)
+                    .frame(width: 32)
                 
-                Text(song.artist)
+                // Song title and artist
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(song.title)
+                        .font(.body)
+                        .foregroundColor(.primary)
+                        .lineLimit(1)
+                    
+                    Text(song.artist)
+                        .font(.caption)
+                        .foregroundColor(AppColors.textSecondary)
+                        .lineLimit(1)
+                }
+                
+                Spacer()
+                
+                if musicPlayerManager.currentSong == song {
+                    EqualizerBars(isPlaying: musicPlayerManager.isPlaying)
+                        .frame(width: 20, height: 20)
+                }
+                
+                // Duration
+                Text(formatTime(song.duration))
                     .font(.caption)
                     .foregroundColor(AppColors.textSecondary)
-                    .lineLimit(1)
             }
-            
-            Spacer()
-            
-            if musicPlayerManager.currentSong == song {
-                EqualizerBars(isPlaying: musicPlayerManager.isPlaying)
-                    .frame(width: 20, height: 20)
-            }
-            
-            // Duration
-            Text(formatTime(song.duration))
-                .font(.caption)
-                .foregroundColor(AppColors.textSecondary)
+            .padding(.horizontal, 20)
+            .padding(.vertical, 12)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(isSelected ? Color.black.opacity(0.1) : Color.clear)
+            .animation(.spring(response: 0.3), value: isSelected)
         }
-        .padding(.horizontal, 20)
-        .padding(.vertical, 12)
-        .background(isSelected ? Color.black.opacity(0.1) : Color.clear)
-        .animation(.spring(response: 0.3), value: isSelected)
     }
     
     private func formatTime(_ seconds: TimeInterval) -> String {

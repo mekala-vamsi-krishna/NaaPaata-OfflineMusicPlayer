@@ -88,6 +88,8 @@ final class MusicPlayerManager: NSObject, ObservableObject {
     private var playbackToken: UUID?
     private var timer: Timer?
     private var pendingAutomaticTransition: DispatchWorkItem?
+    
+    private var isEngineReady = false
 
     // Fade control
     private var fadeTimer: Timer?
@@ -130,7 +132,6 @@ final class MusicPlayerManager: NSObject, ObservableObject {
     
     override init() {
         super.init()
-        setupAudioEngine()
         setupNotifications()
         setupWidgetCommandObserver()
         handleWidgetCommand()
@@ -145,6 +146,7 @@ final class MusicPlayerManager: NSObject, ObservableObject {
     
     // MARK: - Audio Engine Setup
     private func setupAudioEngine() {
+        guard engine == nil else { return }
         engine = AVAudioEngine()
         playerNode = AVAudioPlayerNode()
         secondaryPlayerNode = AVAudioPlayerNode()
@@ -175,6 +177,12 @@ final class MusicPlayerManager: NSObject, ObservableObject {
         engine.connect(engine.mainMixerNode, to: equalizer, format: nil)
         engine.connect(equalizer, to: engine.outputNode, format: nil)
         setupAudioSession()
+    }
+    
+    func ensureEngineReady() {
+        guard !isEngineReady else { return }
+        setupAudioEngine()
+        isEngineReady = true
     }
     
     private func setupNotifications() {
