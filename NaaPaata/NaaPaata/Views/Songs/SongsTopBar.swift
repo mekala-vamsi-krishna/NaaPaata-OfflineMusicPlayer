@@ -19,11 +19,6 @@ struct SongsTopBar: View {
                 .padding(.leading, 5)
 
             Spacer()
-            
-            if viewModel.isRefreshing {
-                AnimatedDotsLoader()
-            }
-            
             Spacer()
 
             HStack(spacing: 20) {

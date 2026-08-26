@@ -182,7 +182,7 @@ extension EqualizerView {
                                                 Capsule()
                                                     .fill(
                                                         LinearGradient(
-                                                            colors: [AppColors.primary, AppColors.secondary],
+                                                            colors: [AppColors.primary, AppColors.primary],
                                                             startPoint: .bottom,
                                                             endPoint: .top
                                                         )

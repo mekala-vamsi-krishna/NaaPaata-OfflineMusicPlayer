@@ -1,5 +1,5 @@
 //
-//  ContentView.swift
+//  SongsView.swift
 //  NaaPaata
 //
 //  Created by Mekala Vamsi Krishna on 9/13/25.
@@ -12,8 +12,13 @@ struct SongsView: View {
     @EnvironmentObject var viewModel: SongsViewModel
     @EnvironmentObject var playlistsViewModel: PlaylistsViewModel
     @EnvironmentObject var tabState: TabState
+
     @State private var showingInstruction = false
     @State private var navigateToEqualizer = false
+
+    // NEW: Album navigation state
+    @State private var showAlbumDetail = false
+    @State private var selectedAlbum: (title: String, artwork: UIImage?, songs: [Song])?
 
     var body: some View {
         NavigationStack {
@@ -30,7 +35,6 @@ struct SongsView: View {
                 .ignoresSafeArea()
                 
                 if viewModel.isLoading {
-                    // Show animated dots loader during initial load
                     VStack(spacing: 20) {
                         AnimatedDotsLoader()
                         Text("Loading songs...")
@@ -89,7 +93,10 @@ struct SongsView: View {
                             Button {
                                 viewModel.play(song)
                             } label: {
-                                MP3FileCell(song: song)
+                                MP3FileCell(song: song) { title, artwork, songs in
+                                    selectedAlbum = (title, artwork, songs)
+                                    showAlbumDetail = true
+                                }
                             }
                             .listRowSeparator(.hidden)
                             .listRowBackground(Color.clear)
@@ -97,6 +104,9 @@ struct SongsView: View {
                     }
                     .listStyle(.plain)
                     .scrollContentBackground(.hidden)
+                    .safeAreaInset(edge: .bottom) {
+                        Color.clear.frame(height: 60)
+                    }
                 }
             }
             .navigationTitle("Naa Paata ♪")
@@ -115,10 +125,11 @@ struct SongsView: View {
             .navigationDestination(isPresented: $navigateToEqualizer) {
                 EqualizerView()
             }
+            .navigationDestination(isPresented: $showAlbumDetail) {
+                if let album = selectedAlbum {
+                    AlbumDetailsView(title: album.title, artwork: album.artwork, songs: album.songs)
+                }
+            }
         }
     }
-}
-
-#Preview {
-    SongsView()
 }

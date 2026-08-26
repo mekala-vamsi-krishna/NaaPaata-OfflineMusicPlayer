@@ -2,68 +2,88 @@
 //  NaaPaataApp.swift
 //  NaaPaata
 //
-//  Created by Mekala Vamsi Krishna on 9/13/25.
-//
 
 import SwiftUI
 import SwiftData
 
 @main
 struct NaaPaataApp: App {
+    @UIApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
+
     @Environment(\.scenePhase) private var scenePhase
-    
+
     @AppStorage("hasCompletedOnboarding") var hasCompletedOnboarding = false
-    
+
     @ObservedObject private var tabState = TabState()
-    
+
     @StateObject private var musicPlayerManager = MusicPlayerManager.shared
     @StateObject private var sleepTimerManager = SleepTimerManager.shared
     @StateObject private var themeManager = ThemeManager.shared
-
-    @StateObject private var songsViewModel = SongsViewModel()
-    @StateObject private var albumsViewModel = AlbumsViewModel()
-    @StateObject private var playlistsViewModel = PlaylistsViewModel()
     @StateObject private var storeKitManager = StoreManager()
-    
-    // MARK: - Widget Action Flag
-//    @State private var isWidgetAction = false
-    
-    // MARK: - SwiftData Container
+
+    // MARK: - Dependencies
     let container: ModelContainer
-    
+    let dataService: DataServiceProtocol
+    let libraryService: SongLibraryService
+    let songsViewModel: SongsViewModel
+    let albumsViewModel: AlbumsViewModel
+    let playlistsViewModel: PlaylistsViewModel
+
     init() {
-        // Setup SwiftData with all models
         let config = ModelConfiguration("NaaPaata")
+        let containerResult: Result<ModelContainer, Error>
+
         do {
-            container = try ModelContainer(
+            let container = try ModelContainer(
                 for: Song.self,
                 Playlist.self,
                 SleepTimerModel.self,
                 configurations: config
             )
-            PlaylistManager.shared.setModelContainer(container)
+            containerResult = .success(container)
         } catch {
-            // Attempt to recover by deleting corrupted database files
             let storeURL = config.url
-            let urlsToRemove = [storeURL, storeURL.appendingPathExtension("shm"), storeURL.appendingPathExtension("wal")]
+            let urlsToRemove = [
+                storeURL,
+                storeURL.appendingPathExtension("shm"),
+                storeURL.appendingPathExtension("wal")
+            ]
             for url in urlsToRemove {
                 try? FileManager.default.removeItem(at: url)
             }
             do {
-                container = try ModelContainer(
+                let container = try ModelContainer(
                     for: Song.self,
                     Playlist.self,
                     SleepTimerModel.self,
                     configurations: config
                 )
-                PlaylistManager.shared.setModelContainer(container)
+                containerResult = .success(container)
             } catch {
                 fatalError("Failed to initialize ModelContainer after reset: \(error)")
             }
         }
+
+        guard case .success(let container) = containerResult else {
+            fatalError("ModelContainer is not available")
+        }
+        self.container = container
+
+        // Instantiate services and view models
+        let context = container.mainContext
+        self.dataService = DataService(modelContext: context)
+        self.libraryService = SongLibraryService(dataService: dataService)
+        self.songsViewModel = SongsViewModel(libraryService: libraryService, dataService: dataService)
+        self.albumsViewModel = AlbumsViewModel()
+        self.playlistsViewModel = PlaylistsViewModel(dataService: dataService)
+
+        AppDelegate.dataService = dataService
+        AppDelegate.songLibraryService = libraryService
+        AppDelegate.songsViewModel = songsViewModel
+        AppDelegate.albumsViewModel = albumsViewModel
+        AppDelegate.playlistsViewModel = playlistsViewModel
     }
-    
-    // MARK: - Scene
+
     var body: some Scene {
         WindowGroup {
             Group {
@@ -78,17 +98,14 @@ struct NaaPaataApp: App {
                         .environmentObject(sleepTimerManager)
                         .environmentObject(themeManager)
                         .onAppear {
-                            // Set up model contexts for view models
-                            songsViewModel.setup(modelContext: container.mainContext)
-                            albumsViewModel.setup(modelContext: container.mainContext)
                             sleepTimerManager.setup(modelContext: container.mainContext)
-                            
-                            // Load songs & albums from cache (async)
+
                             Task {
                                 await songsViewModel.loadSongs()
-                                await albumsViewModel.loadAlbums()
+                                albumsViewModel.fetchAlbums(from: songsViewModel.songs)
+                                playlistsViewModel.loadPlaylists()
                             }
-                            
+
                             // Migration: ensure all songs have relativePath
                             Task {
                                 let context = container.mainContext
@@ -113,7 +130,6 @@ struct NaaPaataApp: App {
                         }
                         .onOpenURL { url in
                             guard url.scheme == "naapaata" else { return }
-                            
                             switch url.host {
                             case "playpause":
                                 MusicPlayerManager.shared.togglePlayPause()
@@ -126,7 +142,7 @@ struct NaaPaataApp: App {
                             }
                         }
                 } else {
-                    OnboardingView()
+                    InstructionView()
                         .environmentObject(musicPlayerManager)
                         .environmentObject(themeManager)
                 }
@@ -140,7 +156,6 @@ struct NaaPaataApp: App {
             case .background:
                 musicPlayerManager.saveCurrentPlaybackState()
             case .active:
-                musicPlayerManager.restoreLastPlaybackState()
                 Task {
                     await storeKitManager.loadProducts()
                     await storeKitManager.updateSubscriptionStatus()

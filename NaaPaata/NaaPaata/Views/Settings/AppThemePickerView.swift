@@ -57,9 +57,6 @@ struct AppThemePickerView: View {
                     }
                 } header: {
                     Text("App Theme")
-                        .font(.system(size: 14, weight: .medium))
-                        .foregroundColor(.secondary)
-                        .textCase(nil)
                 } footer: {
                     Text("Light and Dark override the system setting. System follows your device's appearance automatically.")
                         .font(.system(size: 11))

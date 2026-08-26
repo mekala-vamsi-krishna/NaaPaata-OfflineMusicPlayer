@@ -1,4 +1,3 @@
-
 //
 //  AddToPlaylistView.swift
 //  NaaPaata
@@ -12,6 +11,7 @@ struct AddToPlaylistView: View {
     let song: Song
     @Environment(\.dismiss) var dismiss
     @EnvironmentObject var musicManager: MusicPlayerManager
+    @EnvironmentObject var playlistsViewModel: PlaylistsViewModel   // ✅ Injected
 
     @State private var playlists: [Playlist] = []
     @State private var selectedPlaylistIDs: Set<UUID> = []
@@ -24,9 +24,8 @@ struct AddToPlaylistView: View {
     var body: some View {
         NavigationStack {
             VStack(spacing: 0) {
-                // MARK: - Header Card (Song being added)
+                // MARK: - Header Card
                 HStack(spacing: 12) {
-                    // Artwork
                     if let artwork = songArtwork {
                         Image(uiImage: artwork)
                             .resizable()
@@ -71,7 +70,7 @@ struct AddToPlaylistView: View {
                 .padding(.top, 8)
                 .padding(.bottom, 4)
 
-                // MARK: - Playlist List (Custom ScrollView)
+                // MARK: - Playlist List
                 if playlists.isEmpty {
                     Spacer()
                     VStack(spacing: 20) {
@@ -133,9 +132,7 @@ struct AddToPlaylistView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") {
-                        dismiss()
-                    }
+                    Button("Cancel") { dismiss() }
                 }
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Done") {
@@ -168,10 +165,11 @@ struct AddToPlaylistView: View {
                         let trimmedName = newPlaylistName.trimmingCharacters(in: .whitespaces)
                         guard !trimmedName.isEmpty else { return }
 
-                        let currentPlaylists = PlaylistManager.shared.getAllPlaylists()
+                        // Use the view model to create the playlist
+                        let existing = playlistsViewModel.getAllPlaylists()
                         var uniqueName = trimmedName
                         var counter = 1
-                        while currentPlaylists.contains(where: { $0.name == uniqueName }) {
+                        while existing.contains(where: { $0.name == uniqueName }) {
                             uniqueName = "\(trimmedName) (\(counter))"
                             counter += 1
                         }
@@ -182,11 +180,11 @@ struct AddToPlaylistView: View {
                             desc: newPlaylistDescription,
                             dateCreated: Date()
                         )
-                        PlaylistManager.shared.savePlaylist(newPlaylist)
-
-                        if let created = PlaylistManager.shared.loadPlaylist(name: uniqueName) {
-                            let _ = PlaylistManager.shared.addSongToPlaylist(song, playlist: created)
-                            ToastManager.shared.showToast(message: "Song added to \(created.name) playlist")
+                        
+                        playlistsViewModel.updatePlaylist(newPlaylist)
+                        
+                        if let created = playlistsViewModel.getPlaylist(id: newPlaylist.id) {
+                            playlistsViewModel.addSongToPlaylist(song, to: created)
                         }
 
                         newPlaylistName = ""
@@ -201,8 +199,10 @@ struct AddToPlaylistView: View {
         .presentationDragIndicator(.visible)
     }
 
+    // MARK: - Helpers
+
     private func loadPlaylists() {
-        playlists = PlaylistManager.shared.getAllPlaylists()
+        playlists = playlistsViewModel.getAllPlaylists()
         let preSelected = Set(
             playlists
                 .filter { $0.songPaths.contains(song.relativePath) }
@@ -216,9 +216,8 @@ struct AddToPlaylistView: View {
         let toAdd = selectedPlaylistIDs.subtracting(initialSelectedIDs)
         let toRemove = initialSelectedIDs.subtracting(selectedPlaylistIDs)
 
-        // Batch add — single context, single save
         if !toAdd.isEmpty {
-            let results = PlaylistManager.shared.addSongToPlaylists(song, playlistIDs: toAdd)
+            let results = playlistsViewModel.addSongToPlaylists(song, playlistIDs: toAdd)
             let addedNames = playlists
                 .filter { results[$0.id] == .added }
                 .map { $0.name }
@@ -229,9 +228,8 @@ struct AddToPlaylistView: View {
             }
         }
 
-        // Batch remove — single context, single save
         if !toRemove.isEmpty {
-            PlaylistManager.shared.removeSongFromPlaylists(song, playlistIDs: toRemove)
+            playlistsViewModel.removeSongFromPlaylists(song, playlistIDs: toRemove)
         }
     }
 

@@ -1,0 +1,112 @@
+[
+  {
+    "version": "5.0.0",
+    "date": "August 2026",
+    "sections": {
+      "newFeatures": [
+        "Import from Files in Settings",
+        "Go to album directly from any song",
+        "Add songs to multiple playlists at once with a single click",
+        "Enhanced Music Player view with refined controls",
+        "Theme switching (Light, Dark, System) with smoother transitions",
+        "App Colour picker to customise the app with your own choosen color",
+        "Crossfade, fade on Play/Pause, and gapless playback features added",
+        "Car Play Support"
+      ],
+      "enhancements": [
+        "Go to album directly from any song",
+        "Smooth mini player opening and closing animations",
+        "Mini player now features a glassmorphism effect"
+      ],
+      "bugFixes": [],
+      "patches": []
+    }
+  },
+  {
+    "version": "4.1.1",
+    "date": "July 2026",
+    "sections": {
+      "newFeatures": [
+          "Small & medium widgets have been added"
+      ],
+      "enhancements": [
+        "Minor performance improvements",
+        "Improved mini player and Main Player dragging animations",
+        "Customised glass effect is added"
+      ],
+      "bugFixes": [
+        "Fixed playlist bugs",
+      ],
+      "patches": []
+    }
+  },
+  {
+    "version": "4.1.0",
+    "date": "June 2026",
+    "sections": {
+      "newFeatures": [],
+      "enhancements": [
+        "Now Playing screen UI has been enhanced",
+        "Better error handling for corrupted audio files"
+      ],
+      "bugFixes": [
+        "Fixed minor bugs and improved overall performance"
+      ],
+      "patches": []
+    }
+  },
+  {
+    "version": "4.0",
+    "date": "May 2026",
+    "sections": {
+      "newFeatures": [
+          "Set timer to stop the music after a scheduled duration. Perfect for listening before sleep"
+      ],
+      "enhancements": [],
+      "bugFixes": [
+        "Fixed minor bugs and improved overall performance"
+      ],
+      "patches": []
+    }
+  },
+  {
+    "version": "3.0",
+    "date": "May 2026",
+    "sections": {
+      "newFeatures": [],
+      "enhancements": [
+          "UI has been enhanced for bestter UX"
+      ],
+      "bugFixes": [
+        "In-App Purchases glitches has been resolved"
+      ],
+      "patches": []
+    }
+  },
+  {
+    "version": "2.0",
+    "date": "February 2026",
+    "sections": {
+      "newFeatures": [
+          "Equaliser for audio customisation has been added"
+      ],
+      "enhancements": [
+          "UI has been enhanced for bestter UX"
+      ],
+      "bugFixes": [],
+      "patches": []
+    }
+  },
+  {
+    "version": "2.0",
+    "date": "February 2026",
+    "sections": {
+      "newFeatures": [
+          "Best Offline Music player that suits iPhones with all the features that works for you"
+      ],
+      "enhancements": [],
+      "bugFixes": [],
+      "patches": []
+    }
+  }
+]

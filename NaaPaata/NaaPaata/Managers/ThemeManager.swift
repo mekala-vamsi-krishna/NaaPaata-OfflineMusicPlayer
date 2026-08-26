@@ -17,6 +17,7 @@ struct AppThemeColor: Identifiable, Equatable {
         AppThemeColor(id: "Green",   name: "Green",    color: Color(hex: "#1ED760")),
         AppThemeColor(id: "coral",  name: "Coral",   color: Color(hex: "#FF6B6B")),
         AppThemeColor(id: "Orange",   name: "Orange",    color: Color(hex: "#FF6B00")),
+        AppThemeColor(id: "Blue",   name: "Blue",    color: Color(hex: "#1451F0")),
     ]
 
     static let `default` = all[0]

@@ -12,7 +12,7 @@ struct AlbumsView: View {
     @EnvironmentObject var viewModel: AlbumsViewModel
     @Environment(\.horizontalSizeClass) var sizeClass
 
-    @State private var showingOnboarding = false
+    @State private var showingInstructions = false
 
     var body: some View {
         GeometryReader { geometry in
@@ -68,7 +68,7 @@ struct AlbumsView: View {
                                 .padding(.horizontal)
 
                             Button(action: {
-                                showingOnboarding = true
+                                showingInstructions = true
                             }) {
                                 Text("Learn More")
                                     .font(.system(size: 16, weight: .semibold))
@@ -131,8 +131,8 @@ struct AlbumsView: View {
                     }
                 }
                 .navigationTitle("Albums")
-                .sheet(isPresented: $showingOnboarding) {
-                    OnboardingView()
+                .sheet(isPresented: $showingInstructions) {
+                    InstructionView()
                 }
             }
         }

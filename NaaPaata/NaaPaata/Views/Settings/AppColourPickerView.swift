@@ -64,9 +64,6 @@ struct AppColourPickerView: View {
                     }
                 } header: {
                     Text("App Colour")
-                        .font(.system(size: 14, weight: .medium))
-                        .foregroundColor(.secondary)
-                        .textCase(nil)
                 } footer: {
                     Text("The selected colour is applied across the entire app — buttons, icons, accents, and highlights.")
                         .font(.system(size: 11))
