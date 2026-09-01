@@ -41,7 +41,7 @@ final class Song: Identifiable {
         self.artworkData = artworkImage?.jpegData(compressionQuality: 0.9)
         self.dateAdded = dateAdded
         self.bookmarkData = bookmarkData
-        if bookmarkData == nil, let url = URL(string: urlString) {
+        if bookmarkData == nil, let url = Self.parseStoredURL(urlString) {
             self.bookmarkData = try? url.bookmarkData(options: .minimalBookmark, includingResourceValuesForKeys: nil, relativeTo: nil)
         }
     }
@@ -66,7 +66,7 @@ final class Song: Identifiable {
     }
 
     var url: URL? {
-        URL(string: urlString)
+        Self.parseStoredURL(urlString)
     }
     
     var artworkImage: UIImage? {
@@ -75,12 +75,35 @@ final class Song: Identifiable {
     }
     
     var resolvedURL: URL? {
-        if let bookmarkData = bookmarkData, let url = url {
-            var isStale = false
-            if let resolvedURL = try? URL(resolvingBookmarkData: bookmarkData, options: .withoutUI, relativeTo: nil, bookmarkDataIsStale: &isStale) {
-                return resolvedURL
+        if !relativePath.isEmpty,
+           let documentsURL = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first {
+            let documentsFileURL = documentsURL.appendingPathComponent(relativePath, isDirectory: false)
+            if FileManager.default.fileExists(atPath: documentsFileURL.path) {
+                return documentsFileURL
             }
         }
+
+        if let bookmarkData {
+            var isStale = false
+            if let bookmarkURL = try? URL(
+                resolvingBookmarkData: bookmarkData,
+                options: .withoutUI,
+                relativeTo: nil,
+                bookmarkDataIsStale: &isStale
+            ), FileManager.default.fileExists(atPath: bookmarkURL.path) {
+                return bookmarkURL
+            }
+        }
+
+        guard let url, FileManager.default.fileExists(atPath: url.path) else { return nil }
         return url
+    }
+
+    private static func parseStoredURL(_ value: String) -> URL? {
+        guard !value.isEmpty else { return nil }
+        if let url = URL(string: value), url.isFileURL {
+            return url
+        }
+        return URL(fileURLWithPath: value)
     }
 }

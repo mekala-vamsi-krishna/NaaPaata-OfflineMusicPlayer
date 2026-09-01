@@ -43,12 +43,18 @@ final class SongLibraryService {
                 }
             }
 
-            // Update absolute paths if changed
+            // Keep stored paths and bookmarks aligned with the current app container.
             for song in dbSongs {
                 if let matchingFile = diskFiles.first(where: { $0.relativePath == song.relativePath }) {
-                    let newURLString = matchingFile.url.path
-                    if song.urlString != newURLString {
-                        song.urlString = newURLString
+                    let currentPath = matchingFile.url.path
+                    let currentBookmark = try? matchingFile.url.bookmarkData(
+                        options: .minimalBookmark,
+                        includingResourceValuesForKeys: nil,
+                        relativeTo: nil
+                    )
+                    if song.urlString != currentPath || song.bookmarkData != currentBookmark {
+                        song.urlString = currentPath
+                        song.bookmarkData = currentBookmark
                         dataService.saveSong(song)
                     }
                 }

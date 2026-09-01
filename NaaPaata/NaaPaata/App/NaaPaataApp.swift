@@ -100,6 +100,9 @@ struct NaaPaataApp: App {
                         .environmentObject(sleepTimerManager)
                         .environmentObject(themeManager)
                         .onAppear {
+                            
+                            let docsURL = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
+                            print("📁 Documents: \(docsURL.path)")
                             sleepTimerManager.setup(modelContext: container.mainContext)
 
                             Task {

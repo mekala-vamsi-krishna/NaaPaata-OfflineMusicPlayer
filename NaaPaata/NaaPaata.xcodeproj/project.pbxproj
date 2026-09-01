@@ -71,7 +71,6 @@
 		ACB6388F3015E2E500FAEE2F /* AudioDocumentPicker.swift in Sources */ = {isa = PBXBuildFile; fileRef = ACB6388E3015E2E500FAEE2F /* AudioDocumentPicker.swift */; };
 		ACB638913015E45400FAEE2F /* AddToPlaylistView.swift in Sources */ = {isa = PBXBuildFile; fileRef = ACB638903015E45400FAEE2F /* AddToPlaylistView.swift */; };
 		ACB638933015E48800FAEE2F /* AddToPlaylistCell.swift in Sources */ = {isa = PBXBuildFile; fileRef = ACB638923015E48800FAEE2F /* AddToPlaylistCell.swift */; };
-		ACB638973015E6E200FAEE2F /* MatchedGeometryIfAvailable.swift in Sources */ = {isa = PBXBuildFile; fileRef = ACB638963015E6E200FAEE2F /* MatchedGeometryIfAvailable.swift */; };
 		ACC27B4D2ED8B2F10037273C /* AdaptiveLayout.swift in Sources */ = {isa = PBXBuildFile; fileRef = ACC27B4B2ED8B2F10037273C /* AdaptiveLayout.swift */; };
 		ACC5FB67303D8DD0000BD975 /* PlaybackDetailsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = ACC5FB66303D8DD0000BD975 /* PlaybackDetailsView.swift */; };
 		ACC5FB69303DE60A000BD975 /* VersionHistoryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = ACC5FB68303DE60A000BD975 /* VersionHistoryView.swift */; };
@@ -205,7 +204,6 @@
 		ACB6388E3015E2E500FAEE2F /* AudioDocumentPicker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioDocumentPicker.swift; sourceTree = "<group>"; };
 		ACB638903015E45400FAEE2F /* AddToPlaylistView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddToPlaylistView.swift; sourceTree = "<group>"; };
 		ACB638923015E48800FAEE2F /* AddToPlaylistCell.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddToPlaylistCell.swift; sourceTree = "<group>"; };
-		ACB638963015E6E200FAEE2F /* MatchedGeometryIfAvailable.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MatchedGeometryIfAvailable.swift; sourceTree = "<group>"; };
 		ACC27B4B2ED8B2F10037273C /* AdaptiveLayout.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AdaptiveLayout.swift; sourceTree = "<group>"; };
 		ACC5FB66303D8DD0000BD975 /* PlaybackDetailsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaybackDetailsView.swift; sourceTree = "<group>"; };
 		ACC5FB68303DE60A000BD975 /* VersionHistoryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VersionHistoryView.swift; sourceTree = "<group>"; };
@@ -515,7 +513,6 @@
 			children = (
 				AC8269A72EB6751C00722433 /* ButtonStyleViewModifier.swift */,
 				AC524C982F9E28CA00914B76 /* ToastModifier.swift */,
-				ACB638963015E6E200FAEE2F /* MatchedGeometryIfAvailable.swift */,
 			);
 			path = ViewModifiers;
 			sourceTree = "<group>";
@@ -736,7 +733,6 @@
 				AC6774092EA2CAA70059C86C /* AlbumModel.swift in Sources */,
 				ACC5FB69303DE60A000BD975 /* VersionHistoryView.swift in Sources */,
 				ACEF0DE630237EF800D31928 /* CarPlaySceneDelegate.swift in Sources */,
-				ACB638973015E6E200FAEE2F /* MatchedGeometryIfAvailable.swift in Sources */,
 				ACB6388F3015E2E500FAEE2F /* AudioDocumentPicker.swift in Sources */,
 				ACEB86962F4329DB007DA2D8 /* SleepTimerManager.swift in Sources */,
 				AC6F417D2E7FD05F00B5BE35 /* AppColors.swift in Sources */,

@@ -23,6 +23,8 @@ class TabState: ObservableObject {
 
 // MARK: - Main Tab View
 struct MainTabView: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
     @EnvironmentObject var tabState: TabState
     @EnvironmentObject var musicPlayerManager: MusicPlayerManager
     @EnvironmentObject var playlistsViewModel: PlaylistsViewModel
@@ -31,114 +33,117 @@ struct MainTabView: View {
     @StateObject private var searchViewModel = SearchViewModel()
 
     @State private var showFullPlayer = false
-    @State private var keyboardHeight: CGFloat = 0
-    @Namespace private var playerTransition
+    @State private var playerDismissalProgress: CGFloat = 0
+
+    private var playerAnimation: Animation {
+        reduceMotion
+            ? .easeInOut(duration: 0.2)
+            : .spring(response: 0.44, dampingFraction: 0.88, blendDuration: 0.08)
+    }
 
     var body: some View {
-        GeometryReader { geometry in
-            let bottomSafeArea = geometry.safeAreaInsets.bottom
+        ZStack {
+            adaptiveTabView
+                .accessibilityHidden(showFullPlayer && playerDismissalProgress == 0)
 
+            if musicPlayerManager.currentSong != nil {
+                if showFullPlayer {
+                    MusicPlayerView(
+                        dismissAction: dismissPlayer,
+                        onDismissalProgressChanged: { progress in
+                            playerDismissalProgress = progress
+                        }
+                    )
+                    .environmentObject(musicPlayerManager)
+                    .environmentObject(playlistsViewModel)
+                    .environmentObject(sleepTimerManager)
+                    .transition(.move(edge: .bottom))
+                    .zIndex(10)
+                } else if #available(iOS 26.0, *) {
+                    EmptyView()
+                }
+            }
+        }
+        .onReceive(musicPlayerManager.$currentSong) { song in
+            guard song == nil, showFullPlayer else { return }
+            showFullPlayer = false
+        }
+    }
+
+    @ViewBuilder
+    private var adaptiveTabView: some View {
+        if #available(iOS 26.0, *) {
+            tabs
+                .tabViewBottomAccessory {
+                    if musicPlayerManager.currentSong != nil {
+                        IOS26MiniPlayerAccessory(onOpen: presentPlayer)
+                            .opacity(showFullPlayer ? max(playerDismissalProgress, 0.001) : 1)
+                            .allowsHitTesting(!showFullPlayer)
+                            .accessibilityHidden(showFullPlayer)
+                    }
+                }
+                .tabBarMinimizeBehavior(.onScrollDown)
+        } else {
             ZStack(alignment: .bottom) {
-                // MARK: - Main TabView (iOS 18+)
-                if #available(iOS 18.0, *) {
-                    TabView(selection: $tabState.selectedTab) {
-                        Tab("Songs", systemImage: "music.quarternote.3", value: .songs) {
-                            SongsView()
-                        }
-                        Tab("Albums", systemImage: "rectangle.stack.badge.play", value: .albums) {
-                            AlbumsView()
-                        }
-                        Tab("Lists", systemImage: "music.note.list", value: .playlists) {
-                            PlayListsView()
-                        }
-                        Tab("Settings", systemImage: "gear", value: .settings) {
-                            SettingsView()
-                        }
-                        Tab("Search", systemImage: "magnifyingglass", value: .search, role: .search) {
-                            SearchView()
-                                .environmentObject(searchViewModel)
-                        }
-                    }
-                    .accentColor(AppColors.primary)
-                } else {
-                    TabView(selection: $tabState.selectedTab) {
-                        SongsView()
-                            .tabItem {
-                                Image(systemName: "music.quarternote.3")
-                                Text("Songs")
-                            }
-                            .tag(0)
-                        AlbumsView()
-                            .tabItem {
-                                Image(systemName: "rectangle.stack.badge.play")
-                                Text("Albums")
-                            }
-                            .tag(1)
-                        PlayListsView()
-                            .tabItem {
-                                Image(systemName: "music.note.list")
-                                Text("Lists")
-                            }
-                            .tag(2)
-                        SettingsView()
-                            .tabItem {
-                                Image(systemName: "gear")
-                                Text("Settings")
-                            }
-                            .tag(3)
-                        SearchView()
-                            .environmentObject(searchViewModel)
-                            .tabItem {
-                                Image(systemName: "magnifyingglass")
-                                Text("Search")
-                            }
-                            .tag(4)
-                    }
-                    .accentColor(AppColors.primary)
-                }
+                tabs
 
-                // MARK: - Mini Player / Full Player
                 if musicPlayerManager.currentSong != nil {
-                    if showFullPlayer {
-                        MusicPlayerView(
-                            dismissAction: {
-                                withAnimation(.spring(response: 0.5, dampingFraction: 0.85)) {
-                                    showFullPlayer = false
-                                }
-                            },
-                            namespace: playerTransition
-                        )
-                        .environmentObject(musicPlayerManager)
-                        .environmentObject(playlistsViewModel)
-                        .environmentObject(sleepTimerManager)
-                        .transition(.opacity)
-                        .zIndex(1)
-                    } else {
-                        MiniPlayerView(namespace: playerTransition)
-                            .environmentObject(musicPlayerManager)
-                            .environmentObject(playlistsViewModel)
-                            .environmentObject(sleepTimerManager)
-                            .padding(.horizontal, 8)
-                            .padding(.bottom, keyboardHeight > 0 ? max(0, keyboardHeight - bottomSafeArea) + 4 : bottomSafeArea + 16)
-                            .onTapGesture {
-                                withAnimation(.spring(response: 0.5, dampingFraction: 0.85)) {
-                                    showFullPlayer = true
-                                }
-                            }
-                            .zIndex(1)
-                    }
+                    MiniPlayerView(
+                        style: .legacy,
+                        onOpen: presentPlayer
+                    )
+                    .padding(.horizontal, 8)
+                    .padding(.bottom, 58)
+                    .opacity(showFullPlayer ? max(playerDismissalProgress, 0.001) : 1)
+                    .allowsHitTesting(!showFullPlayer)
+                    .accessibilityHidden(showFullPlayer)
+                    .zIndex(1)
                 }
             }
+            .ignoresSafeArea(.keyboard, edges: .bottom)
         }
-        .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillShowNotification)) { notification in
-            if let keyboardFrame = notification.userInfo?[UIResponder.keyboardFrameEndUserInfoKey] as? CGRect {
-                if musicPlayerManager.currentSong != nil && !showFullPlayer {
-                    keyboardHeight = keyboardFrame.height
-                }
+    }
+
+    private var tabs: some View {
+        TabView(selection: $tabState.selectedTab) {
+            Tab("Songs", systemImage: "music.quarternote.3", value: .songs) {
+                SongsView()
+            }
+
+            Tab("Albums", systemImage: "rectangle.stack.badge.play", value: .albums) {
+                AlbumsView()
+            }
+
+            Tab("Lists", systemImage: "music.note.list", value: .playlists) {
+                PlayListsView()
+            }
+
+            Tab("Settings", systemImage: "gear", value: .settings) {
+                SettingsView()
+            }
+
+            Tab("Search", systemImage: "magnifyingglass", value: .search, role: .search) {
+                SearchView()
+                    .environmentObject(searchViewModel)
             }
         }
-        .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillHideNotification)) { _ in
-            keyboardHeight = 0
+        .tint(AppColors.primary)
+    }
+
+    private func presentPlayer() {
+        guard musicPlayerManager.currentSong != nil else { return }
+        playerDismissalProgress = 0
+        HapticManager.shared.light()
+        withAnimation(playerAnimation) {
+            showFullPlayer = true
+        }
+    }
+
+    private func dismissPlayer() {
+        withAnimation(playerAnimation) {
+            showFullPlayer = false
+        } completion: {
+            playerDismissalProgress = 0
         }
     }
 }

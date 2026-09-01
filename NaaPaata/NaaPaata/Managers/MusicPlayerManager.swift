@@ -279,20 +279,24 @@ final class MusicPlayerManager: NSObject, ObservableObject {
         cancelPendingTransition()
         playerNode.volume = 1
         secondaryPlayerNode.volume = 0
-        currentSong = song
+
+        guard let fileURL = playableURL(for: song) else {
+            print("Error playing song: Audio file is missing or unreadable: \(song.relativePath)")
+            return
+        }
+
         do {
-            guard let fileURL = song.resolvedURL ?? song.url as URL? else {
-                print("Error: Unable to resolve song URL")
-                return
-            }
-            audioFile = try AVAudioFile(forReading: fileURL)
-            guard let audioFile else { return }
+            let nextAudioFile = try AVAudioFile(forReading: fileURL)
+
             playerNode.stop()
             secondaryPlayerNode.stop()
+            currentSong = song
+            audioFile = nextAudioFile
+
             let token = UUID()
             playbackToken = token
             seekFrame = 0
-            playerNode.scheduleFile(audioFile, at: nil, completionCallbackType: .dataPlayedBack) { [weak self] _ in
+            playerNode.scheduleFile(nextAudioFile, at: nil, completionCallbackType: .dataPlayedBack) { [weak self] _ in
                 DispatchQueue.main.async {
                     self?.handlePlaybackFinished(token: token)
                 }
@@ -302,7 +306,7 @@ final class MusicPlayerManager: NSObject, ObservableObject {
             }
             playerNode.play()
             isPlaying = true
-            duration = Double(audioFile.length) / audioFile.processingFormat.sampleRate
+            duration = Double(nextAudioFile.length) / nextAudioFile.processingFormat.sampleRate
             artworkImage = song.artworkImage ?? getArtwork(for: song)
             currentTime = 0
             updateNowPlayingInfo()
@@ -311,8 +315,17 @@ final class MusicPlayerManager: NSObject, ObservableObject {
             saveCurrentPlaybackState()
             updateWidgetData()
         } catch {
-            print("Error playing song: \(error.localizedDescription)")
+            print("Error playing song at \(fileURL.path): \(error.localizedDescription)")
         }
+    }
+
+    private func playableURL(for song: Song) -> URL? {
+        guard let fileURL = song.resolvedURL,
+              fileURL.isFileURL,
+              FileManager.default.isReadableFile(atPath: fileURL.path) else {
+            return nil
+        }
+        return fileURL
     }
 
     private func handlePlaybackFinished(token: UUID) {
@@ -542,7 +555,7 @@ final class MusicPlayerManager: NSObject, ObservableObject {
     private func crossfade(to song: Song, duration requestedDuration: TimeInterval) {
         pendingAutomaticTransition?.cancel()
         pendingAutomaticTransition = nil
-        guard let fileURL = song.resolvedURL ?? song.url else {
+        guard let fileURL = playableURL(for: song) else {
             playSongImmediately(song)
             return
         }
@@ -777,7 +790,7 @@ final class MusicPlayerManager: NSObject, ObservableObject {
 
     private func prepareGaplessTransition() {
         guard let nextSong = peekNextSong(),
-              let fileURL = nextSong.resolvedURL ?? nextSong.url,
+              let fileURL = playableURL(for: nextSong),
               let nextFile = try? AVAudioFile(forReading: fileURL) else { return }
 
         let remaining = max(duration - currentTime, 0.05)
@@ -895,7 +908,7 @@ final class MusicPlayerManager: NSObject, ObservableObject {
     }
 
     private func loadSongWithoutPlaying(_ song: Song, atPosition position: TimeInterval) async {
-        guard let fileURL = song.resolvedURL ?? song.url else { return }
+        guard let fileURL = playableURL(for: song) else { return }
         do {
             let audioFile = try AVAudioFile(forReading: fileURL)
             let duration = Double(audioFile.length) / audioFile.processingFormat.sampleRate
@@ -940,7 +953,7 @@ final class MusicPlayerManager: NSObject, ObservableObject {
     // MARK: - Artwork
     func getArtwork(for song: Song) -> UIImage {
         if let artwork = song.artworkImage { return artwork }
-        guard let fileURL = song.resolvedURL ?? song.url as URL? else {
+        guard let fileURL = playableURL(for: song) else {
             return generateDefaultArtwork(size: CGSize(width: 600, height: 600))
         }
         let asset = AVAsset(url: fileURL)

@@ -10,10 +10,11 @@ import SwiftUI
 struct MusicPlayerView: View {
     // MARK: - Dependencies
     let dismissAction: () -> Void
-    var namespace: Namespace.ID
+    let onDismissalProgressChanged: (CGFloat) -> Void
 
-    @Environment(\.horizontalSizeClass) var sizeClass
-    @Environment(\.verticalSizeClass) var verticalSizeClass
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.horizontalSizeClass) private var sizeClass
+    @Environment(\.verticalSizeClass) private var verticalSizeClass
 
     @EnvironmentObject var musicPlayerManager: MusicPlayerManager
     @EnvironmentObject var playlistsVM: PlaylistsViewModel
@@ -25,6 +26,7 @@ struct MusicPlayerView: View {
     @State private var showSleepTimerSheet = false
     @State private var showSongInfoSheet = false
     @State private var showAlbumSheet = false
+    @GestureState private var dragTranslation: CGFloat = 0
 
     private var isLandscape: Bool {
         verticalSizeClass == .compact
@@ -37,54 +39,76 @@ struct MusicPlayerView: View {
         case .all: return "repeat"
         }
     }
+    private var dismissalProgress: CGFloat {
+        min(max(dragTranslation / 520, 0), 1)
+    }
 
+    private var playerScale: CGFloat {
+        1 - (dismissalProgress * 0.055)
+    }
+
+    private var playerCornerRadius: CGFloat {
+        dismissalProgress * 28
+    }
+
+    private var playerGesture: some Gesture {
+        DragGesture(minimumDistance: 5, coordinateSpace: .global)
+            .updating($dragTranslation) { value, state, _ in
+                guard value.translation.height > 0 else { return }
+                state = value.translation.height
+            }
+            .onChanged { value in
+                let progress = min(max(value.translation.height / 520, 0), 1)
+                onDismissalProgressChanged(progress)
+            }
+            .onEnded { value in
+                let projectedDistance = max(value.translation.height, value.predictedEndTranslation.height)
+                if projectedDistance > 190 {
+                    completeInteractiveDismissal()
+                } else {
+                    onDismissalProgressChanged(0)
+                }
+            }
+    }
+
+    private func completeInteractiveDismissal() {
+        onDismissalProgressChanged(1)
+        HapticManager.shared.light()
+        dismissAction()
+    }
     // MARK: - Body
     var body: some View {
-        ZStack {
-            // MARK: - Dark Blurred Artwork Background
-            GeometryReader { geometry in
-                ZStack {
-                    if let artwork = musicPlayerManager.artworkImage {
-                        Image(uiImage: artwork)
-                            .resizable()
-                            .scaledToFill()
-                            .frame(width: geometry.size.width, height: geometry.size.height)
-                            .scaleEffect(1.2)
-                            .blur(radius: 80)
-                            .overlay(
-                                LinearGradient(
-                                    colors: [Color.black.opacity(0.3), Color.black.opacity(0.7)],
-                                    startPoint: .top,
-                                    endPoint: .bottom
-                                )
-                            )
-                    } else {
-                        Color.black
-                    }
-                }
-                .ignoresSafeArea()
-            }
-            .ignoresSafeArea()
+        GeometryReader { geometry in
+            ZStack {
+                playerBackground
 
-            // Main content – with drag to dismiss
-            Group {
-                if isLandscape {
-                    landscapeContent
-                } else {
-                    portraitContent
+                Group {
+                    if isLandscape {
+                        landscapeContent
+                    } else {
+                        portraitContent
+                    }
                 }
             }
-            .gesture(
-                DragGesture()
-                    .onEnded { value in
-                        let translation = value.translation.height
-                        let velocity = value.velocity.height
-                        if translation > 80 || velocity > 300 {
-                            dismissAction()
-                        }
-                    }
+            .frame(width: geometry.size.width, height: geometry.size.height)
+            .clipShape(RoundedRectangle(cornerRadius: playerCornerRadius, style: .continuous))
+            .scaleEffect(playerScale, anchor: .center)
+            .offset(y: max(dragTranslation, 0))
+            .shadow(
+                color: .black.opacity(dismissalProgress * 0.35),
+                radius: dismissalProgress * 28,
+                y: dismissalProgress * 12
+            )
+            .contentShape(Rectangle())
+            .gesture(playerGesture)
+            .animation(
+                reduceMotion ? .easeOut(duration: 0.2) : .interactiveSpring(response: 0.38, dampingFraction: 0.9),
+                value: dragTranslation
             )
         }
+        .ignoresSafeArea()
+        .background(Color.black.opacity(1 - dismissalProgress).ignoresSafeArea())
+        .animation(reduceMotion ? .easeInOut(duration: 0.2) : .spring(response: 0.44, dampingFraction: 0.88), value: isLandscape)
         .preferredColorScheme(.dark)
         .sheet(isPresented: $showAddToPlaylistSheet) {
             if let currentSong = musicPlayerManager.currentSong {
@@ -120,27 +144,52 @@ struct MusicPlayerView: View {
                 }
             }
         }
+        .onDisappear {
+            onDismissalProgressChanged(0)
+        }
+    }
+
+    @ViewBuilder
+    private var playerBackground: some View {
+        GeometryReader { geometry in
+            ZStack {
+                if let artwork = musicPlayerManager.artworkImage {
+                    Image(uiImage: artwork)
+                        .resizable()
+                        .scaledToFill()
+                        .frame(width: geometry.size.width, height: geometry.size.height)
+                        .scaleEffect(1.2)
+                        .blur(radius: 80)
+                        .overlay(
+                            LinearGradient(
+                                colors: [Color.black.opacity(0.3), Color.black.opacity(0.7)],
+                                startPoint: .top,
+                                endPoint: .bottom
+                            )
+                        )
+                } else {
+                    Color.black
+                }
+            }
+        }
+        .ignoresSafeArea()
     }
 
     // MARK: - Portrait Content
     private var portraitContent: some View {
         GeometryReader { geometry in
             VStack(spacing: 0) {
-                // Dismiss indicator
-                VStack(spacing: 4) {
+                Button(action: completeInteractiveDismissal) {
                     Image(systemName: "chevron.down")
-                        .font(.system(size: 14, weight: .medium))
-                        .foregroundColor(.white.opacity(0.6))
-                    Text("Swipe down")
-                        .font(.system(size: 11, weight: .medium, design: .rounded))
-                        .foregroundColor(.white.opacity(0.6))
+                        .font(.system(size: 17, weight: .semibold))
+                        .foregroundStyle(.white.opacity(0.75))
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 44)
+                        .contentShape(Rectangle())
                 }
-                .frame(maxWidth: .infinity)
-                .padding(.top, 12)
-                .padding(.bottom, 8)
-                .onTapGesture {
-                    dismissAction()
-                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Minimize Now Playing")
+                .padding(.top, 4)
 
                 Spacer(minLength: 8)
 
@@ -152,13 +201,11 @@ struct MusicPlayerView: View {
                         .scaledToFit()
                         .frame(width: artworkSize, height: artworkSize)
                         .clipShape(RoundedRectangle(cornerRadius: 14))
-                        .matchedGeometryEffect(id: "artwork", in: namespace)
                         .shadow(color: .black.opacity(0.5), radius: 24, x: 0, y: 10)
                 } else {
                     RoundedRectangle(cornerRadius: 14)
                         .fill(Color.gray.opacity(0.3))
                         .frame(width: artworkSize, height: artworkSize)
-                        .matchedGeometryEffect(id: "artwork", in: namespace)
                 }
 
                 Spacer(minLength: 16)
@@ -170,7 +217,6 @@ struct MusicPlayerView: View {
                         .foregroundColor(.white)
                         .multilineTextAlignment(.center)
                         .lineLimit(1)
-                        .matchedGeometryEffect(id: "title", in: namespace)
                         .padding(.horizontal, 32)
 
                     Text(musicPlayerManager.currentSong?.artist ?? "Unknown Artist")
@@ -178,7 +224,6 @@ struct MusicPlayerView: View {
                         .foregroundColor(.white.opacity(0.7))
                         .multilineTextAlignment(.center)
                         .lineLimit(1)
-                        .matchedGeometryEffect(id: "artist", in: namespace)
                         .padding(.horizontal, 32)
                 }
                 .padding(.top, 4)
@@ -292,9 +337,7 @@ struct MusicPlayerView: View {
                                 action: {
                                     HapticManager.shared.medium()
                                     musicPlayerManager.togglePlayPause()
-                                },
-                                matchedGeometryID: "playButton",
-                                namespace: namespace
+                                }
                             )
 
                             // Next – with matched geometry
@@ -304,9 +347,7 @@ struct MusicPlayerView: View {
                                 action: {
                                     HapticManager.shared.light()
                                     musicPlayerManager.playNext()
-                                },
-                                matchedGeometryID: "nextButton",
-                                namespace: namespace
+                                }
                             )
                         }
 
@@ -349,13 +390,11 @@ struct MusicPlayerView: View {
                             .scaledToFit()
                             .frame(width: artworkSize, height: artworkSize)
                             .clipShape(RoundedRectangle(cornerRadius: 14))
-                            .matchedGeometryEffect(id: "artwork", in: namespace)
                             .shadow(color: .black.opacity(0.5), radius: 24, x: 0, y: 10)
                     } else {
                         RoundedRectangle(cornerRadius: 14)
                             .fill(Color.gray.opacity(0.3))
                             .frame(width: artworkSize, height: artworkSize)
-                            .matchedGeometryEffect(id: "artwork", in: namespace)
                     }
                     Spacer()
                 }
@@ -433,13 +472,11 @@ struct MusicPlayerView: View {
                             .font(.system(size: 34, weight: .bold, design: .rounded))
                             .foregroundColor(.white)
                             .lineLimit(1)
-                            .matchedGeometryEffect(id: "title", in: namespace)
 
                         Text(musicPlayerManager.currentSong?.artist ?? "Unknown Artist")
                             .font(.system(size: 20, weight: .medium, design: .rounded))
                             .foregroundColor(.white.opacity(0.7))
                             .lineLimit(1)
-                            .matchedGeometryEffect(id: "artist", in: namespace)
                     }
                     .padding(.horizontal, 24)
 
@@ -486,9 +523,7 @@ struct MusicPlayerView: View {
                                 action: {
                                     HapticManager.shared.medium()
                                     musicPlayerManager.togglePlayPause()
-                                },
-                                matchedGeometryID: "playButton",
-                                namespace: namespace
+                                }
                             )
 
                             // Next – with matched geometry
@@ -498,9 +533,7 @@ struct MusicPlayerView: View {
                                 action: {
                                     HapticManager.shared.light()
                                     musicPlayerManager.playNext()
-                                },
-                                matchedGeometryID: "nextButton",
-                                namespace: namespace
+                                }
                             )
                         }
 
