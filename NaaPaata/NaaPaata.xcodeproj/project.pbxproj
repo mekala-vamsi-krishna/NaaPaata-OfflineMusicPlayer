@@ -164,6 +164,7 @@
 		AC524C982F9E28CA00914B76 /* ToastModifier.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ToastModifier.swift; sourceTree = "<group>"; };
 		AC5B78A32EA5891E004AD706 /* SongInfoView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SongInfoView.swift; sourceTree = "<group>"; };
 		AC5B78A52EA58F41004AD706 /* ActivityViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ActivityViewController.swift; sourceTree = "<group>"; };
+		AC5D08093067F19800A6A1A9 /* Mac.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Mac.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		AC6773F82EA2A4200059C86C /* SongsViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SongsViewModel.swift; sourceTree = "<group>"; };
 		AC6774022EA2AF480059C86C /* PlayListCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlayListCard.swift; sourceTree = "<group>"; };
 		AC6774062EA2CA260059C86C /* AlbumsViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AlbumsViewModel.swift; sourceTree = "<group>"; };
@@ -242,8 +243,23 @@
 		CE7907E42E92F591006D517C /* PlaylistViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaylistViewModel.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
+/* Begin PBXFileSystemSynchronizedRootGroup section */
+		AC5D080A3067F19800A6A1A9 /* Mac */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = Mac;
+			sourceTree = "<group>";
+		};
+/* End PBXFileSystemSynchronizedRootGroup section */
+
 /* Begin PBXFrameworksBuildPhase section */
 		AC3A0F2C2E7538B9000CFC19 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		AC5D08063067F19800A6A1A9 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -314,6 +330,7 @@
 				AC6F41782E7FD05F00B5BE35 /* NaaPaata */,
 				ACEF0DE430237EE400D31928 /* CarPlay */,
 				AC6FFC0D2FF0010A0017897E /* MusicPlayerWidget */,
+				AC5D080A3067F19800A6A1A9 /* Mac */,
 				AC3A0F302E7538B9000CFC19 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -323,6 +340,7 @@
 			children = (
 				AC3A0F2F2E7538B9000CFC19 /* NaaPaata.app */,
 				AC6FFBC02FEE7D950017897E /* MusicPlayerWidgetExtension.appex */,
+				AC5D08093067F19800A6A1A9 /* Mac.app */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -642,6 +660,28 @@
 			productReference = AC3A0F2F2E7538B9000CFC19 /* NaaPaata.app */;
 			productType = "com.apple.product-type.application";
 		};
+		AC5D08083067F19800A6A1A9 /* Mac */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = AC5D08153067F19A00A6A1A9 /* Build configuration list for PBXNativeTarget "Mac" */;
+			buildPhases = (
+				AC5D08053067F19800A6A1A9 /* Sources */,
+				AC5D08063067F19800A6A1A9 /* Frameworks */,
+				AC5D08073067F19800A6A1A9 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				AC5D080A3067F19800A6A1A9 /* Mac */,
+			);
+			name = Mac;
+			packageProductDependencies = (
+			);
+			productName = Mac;
+			productReference = AC5D08093067F19800A6A1A9 /* Mac.app */;
+			productType = "com.apple.product-type.application";
+		};
 		AC6FFBBF2FEE7D950017897E /* MusicPlayerWidgetExtension */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = AC6FFBD32FEE7D980017897E /* Build configuration list for PBXNativeTarget "MusicPlayerWidgetExtension" */;
@@ -668,11 +708,14 @@
 			isa = PBXProject;
 			attributes = {
 				BuildIndependentTargetsInParallel = 1;
-				LastSwiftUpdateCheck = 2600;
+				LastSwiftUpdateCheck = 2700;
 				LastUpgradeCheck = 1610;
 				TargetAttributes = {
 					AC3A0F2E2E7538B9000CFC19 = {
 						CreatedOnToolsVersion = 16.1;
+					};
+					AC5D08083067F19800A6A1A9 = {
+						CreatedOnToolsVersion = 27.0;
 					};
 					AC6FFBBF2FEE7D950017897E = {
 						CreatedOnToolsVersion = 26.0;
@@ -697,6 +740,7 @@
 			targets = (
 				AC3A0F2E2E7538B9000CFC19 /* NaaPaata */,
 				AC6FFBBF2FEE7D950017897E /* MusicPlayerWidgetExtension */,
+				AC5D08083067F19800A6A1A9 /* Mac */,
 			);
 		};
 /* End PBXProject section */
@@ -711,6 +755,13 @@
 				ACC5FB6F303DF10B000BD975 /* version_history.json in Resources */,
 				AC6F417A2E7FD05F00B5BE35 /* Assets.xcassets in Resources */,
 				AC3A0F682E761869000CFC19 /* Launch Screen.storyboard in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		AC5D08073067F19800A6A1A9 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -807,6 +858,13 @@
 				ACAB2BA82EBFC7E4005F84D8 /* PlaybackStateService.swift in Sources */,
 				ACD23E252E9286170054344D /* PlayListModel.swift in Sources */,
 				CD63CE544952496DAE492533 /* PurchaseError.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		AC5D08053067F19800A6A1A9 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -1055,6 +1113,96 @@
 			};
 			name = Release;
 		};
+		AC5D08133067F19A00A6A1A9 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_STYLE = Automatic;
+				COMBINE_HIDPI_IMAGES = YES;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = K4K55XNXA6;
+				ENABLE_APP_SANDBOX = YES;
+				ENABLE_FILE_ACCESS_MUSIC_FOLDER = readwrite;
+				ENABLE_HARDENED_RUNTIME = YES;
+				ENABLE_INCOMING_NETWORK_CONNECTIONS = NO;
+				ENABLE_OUTGOING_NETWORK_CONNECTIONS = NO;
+				ENABLE_PREVIEWS = YES;
+				ENABLE_RESOURCE_ACCESS_AUDIO_INPUT = NO;
+				ENABLE_RESOURCE_ACCESS_BLUETOOTH = NO;
+				ENABLE_RESOURCE_ACCESS_CALENDARS = NO;
+				ENABLE_RESOURCE_ACCESS_CAMERA = NO;
+				ENABLE_RESOURCE_ACCESS_CONTACTS = NO;
+				ENABLE_RESOURCE_ACCESS_LOCATION = NO;
+				ENABLE_RESOURCE_ACCESS_PRINTING = NO;
+				ENABLE_RESOURCE_ACCESS_USB = NO;
+				ENABLE_USER_SELECTED_FILES = readonly;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 27.0;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.example.Mac;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				REGISTER_APP_GROUPS = YES;
+				SDKROOT = macosx;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+			};
+			name = Debug;
+		};
+		AC5D08143067F19A00A6A1A9 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_STYLE = Automatic;
+				COMBINE_HIDPI_IMAGES = YES;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = K4K55XNXA6;
+				ENABLE_APP_SANDBOX = YES;
+				ENABLE_FILE_ACCESS_MUSIC_FOLDER = readwrite;
+				ENABLE_HARDENED_RUNTIME = YES;
+				ENABLE_INCOMING_NETWORK_CONNECTIONS = NO;
+				ENABLE_OUTGOING_NETWORK_CONNECTIONS = NO;
+				ENABLE_PREVIEWS = YES;
+				ENABLE_RESOURCE_ACCESS_AUDIO_INPUT = NO;
+				ENABLE_RESOURCE_ACCESS_BLUETOOTH = NO;
+				ENABLE_RESOURCE_ACCESS_CALENDARS = NO;
+				ENABLE_RESOURCE_ACCESS_CAMERA = NO;
+				ENABLE_RESOURCE_ACCESS_CONTACTS = NO;
+				ENABLE_RESOURCE_ACCESS_LOCATION = NO;
+				ENABLE_RESOURCE_ACCESS_PRINTING = NO;
+				ENABLE_RESOURCE_ACCESS_USB = NO;
+				ENABLE_USER_SELECTED_FILES = readonly;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 27.0;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.example.Mac;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				REGISTER_APP_GROUPS = YES;
+				SDKROOT = macosx;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+			};
+			name = Release;
+		};
 		AC6FFBD02FEE7D980017897E /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -1150,6 +1298,15 @@
 			buildConfigurations = (
 				AC3A0F3E2E7538BB000CFC19 /* Debug */,
 				AC3A0F3F2E7538BB000CFC19 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		AC5D08153067F19A00A6A1A9 /* Build configuration list for PBXNativeTarget "Mac" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				AC5D08133067F19A00A6A1A9 /* Debug */,
+				AC5D08143067F19A00A6A1A9 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
