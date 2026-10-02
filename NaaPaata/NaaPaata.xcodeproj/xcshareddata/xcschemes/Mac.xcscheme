@@ -49,6 +49,9 @@
             ReferencedContainer = "container:NaaPaata.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>
+      <StoreKitConfigurationFileReference
+         identifier = "../../NaaPaata/Resources/Naa Paata.storekit">
+      </StoreKitConfigurationFileReference>
    </LaunchAction>
    <ProfileAction
       buildConfiguration = "Release"
