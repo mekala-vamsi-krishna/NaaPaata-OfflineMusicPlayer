@@ -2,202 +2,48 @@
 //  SubscriptionsView.swift
 //  NaaPaata
 //
-//  Created by Mekala Vamsi Krishna on 11/30/25.
-//
 
 import SwiftUI
 import StoreKit
 
 struct SubscriptionsView: View {
-    @Environment(\.dismiss) var dismiss
-    @Environment(\.colorScheme) var colorScheme
-    @EnvironmentObject var store: StoreManager
-    
+
+    @Environment(\.dismiss) private var dismiss
+    @EnvironmentObject private var store: StoreManager
+
     @State private var selectedProductID: String = "Naa_Paata_12M"
     @State private var isProcessing = false
-    
+
     var body: some View {
         ZStack {
-            // Animated Background
-            LinearGradient(
-                colors: [
-                    Color(red: 0.1, green: 0.05, blue: 0.2),
-                    Color(red: 0.15, green: 0.1, blue: 0.3),
-                    AppColors.primary.opacity(0.3)
-                ],
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
-            )
-            .ignoresSafeArea()
-            
-            // Floating particles effect
-            GeometryReader { geometry in
-                ForEach(0..<15) { index in
-                    Circle()
-                        .fill(AppColors.primary.opacity(0.1))
-                        .frame(width: CGFloat.random(in: 20...60))
-                        .position(
-                            x: CGFloat.random(in: 0...geometry.size.width),
-                            y: CGFloat.random(in: 0...geometry.size.height)
-                        )
-                        .blur(radius: 10)
-                }
-            }
-            .ignoresSafeArea()
-            
-            ScrollView(showsIndicators: false) {
-                VStack(spacing: 0) {
-                    // Header
-                    VStack(spacing: 16) {
-                        // Close Button
-                        HStack {
-                            Spacer()
-                            Button(action: { dismiss() }) {
-                                Image(systemName: "xmark")
-                                    .font(.system(size: 16, weight: .semibold))
-                                    .foregroundColor(.white.opacity(0.8))
-                                    .frame(width: 32, height: 32)
-                                    .background(Color.white.opacity(0.1))
-                                    .clipShape(Circle())
-                            }
-                        }
-                        .padding(.horizontal, 24)
-                        .padding(.top, 16)
-                        
-                        // Premium Icon
-                        ZStack {
-                            Circle()
-                                .fill(
-                                    LinearGradient(
-                                        colors: [AppColors.primary.opacity(0.3), AppColors.primary.opacity(0.1)],
-                                        startPoint: .topLeading,
-                                        endPoint: .bottomTrailing
-                                    )
-                                )
-                                .frame(width: 100, height: 100)
-                                .blur(radius: 20)
-                            
-                            Image(systemName: "crown.fill")
-                                .font(.system(size: 50))
-                                .foregroundStyle(
-                                    LinearGradient(
-                                        colors: [Color.yellow, Color.orange],
-                                        startPoint: .topLeading,
-                                        endPoint: .bottomTrailing
-                                    )
-                                )
-                                .shadow(color: .yellow.opacity(0.5), radius: 20, x: 0, y: 10)
-                        }
-                        .padding(.top, 20)
-                        
-                        Text("Unlock Premium")
-                            .font(.system(size: 36, weight: .bold, design: .rounded))
-                            .foregroundColor(.white)
-                        
-                        Text("Get unlimited access to all premium features")
-                            .font(.system(size: 16, weight: .medium))
-                            .foregroundColor(.white.opacity(0.7))
-                            .multilineTextAlignment(.center)
-                            .padding(.horizontal, 40)
-                    }
-                    .padding(.bottom, 40)
-                    
-                    // Features List
-                    VStack(spacing: 16) {
-                        FeatureRow(icon: "waveform", title: "Advanced Equalizer", description: "10-band EQ with custom presets")
-                        FeatureRow(icon: "speaker.wave.3.fill", title: "Enhanced Audio", description: "Premium sound processing")
-                        FeatureRow(icon: "music.note.list", title: "Unlimited Songs & Playlists", description: "Create as many as you want")
-                    }
+            background
+
+            VStack(spacing: 0) {
+                Spacer(minLength: 24)
+
+                heroIcon
+                    .padding(.bottom, 20)
+
+                titleBlock
+                    .padding(.bottom, 24)
+
+                featureHighlight
                     .padding(.horizontal, 24)
-                    .padding(.bottom, 40)
-                    
-                    // Subscription Plans
-                    VStack(spacing: 16) {
-                        Text("Choose Your Plan")
-                            .font(.system(size: 22, weight: .bold))
-                            .foregroundColor(.white)
-                            .padding(.bottom, 8)
-                        
-                        if store.subscriptions.isEmpty {
-                            ProgressView()
-                                .progressViewStyle(CircularProgressViewStyle(tint: .white))
-                                .padding(40)
-                        } else {
-                            ForEach(store.subscriptions, id: \.id) { product in
-                                ProductCard(
-                                    product: product,
-                                    isSelected: selectedProductID == product.id,
-                                    onTap: { selectedProductID = product.id }
-                                )
-                            }
-                        }
-                    }
-                    .padding(.horizontal, 24)
-                    .padding(.bottom, 30)
-                    
-                    // Subscribe Button
-                    Button(action: {
-                        guard let selectedProduct = store.subscriptions.first(where: { $0.id == selectedProductID }) else { return }
-                        isProcessing = true
-                        Task {
-                            await store.purchase(selectedProduct)
-                            isProcessing = false
-                            if store.isPremimumUser {
-                                dismiss()
-                            }
-                        }
-                    }) {
-                        HStack {
-                            if isProcessing {
-                                ProgressView()
-                                    .progressViewStyle(CircularProgressViewStyle(tint: .white))
-                            } else {
-                                Text("Continue")
-                                    .font(.system(size: 18, weight: .bold))
-                            }
-                        }
-                        .frame(maxWidth: .infinity)
-                        .frame(height: 56)
-                        .background(
-                            LinearGradient(
-                                colors: [AppColors.primary, AppColors.primary.opacity(0.8)],
-                                startPoint: .leading,
-                                endPoint: .trailing
-                            )
-                        )
-                        .foregroundColor(.white)
-                        .cornerRadius(16)
-                        .shadow(color: AppColors.primary.opacity(0.5), radius: 20, x: 0, y: 10)
-                    }
-                    .disabled(isProcessing || store.subscriptions.isEmpty)
+                    .padding(.bottom, 24)
+
+                planSection
                     .padding(.horizontal, 24)
                     .padding(.bottom, 20)
-                    
-                    // Restore Purchases
-                    Button(action: {
-                        Task {
-                            await store.restorePurchases()
-                            if store.isPremimumUser {
-                                dismiss()
-                            }
-                        }
-                    }) {
-                        Text("Restore Purchases")
-                            .font(.system(size: 15, weight: .medium))
-                            .foregroundColor(.white.opacity(0.6))
-                    }
-                    .padding(.bottom, 20)
-                    
-                    // Terms & Privacy
-                    HStack(spacing: 16) {
-                        Button("Terms of Service") { }
-                        Text("•")
-                        Button("Privacy Policy") { }
-                    }
-                    .font(.system(size: 12))
-                    .foregroundColor(.white.opacity(0.4))
-                    .padding(.bottom, 30)
-                }
+
+                subscribeButton
+                    .padding(.horizontal, 24)
+
+                restoreButton
+                    .padding(.top, 12)
+
+                termsRow
+                    .padding(.top, 16)
+                    .padding(.bottom, 12)
             }
         }
         .preferredColorScheme(.dark)
@@ -208,9 +54,13 @@ struct SubscriptionsView: View {
                 dismissButton: .default(Text("OK"))
             )
         }
-        .alert("Success!", isPresented: .constant(store.purchaseSuccessMessage != nil)) {
+        .alert("Success!", isPresented: Binding(
+            get: { store.purchaseSuccessMessage != nil },
+            set: { if !$0 { store.purchaseSuccessMessage = nil } }
+        )) {
             Button("OK") {
                 store.purchaseSuccessMessage = nil
+                if store.isPremimumUser { dismiss() }
             }
         } message: {
             Text(store.purchaseSuccessMessage ?? "")
@@ -218,221 +68,357 @@ struct SubscriptionsView: View {
         .alert("Restore Purchases", isPresented: $store.showRestoredAlert) {
             Button("OK") {
                 store.showRestoredAlert = false
+                if store.isPremimumUser { dismiss() }
             }
         } message: {
             Text(store.restoredMessage)
         }
     }
-}
 
-// MARK: - Feature Row
-struct FeatureRow: View {
-    let icon: String
-    let title: String
-    let description: String
-    
-    var body: some View {
-        HStack(spacing: 16) {
+    // MARK: - Background
+
+    private var background: some View {
+        ZStack {
+            Color.black
+
+            LinearGradient(
+                colors: [
+                    Color.accentColor.opacity(0.35),
+                    Color.black.opacity(0.0),
+                    Color.accentColor.opacity(0.15)
+                ],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+
+            RadialGradient(
+                colors: [
+                    Color.accentColor.opacity(0.4),
+                    .clear
+                ],
+                center: .top,
+                startRadius: 0,
+                endRadius: 320
+            )
+        }
+        .ignoresSafeArea()
+    }
+
+    // MARK: - Hero icon
+
+    private var heroIcon: some View {
+        ZStack {
+            Circle()
+                .fill(
+                    RadialGradient(
+                        colors: [
+                            Color.accentColor.opacity(0.5),
+                            Color.accentColor.opacity(0.0)
+                        ],
+                        center: .center,
+                        startRadius: 10,
+                        endRadius: 70
+                    )
+                )
+                .frame(width: 140, height: 140)
+
+            Image(systemName: "waveform")
+                .font(.system(size: 56, weight: .medium))
+                .foregroundStyle(
+                    LinearGradient(
+                        colors: [.white, .white.opacity(0.85)],
+                        startPoint: .top,
+                        endPoint: .bottom
+                    )
+                )
+                .shadow(color: Color.accentColor.opacity(0.7), radius: 20, y: 6)
+        }
+    }
+
+    // MARK: - Title
+
+    private var titleBlock: some View {
+        VStack(spacing: 8) {
+            Text("Unlock the Equalizer")
+                .font(.system(size: 26, weight: .bold, design: .rounded))
+                .foregroundStyle(.white)
+        }
+    }
+
+    // MARK: - Feature highlight
+
+    private var featureHighlight: some View {
+        HStack(spacing: 14) {
+
             ZStack {
                 Circle()
-                    .fill(AppColors.primary.opacity(0.2))
-                    .frame(width: 50, height: 50)
-                
-                Image(systemName: icon)
-                    .font(.system(size: 22))
-                    .foregroundColor(AppColors.primary)
+                    .fill(Color.accentColor.opacity(0.2))
+                    .frame(width: 44, height: 44)
+
+                Image(systemName: "slider.horizontal.3")
+                    .font(.system(size: 20, weight: .medium))
+                    .foregroundStyle(Color.accentColor)
             }
-            
-            VStack(alignment: .leading, spacing: 4) {
-                Text(title)
-                    .font(.system(size: 16, weight: .semibold))
-                    .foregroundColor(.white)
-                
-                Text(description)
-                    .font(.system(size: 14))
-                    .foregroundColor(.white.opacity(0.6))
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Advanced Equalizer")
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundStyle(.white)
+
+                Text("10 bands • Bass, Treble, Pre-Amp • Custom presets")
+                    .font(.system(size: 12))
+                    .foregroundStyle(.white.opacity(0.6))
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .minimumScaleFactor(0.85)
             }
-            
-            Spacer()
-            
+            .frame(maxWidth: .infinity, alignment: .leading)
+
             Image(systemName: "checkmark.circle.fill")
-                .font(.system(size: 22))
-                .foregroundColor(.green)
+                .font(.system(size: 20))
+                .foregroundStyle(Color.accentColor)
+                .layoutPriority(2)
         }
-        .padding(16)
+        .padding(14)
         .background(
-            RoundedRectangle(cornerRadius: 16)
-                .fill(Color.white.opacity(0.05))
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .fill(Color.white.opacity(0.06))
         )
+        .overlay(
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .strokeBorder(Color.white.opacity(0.08), lineWidth: 1)
+        )
+    }
+
+    // MARK: - Plans
+
+    @ViewBuilder
+    private var planSection: some View {
+        if store.subscriptions.isEmpty {
+            ProgressView()
+                .tint(.white)
+                .frame(height: 84)
+        } else {
+            VStack(spacing: 10) {
+                ForEach(store.subscriptions, id: \.id) { product in
+                    PlanRow(
+                        product: product,
+                        isSelected: selectedProductID == product.id
+                    ) {
+                        withAnimation(.spring(response: 0.25, dampingFraction: 0.8)) {
+                            selectedProductID = product.id
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // MARK: - CTA
+
+    private var subscribeButton: some View {
+        Button(action: purchase) {
+            HStack(spacing: 8) {
+                if isProcessing {
+                    ProgressView().tint(.white)
+                } else {
+                    Text("Continue")
+                        .font(.system(size: 17, weight: .bold))
+                }
+            }
+            .frame(maxWidth: .infinity)
+            .frame(height: 54)
+            .background(
+                LinearGradient(
+                    colors: [
+                        Color.accentColor,
+                        Color.accentColor.opacity(0.85)
+                    ],
+                    startPoint: .leading,
+                    endPoint: .trailing
+                )
+            )
+            .foregroundStyle(.white)
+            .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+            .shadow(color: Color.accentColor.opacity(0.45), radius: 16, y: 6)
+        }
+        .buttonStyle(.plain)
+        .disabled(isProcessing || store.subscriptions.isEmpty)
+        .opacity(store.subscriptions.isEmpty ? 0.5 : 1)
+    }
+
+    // MARK: - Restore
+
+    private var restoreButton: some View {
+        Button {
+            Task {
+                await store.restorePurchases()
+            }
+        } label: {
+            Text("Restore Purchases")
+                .font(.system(size: 14, weight: .medium))
+                .foregroundStyle(.white.opacity(0.6))
+        }
+    }
+
+    // MARK: - Terms
+
+    private var termsRow: some View {
+        HStack(spacing: 10) {
+            Button("Terms") { }
+            Text("•")
+                .foregroundStyle(.white.opacity(0.3))
+            Button("Privacy") { }
+        }
+        .font(.system(size: 11))
+        .foregroundStyle(.white.opacity(0.4))
+    }
+
+    // MARK: - Actions
+
+    private func purchase() {
+        guard let product = store.subscriptions.first(where: {
+            $0.id == selectedProductID
+        }) else { return }
+
+        isProcessing = true
+        Task {
+            await store.purchase(product)
+            isProcessing = false
+            if store.isPremimumUser {
+                dismiss()
+            }
+        }
     }
 }
 
-// MARK: - Product Card
-struct ProductCard: View {
+// MARK: - Plan row
+
+private struct PlanRow: View {
+
     let product: Product
     let isSelected: Bool
     let onTap: () -> Void
-    
-    var badge: String? {
+
+    private var badge: String? {
         switch product.id {
-        case "Naa_Paata_6M":
-            return "POPULAR"
-        case "Naa_Paata_12M":
-            return "BEST VALUE"
-        default:
-            return nil
+        case "Naa_Paata_6M":  return "POPULAR"
+        case "Naa_Paata_12M": return "BEST VALUE"
+        default:              return nil
         }
     }
-    
-    var savings: String? {
+
+    private var savings: String? {
         switch product.id {
-        case "Naa_Paata_6M":
-            return "Save 17%"
-        case "Naa_Paata_12M":
-            return "Save 33%"
-        default:
-            return nil
+        case "Naa_Paata_6M":  return "Save 17%"
+        case "Naa_Paata_12M": return "Save 33%"
+        default:              return nil
         }
     }
-    
+
+    private var periodLabel: String {
+        guard let subscription = product.subscription else { return "" }
+        switch subscription.subscriptionPeriod.unit {
+        case .month:
+            let count = subscription.subscriptionPeriod.value
+            return count == 1 ? "per month" : "every \(count) months"
+        case .year:
+            return "per year"
+        case .week:
+            return "per week"
+        case .day:
+            return "per day"
+        @unknown default:
+            return ""
+        }
+    }
+
     var body: some View {
         Button(action: onTap) {
-            VStack(spacing: 0) {
-                // Badge
-                if let badge = badge {
-                    HStack {
-                        Spacer()
-                        Text(badge)
-                            .font(.system(size: 11, weight: .bold))
-                            .foregroundColor(.white)
-                            .padding(.horizontal, 12)
-                            .padding(.vertical, 6)
-                            .background(
-                                LinearGradient(
-                                    colors: [Color.orange, Color.red],
-                                    startPoint: .leading,
-                                    endPoint: .trailing
-                                )
-                            )
-                            .cornerRadius(8, corners: [.topRight, .bottomLeft])
-                        Spacer()
-                    }
-                    .offset(y: -1)
-                }
-                
-                HStack {
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text(product.displayName)
-                            .font(.system(size: 20, weight: .bold))
-                            .foregroundColor(.white)
-                        
-                        HStack(alignment: .firstTextBaseline, spacing: 4) {
-                            Text(product.displayPrice)
-                                .font(.system(size: 32, weight: .bold))
-                                .foregroundColor(isSelected ? AppColors.primary : .white)
-                            
-                            Text(subscriptionPeriod(for: product))
-                                .font(.system(size: 13))
-                                .foregroundColor(.white.opacity(0.6))
-                        }
-                        
-                        if let savings = savings {
-                            Text(savings)
-                                .font(.system(size: 14, weight: .semibold))
-                                .foregroundColor(.green)
-                        }
-                    }
-                    
-                    Spacer()
-                    
-                    // Selection Indicator
-                    ZStack {
+            HStack(spacing: 14) {
+
+                // Selection indicator
+                ZStack {
+                    Circle()
+                        .strokeBorder(
+                            isSelected ? Color.accentColor : Color.white.opacity(0.25),
+                            lineWidth: 2
+                        )
+                        .frame(width: 22, height: 22)
+
+                    if isSelected {
                         Circle()
-                            .strokeBorder(isSelected ? AppColors.primary : Color.white.opacity(0.3), lineWidth: 2)
-                            .frame(width: 28, height: 28)
-                        
-                        if isSelected {
-                            Circle()
-                                .fill(AppColors.primary)
-                                .frame(width: 16, height: 16)
-                        }
+                            .fill(Color.accentColor)
+                            .frame(width: 12, height: 12)
                     }
                 }
-                .padding(20)
+
+                // Plan info
+                VStack(alignment: .leading, spacing: 2) {
+                    HStack(spacing: 8) {
+                        Text(product.displayName)
+                            .font(.system(size: 15, weight: .semibold))
+                            .foregroundStyle(.white)
+
+                        if let badge {
+                            Text(badge)
+                                .font(.system(size: 9, weight: .bold))
+                                .foregroundStyle(.white)
+                                .padding(.horizontal, 6)
+                                .padding(.vertical, 2)
+                                .background(
+                                    LinearGradient(
+                                        colors: [.orange, .red],
+                                        startPoint: .leading,
+                                        endPoint: .trailing
+                                    )
+                                )
+                                .clipShape(Capsule())
+                        }
+                    }
+
+                    if let savings {
+                        Text(savings)
+                            .font(.system(size: 11, weight: .medium))
+                            .foregroundStyle(.green)
+                    } else {
+                        Text(periodLabel)
+                            .font(.system(size: 11))
+                            .foregroundStyle(.white.opacity(0.5))
+                    }
+                }
+
+                Spacer(minLength: 8)
+
+                // Price
+                VStack(alignment: .trailing, spacing: 2) {
+                    Text(product.displayPrice)
+                        .font(.system(size: 18, weight: .bold))
+                        .foregroundStyle(isSelected ? Color.accentColor : .white)
+
+                    Text(periodLabel)
+                        .font(.system(size: 10))
+                        .foregroundStyle(.white.opacity(0.5))
+                }
             }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 14)
             .background(
-                RoundedRectangle(cornerRadius: 20)
+                RoundedRectangle(cornerRadius: 14, style: .continuous)
                     .fill(
                         isSelected
-                        ? LinearGradient(
-                            colors: [Color.white.opacity(0.15), Color.white.opacity(0.08)],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        )
-                        : LinearGradient(
-                            colors: [Color.white.opacity(0.08), Color.white.opacity(0.05)],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        )
+                            ? Color.accentColor.opacity(0.12)
+                            : Color.white.opacity(0.05)
                     )
             )
             .overlay(
-                RoundedRectangle(cornerRadius: 20)
+                RoundedRectangle(cornerRadius: 14, style: .continuous)
                     .strokeBorder(
-                        isSelected ? AppColors.primary : Color.white.opacity(0.1),
+                        isSelected ? Color.accentColor : Color.white.opacity(0.08),
                         lineWidth: isSelected ? 2 : 1
                     )
             )
-            .shadow(
-                color: isSelected ? AppColors.primary.opacity(0.3) : Color.clear,
-                radius: 15,
-                x: 0,
-                y: 8
-            )
         }
         .buttonStyle(.plain)
-        .scaleEffect(isSelected ? 1.02 : 1.0)
-        .animation(.spring(response: 0.3, dampingFraction: 0.7), value: isSelected)
     }
-    
-    private func subscriptionPeriod(for product: Product) -> String {
-        if let subscription = product.subscription {
-            switch subscription.subscriptionPeriod.unit {
-            case .month:
-                let count = subscription.subscriptionPeriod.value
-                return count == 1 ? "per month" : "every \(count) months"
-            case .year:
-                return "per year"
-            default:
-                return ""
-            }
-        }
-        return ""
-    }
-}
-
-// MARK: - Corner Radius Extension
-extension View {
-    func cornerRadius(_ radius: CGFloat, corners: UIRectCorner) -> some View {
-        clipShape(RoundedCorner(radius: radius, corners: corners))
-    }
-}
-
-struct RoundedCorner: Shape {
-    var radius: CGFloat = .infinity
-    var corners: UIRectCorner = .allCorners
-    
-    func path(in rect: CGRect) -> Path {
-        let path = UIBezierPath(
-            roundedRect: rect,
-            byRoundingCorners: corners,
-            cornerRadii: CGSize(width: radius, height: radius)
-        )
-        return Path(path.cgPath)
-    }
-}
-
-#Preview {
-    SubscriptionsView()
-        .environmentObject(StoreManager())
 }

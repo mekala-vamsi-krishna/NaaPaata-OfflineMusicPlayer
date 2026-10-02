@@ -30,9 +30,11 @@ struct MainTabView: View {
     @StateObject private var albumsRouter = AppRouter()
     @StateObject private var playlistsRouter = AppRouter()
     @StateObject private var searchRouter = AppRouter()
-    
+
     @State private var showFullPlayer = false
     @State private var playerDismissalProgress: CGFloat = 0
+
+    @StateObject private var uiState = UIState()
 
     private var playerAnimation: Animation {
         reduceMotion
@@ -60,6 +62,7 @@ struct MainTabView: View {
                 }
             }
         }
+        .environmentObject(uiState)
         .onReceive(libraryViewModel.$currentSong) { song in
             guard song == nil, showFullPlayer else { return }
             showFullPlayer = false
@@ -70,9 +73,9 @@ struct MainTabView: View {
 
     @ViewBuilder
     private var adaptiveTabView: some View {
-        if #available(iOS 26.0, *) {
+        if #available(iOS 26.1, *) {
             tabs
-                .tabViewBottomAccessory {
+                .tabViewBottomAccessory(isEnabled: uiState.showTabAccessory) {
                     IOS26MiniPlayerAccessory(onOpen: presentPlayer)
                         .opacity(showFullPlayer ? max(playerDismissalProgress, 0.001) : 1)
                         .allowsHitTesting(!showFullPlayer)
@@ -83,17 +86,21 @@ struct MainTabView: View {
             ZStack(alignment: .bottom) {
                 tabs
 
-                MiniPlayerView(
-                    style: .legacy,
-                    onOpen: presentPlayer
-                )
-                .padding(.horizontal, 8)
-                .padding(.bottom, 58)
-                .opacity(showFullPlayer ? max(playerDismissalProgress, 0.001) : 1)
-                .allowsHitTesting(!showFullPlayer)
-                .accessibilityHidden(showFullPlayer)
-                .zIndex(1)
+                if uiState.showTabAccessory {
+                    MiniPlayerView(
+                        style: .legacy,
+                        onOpen: presentPlayer
+                    )
+                    .padding(.horizontal, 8)
+                    .padding(.bottom, 58)
+                    .opacity(showFullPlayer ? max(playerDismissalProgress, 0.001) : 1)
+                    .allowsHitTesting(!showFullPlayer)
+                    .accessibilityHidden(showFullPlayer)
+                    .zIndex(1)
+                    .transition(.move(edge: .bottom).combined(with: .opacity))
+                }
             }
+            .animation(.easeInOut(duration: 0.2), value: uiState.showTabAccessory)
             .ignoresSafeArea(.keyboard, edges: .bottom)
         }
     }
