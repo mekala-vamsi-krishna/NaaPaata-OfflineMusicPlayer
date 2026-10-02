@@ -9,38 +9,36 @@ import SwiftUI
 import SwiftData
 
 @Model
-final class Playlist: Identifiable {
+final class Playlist {
+
     @Attribute(.unique) var id: UUID
     var name: String
-
-    /// Stores song membership as relative paths — avoids SwiftData relationship re-parenting.
-    /// A song can belong to multiple playlists because paths are plain strings, not object references.
-    var songPaths: [String] = []
-
-    var coverImageData: Data?
     var desc: String
+    var coverImageData: Data?
     var dateCreated: Date
+
+    /// Paths **relative to the app's Documents directory**, e.g.
+    /// `song.mp3` or `Albums/track.m4a`. Relative — not absolute — so
+    /// the playlist survives container UUID changes across installs.
+    var songRelativePaths: [String]
 
     init(
         id: UUID = UUID(),
         name: String,
-        songPaths: [String] = [],
-        coverImage: UIImage? = nil,
         desc: String = "",
-        dateCreated: Date = Date()
+        coverImageData: Data? = nil,
+        dateCreated: Date = Date(),
+        songRelativePaths: [String] = []
     ) {
         self.id = id
         self.name = name
-        self.songPaths = songPaths
-        self.coverImageData = coverImage?.jpegData(compressionQuality: 0.9)
         self.desc = desc
+        self.coverImageData = coverImageData
         self.dateCreated = dateCreated
+        self.songRelativePaths = songRelativePaths
     }
 
-    var coverImage: UIImage? {
-        guard let data = coverImageData else { return nil }
-        return UIImage(data: data)
-    }
+    var songCount: Int { songRelativePaths.count }
 }
 
 enum SortOption: String, CaseIterable {

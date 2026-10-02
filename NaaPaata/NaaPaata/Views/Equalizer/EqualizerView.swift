@@ -271,13 +271,16 @@ extension EqualizerView {
 }
 
 struct EqualizerView: View {
-    @StateObject private var viewModel = EqualizerViewModel()
+
+    @EnvironmentObject private var libraryViewModel: MusicLibraryViewModel
+    @EnvironmentObject private var viewModel: EqualizerViewModel       // ← was @StateObject
+    @EnvironmentObject private var store: StoreManager
+
     @Environment(\.horizontalSizeClass) var sizeClass
     @Environment(\.colorScheme) var colorScheme
-    
-    @EnvironmentObject private var store : StoreManager
+
     @State private var showPaywall = false
-    
+
     var body: some View {
         Group {
             if store.isPremimumUser {
@@ -298,8 +301,4 @@ struct EqualizerView: View {
         .navigationBarTitleDisplayMode(.inline)
         .navigationBarBackButtonHidden(false)
     }
-}
-
-#Preview {
-    EqualizerView()
 }

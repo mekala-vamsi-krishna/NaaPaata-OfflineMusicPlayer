@@ -6,130 +6,118 @@
 //
 
 import SwiftUI
-import AVFoundation
 
 struct SongsView: View {
-    @EnvironmentObject var viewModel: SongsViewModel
-    @EnvironmentObject var playlistsViewModel: PlaylistsViewModel
-    @EnvironmentObject var tabState: TabState
 
-    @State private var showingInstruction = false
+    @EnvironmentObject private var viewModel: MusicLibraryViewModel
+
+    @State private var sortOption: SongSortOption = .titleAscending
+    @AppStorage("songs.sortOption") private var storedSortRawValue = SongSortOption.titleAscending.rawValue
+
     @State private var navigateToEqualizer = false
 
-    // NEW: Album navigation state
-    @State private var showAlbumDetail = false
-    @State private var selectedAlbum: (title: String, artwork: UIImage?, songs: [Song])?
+    private var displayedSongs: [Song] {
+        viewModel.songs.sorted(by: sortOption.areInIncreasingOrder)
+    }
 
     var body: some View {
-        NavigationStack {
-            ZStack {
-                LinearGradient(
-                    colors: [
-                        AppColors.background,
-                        AppColors.background.opacity(0.95),
-                        AppColors.primary.opacity(0.05)
-                    ],
-                    startPoint: .topLeading,
-                    endPoint: .bottomTrailing
-                )
-                .ignoresSafeArea()
-                
-                if viewModel.isLoading {
-                    VStack(spacing: 20) {
-                        AnimatedDotsLoader()
-                        Text("Loading songs...")
-                            .font(.headline)
-                            .foregroundColor(AppColors.textSecondary)
-                        if viewModel.loadingProgress > 0 {
-                            Text("\(Int(viewModel.loadingProgress * 100))%")
-                                .font(.caption)
-                                .foregroundColor(AppColors.textSecondary)
-                        }
-                    }
-                    .transition(.opacity)
-                } else if viewModel.songs.isEmpty {
-                    // Empty state
-                    VStack {
-                        Spacer()
-                        Image(systemName: "music.note.list")
-                            .resizable()
-                            .scaledToFit()
-                            .frame(width: 150, height: 150)
-                            .foregroundColor(AppColors.primary).opacity(0.7)
-                            .padding(.top, 50)
+        Group {
+            if viewModel.isLoading && viewModel.songs.isEmpty {
+                ProgressView("Scanning library…")
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
 
-                        Text("Add audio files to the Naa Paata folder in the Files app to enjoy playback anytime.")
-                            .font(.headline)
-                            .foregroundColor(AppColors.textPrimary)
-                            .multilineTextAlignment(.center)
-                            .padding(.horizontal)
+            } else if viewModel.songs.isEmpty {
+                emptyState
 
-                        Button(action: {
-                            showingInstruction = true
-                        }) {
-                            Text("Learn More")
-                                .font(.system(size: 16, weight: .semibold))
-                                .foregroundColor(.white)
-                                .padding(.horizontal, 30)
-                                .padding(.vertical, 12)
-                                .background(AppColors.primary)
-                                .clipShape(Capsule())
-                        }
-                        .padding(.top, 20)
-
-                        Spacer()
-                    }
-                } else {
-                    List {
-                        SongsTopBar(viewModel: viewModel) { key in
-                            viewModel.currentSort = key
-                            viewModel.sortSongs(by: key)
-                        }
-                        .listRowInsets(EdgeInsets())
-                        .listRowSeparator(.hidden)
-                        .listRowBackground(Color.clear)
-
-                        ForEach(viewModel.songs, id: \.self) { song in
-                            Button {
-                                viewModel.play(song)
-                            } label: {
-                                MP3FileCell(song: song) { title, artwork, songs in
-                                    selectedAlbum = (title, artwork, songs)
-                                    showAlbumDetail = true
-                                }
-                            }
-                            .listRowSeparator(.hidden)
-                            .listRowBackground(Color.clear)
-                        }
-                    }
-                    .listStyle(.plain)
-                    .scrollContentBackground(.hidden)
-                    .safeAreaInset(edge: .bottom) {
-                        Color.clear.frame(height: 60)
-                    }
-                }
-            }
-            .navigationTitle("Naa Paata ♪")
-            .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button(action: { navigateToEqualizer = true }) {
-                        Image(systemName: "slider.horizontal.3")
-                            .font(.system(size: 18, weight: .semibold))
-                            .foregroundColor(AppColors.primary)
-                    }
-                }
-            }
-            .sheet(isPresented: $showingInstruction) {
-                InstructionView()
-            }
-            .navigationDestination(isPresented: $navigateToEqualizer) {
-                EqualizerView()
-            }
-            .navigationDestination(isPresented: $showAlbumDetail) {
-                if let album = selectedAlbum {
-                    AlbumDetailsView(title: album.title, artwork: album.artwork, songs: album.songs)
-                }
+            } else {
+                songList
             }
         }
+        .navigationTitle("Songs")
+        .toolbar { toolbarContent }
+        .navigationDestination(isPresented: $navigateToEqualizer) {
+            EqualizerView()
+        }
+        .onAppear {
+            sortOption = SongSortOption(rawValue: storedSortRawValue) ?? .titleAscending
+        }
+        .onChange(of: sortOption) { _, newValue in
+            storedSortRawValue = newValue.rawValue
+        }
+        .task {
+            if viewModel.songs.isEmpty {
+                await viewModel.loadLibrary()
+            }
+        }
+    }
+
+    // MARK: - List
+
+    private var songList: some View {
+        ScrollView {
+            LazyVStack(spacing: 0) {
+
+                SongsTopBar(
+                    count: displayedSongs.count,
+                    sortOption: $sortOption,
+                    onPlayAll: {
+                        viewModel.playAll(displayedSongs)
+                    },
+                    onShuffleAll: {
+                        viewModel.shuffleAll(displayedSongs)
+                    }
+                )
+
+                ForEach(displayedSongs) { song in
+                    SongRowView(
+                        song: song,
+                        isCurrentSong: viewModel.currentSong?.id == song.id
+                    )
+                    .padding(.horizontal, 16)
+                    .contentShape(Rectangle())
+                    .onTapGesture {
+                        viewModel.play(song, in: displayedSongs)
+                    }
+                }
+
+                Color.clear.frame(height: 40)
+            }
+        }
+    }
+
+    // MARK: - Toolbar
+
+    @ToolbarContentBuilder
+    private var toolbarContent: some ToolbarContent {
+        ToolbarItem(placement: .topBarTrailing) {
+            Button {
+                navigateToEqualizer = true
+            } label: {
+                Image(systemName: "slider.horizontal.3")
+                    .font(.system(size: 17, weight: .semibold))
+            }
+            .accessibilityLabel("Equalizer")
+        }
+    }
+
+    // MARK: - Empty state
+
+    private var emptyState: some View {
+        VStack(spacing: 12) {
+            Image(systemName: "music.note.list")
+                .font(.system(size: 44, weight: .light))
+                .foregroundStyle(.secondary)
+
+            Text("No Songs Yet")
+                .font(.title3.weight(.semibold))
+
+            Text("Add audio files to the NaaPaata folder in the Files app.")
+                .font(.callout)
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
+                .frame(maxWidth: 320)
+        }
+        .padding(40)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 }

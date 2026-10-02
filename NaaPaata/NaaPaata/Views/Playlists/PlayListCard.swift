@@ -2,46 +2,61 @@
 //  PlayListCard.swift
 //  NaaPaata
 //
-//  Created by Mekala Vamsi Krishna on 10/17/25.
-//
 
 import SwiftUI
+import UIKit
 
 struct PlaylistCard: View {
+
     let playlist: Playlist
     let cardHeight: CGFloat
-    @State private var isPressed = false
-    
+
+    private var coverImage: UIImage? {
+        guard let data = playlist.coverImageData else { return nil }
+        return UIImage(data: data)
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
+
             ZStack {
-                // Glow effect
+                // Glow
                 RoundedRectangle(cornerRadius: 16)
-                    .fill(RadialGradient(colors: [AppColors.primary.opacity(0.3), .clear],
-                                         center: .center, startRadius: 60, endRadius: 90))
+                    .fill(
+                        RadialGradient(
+                            colors: [Color.accentColor.opacity(0.3), .clear],
+                            center: .center,
+                            startRadius: 60,
+                            endRadius: 90
+                        )
+                    )
                     .frame(height: cardHeight)
                     .blur(radius: 20)
-                
-                // Main card
+
+                // Card
                 RoundedRectangle(cornerRadius: 16)
                     .fill(.ultraThinMaterial)
                     .frame(height: cardHeight)
                     .overlay(
                         GeometryReader { geometry in
                             ZStack {
-                                // Cover image
-                                if let image = playlist.coverImage {
-                                    Image(uiImage: image)
+                                if let coverImage {
+                                    Image(uiImage: coverImage)
                                         .resizable()
                                         .scaledToFill()
-                                        .frame(width: geometry.size.width, height: geometry.size.height)
+                                        .frame(
+                                            width: geometry.size.width,
+                                            height: geometry.size.height
+                                        )
                                         .clipped()
                                 } else {
                                     Image(systemName: "music.note")
                                         .font(.system(size: 48))
-                                        .foregroundColor(AppColors.primary)
-                                        .frame(width: geometry.size.width, height: geometry.size.height)
-                                        .clipped()
+                                        .foregroundStyle(Color.accentColor)
+                                        .frame(
+                                            width: geometry.size.width,
+                                            height: geometry.size.height
+                                        )
                                 }
                             }
                         }
@@ -50,29 +65,33 @@ struct PlaylistCard: View {
                     .overlay(
                         RoundedRectangle(cornerRadius: 16)
                             .strokeBorder(
-                                LinearGradient(colors: [.white.opacity(0.2), .clear],
-                                               startPoint: .topLeading,
-                                               endPoint: .bottomTrailing),
+                                LinearGradient(
+                                    colors: [.white.opacity(0.2), .clear],
+                                    startPoint: .topLeading,
+                                    endPoint: .bottomTrailing
+                                ),
                                 lineWidth: 1
                             )
                     )
                     .shadow(color: .black.opacity(0.2), radius: 10, x: 0, y: 5)
             }
-            
+
             VStack(alignment: .leading, spacing: 4) {
                 Text(playlist.name)
                     .font(.system(size: 16, weight: .bold))
-                    .foregroundColor(AppColors.textPrimary)
+                    .foregroundStyle(.primary)
                     .lineLimit(1)
-                
-                HStack(spacing: 4) {
-                    Text(playlist.songPaths.isEmpty ? "Empty" : "\(playlist.songPaths.count) song\(playlist.songPaths.count == 1 ? "" : "s")")
-                        .font(.system(size: 13, weight: .medium))
-                }
-                .foregroundColor(AppColors.textSecondary)
+
+                Text(songCountLabel)
+                    .font(.system(size: 13, weight: .medium))
+                    .foregroundStyle(.secondary)
             }
         }
-        .scaleEffect(isPressed ? 0.95 : 1.0)
-        .animation(.spring(response: 0.3, dampingFraction: 0.6), value: isPressed)
+    }
+
+    private var songCountLabel: String {
+        let count = playlist.songRelativePaths.count
+        if count == 0 { return "Empty" }
+        return "\(count) song\(count == 1 ? "" : "s")"
     }
 }

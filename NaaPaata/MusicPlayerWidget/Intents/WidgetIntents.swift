@@ -7,41 +7,33 @@
 //
 
 import AppIntents
-import Foundation
-import WidgetKit
 
 struct PlayPauseIntent: AudioPlaybackIntent {
-    static var title: LocalizedStringResource = "Play/Pause"
+    static var title: LocalizedStringResource = "Play or Pause"
     static var openAppWhenRun = false
 
-    @MainActor
     func perform() async throws -> some IntentResult {
-        MusicPlayerManager.shared.togglePlayPause()
-        WidgetCenter.shared.reloadTimelines(ofKind: "MusicPlayerWidget")
+        SharedDataManager.shared.writeCommand(.playPause)
         return .result()
     }
 }
 
 struct NextIntent: AudioPlaybackIntent {
-    static var title: LocalizedStringResource = "Next"
+    static var title: LocalizedStringResource = "Next Song"
     static var openAppWhenRun = false
 
-    @MainActor
     func perform() async throws -> some IntentResult {
-        MusicPlayerManager.shared.playNext()
-        WidgetCenter.shared.reloadTimelines(ofKind: "MusicPlayerWidget")
+        SharedDataManager.shared.writeCommand(.next)
         return .result()
     }
 }
 
 struct PreviousIntent: AudioPlaybackIntent {
-    static var title: LocalizedStringResource = "Previous"
+    static var title: LocalizedStringResource = "Previous Song"
     static var openAppWhenRun = false
 
-    @MainActor
     func perform() async throws -> some IntentResult {
-        MusicPlayerManager.shared.playPrevious()
-        WidgetCenter.shared.reloadTimelines(ofKind: "MusicPlayerWidget")
+        SharedDataManager.shared.writeCommand(.previous)
         return .result()
     }
 }

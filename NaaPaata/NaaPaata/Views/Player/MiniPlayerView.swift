@@ -2,10 +2,9 @@
 //  MiniPlayerView.swift
 //  NaaPaata
 //
-//  Created by Mekala Vamsi Krishna on 9/21/25.
-//
 
 import SwiftUI
+import UIKit
 
 enum MiniPlayerStyle {
     case accessoryExpanded
@@ -14,7 +13,8 @@ enum MiniPlayerStyle {
 }
 
 struct MiniPlayerView: View {
-    @EnvironmentObject private var musicPlayerManager: MusicPlayerManager
+
+    @EnvironmentObject private var libraryViewModel: MusicLibraryViewModel
 
     let style: MiniPlayerStyle
     let onOpen: () -> Void
@@ -27,11 +27,37 @@ struct MiniPlayerView: View {
         isInline ? 26 : 38
     }
 
+    private var song: Song? {
+        libraryViewModel.currentSong
+    }
+
+    private var artworkImage: UIImage? {
+        guard let data = song?.artworkData else { return nil }
+        return UIImage(data: data)
+    }
+
+    private var isPlaying: Bool {
+        libraryViewModel.isPlaying
+    }
+
+    // MARK: - Body
+
     var body: some View {
+        if song == nil {
+            emptyState
+        } else {
+            activePlayer
+        }
+    }
+
+    // MARK: - Active player
+
+    private var activePlayer: some View {
         HStack(spacing: isInline ? 6 : 12) {
+
             Button(action: onOpen) {
                 HStack(spacing: isInline ? 6 : 12) {
-                    artwork
+                    artworkView
                     songInformation
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -41,12 +67,12 @@ struct MiniPlayerView: View {
             .accessibilityLabel("Open Now Playing")
 
             playbackButton(
-                systemName: musicPlayerManager.isPlaying ? "pause.fill" : "play.fill",
+                systemName: isPlaying ? "pause.fill" : "play.fill",
                 size: isInline ? 13 : 18,
-                accessibilityLabel: musicPlayerManager.isPlaying ? "Pause" : "Play"
+                accessibilityLabel: isPlaying ? "Pause" : "Play"
             ) {
                 HapticManager.shared.light()
-                musicPlayerManager.togglePlayPause()
+                libraryViewModel.togglePlayPause()
             }
 
             if !isInline {
@@ -56,32 +82,94 @@ struct MiniPlayerView: View {
                     accessibilityLabel: "Next Track"
                 ) {
                     HapticManager.shared.light()
-                    musicPlayerManager.playNext()
+                    libraryViewModel.playNext()
                 }
             }
         }
         .padding(.horizontal, isInline ? 4 : 12)
         .frame(maxWidth: .infinity)
         .frame(height: isInline ? 38 : 64)
-        .background(background)
+        .background(activeBackground)
         .contentShape(Rectangle())
         .accessibilityElement(children: .contain)
         .accessibilityAction(named: "Open Now Playing", onOpen)
     }
 
+    // MARK: - Empty state (nothing playing)
+
+    private var emptyState: some View {
+        HStack(spacing: isInline ? 6 : 12) {
+
+            // Placeholder artwork
+            ZStack {
+                RoundedRectangle(cornerRadius: isInline ? 5 : 8, style: .continuous)
+                    .fill(Color.secondary.opacity(0.15))
+
+                Image(systemName: "music.note")
+                    .font(.system(size: isInline ? 11 : 17, weight: .medium))
+                    .foregroundStyle(.tertiary)
+            }
+            .frame(width: artworkSize, height: artworkSize)
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Nothing Playing")
+                    .font(.system(size: isInline ? 12 : 15, weight: .semibold))
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+
+                if !isInline {
+                    Text("Pick a song to start")
+                        .font(.system(size: 13))
+                        .foregroundStyle(.tertiary)
+                        .lineLimit(1)
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+
+            // Disabled play button — greyed out
+            Image(systemName: "play.fill")
+                .font(.system(size: isInline ? 13 : 18, weight: .semibold))
+                .foregroundStyle(.tertiary)
+                .frame(
+                    width: isInline ? 28 : 40,
+                    height: isInline ? 28 : 40
+                )
+                .opacity(0.5)
+
+            if !isInline {
+                Image(systemName: "forward.fill")
+                    .font(.system(size: 16, weight: .semibold))
+                    .foregroundStyle(.tertiary)
+                    .frame(width: 40, height: 40)
+                    .opacity(0.5)
+            }
+        }
+        .padding(.horizontal, isInline ? 4 : 12)
+        .frame(maxWidth: .infinity)
+        .frame(height: isInline ? 38 : 64)
+        .background(emptyBackground)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("Nothing playing")
+    }
+
+    // MARK: - Artwork
+
     @ViewBuilder
-    private var artwork: some View {
-        if let artwork = musicPlayerManager.artworkImage {
-            Image(uiImage: artwork)
+    private var artworkView: some View {
+        if let artworkImage {
+            Image(uiImage: artworkImage)
                 .resizable()
                 .scaledToFill()
                 .frame(width: artworkSize, height: artworkSize)
-                .clipShape(RoundedRectangle(cornerRadius: isInline ? 5 : 8, style: .continuous))
+                .clipShape(
+                    RoundedRectangle(cornerRadius: isInline ? 5 : 8, style: .continuous)
+                )
                 .accessibilityHidden(true)
         } else {
             ZStack {
                 RoundedRectangle(cornerRadius: isInline ? 5 : 8, style: .continuous)
                     .fill(Color.secondary.opacity(0.16))
+
                 Image(systemName: "music.note")
                     .font(.system(size: isInline ? 11 : 19, weight: .medium))
                     .foregroundStyle(.secondary)
@@ -91,28 +179,27 @@ struct MiniPlayerView: View {
         }
     }
 
+    // MARK: - Song info
+
     @ViewBuilder
     private var songInformation: some View {
         if isInline {
-            Text(musicPlayerManager.currentSong?.title ?? "Unknown Title")
+            Text(song?.title ?? "Unknown Title")
                 .font(.system(size: 12, weight: .semibold))
                 .foregroundStyle(.primary)
                 .lineLimit(1)
                 .minimumScaleFactor(0.72)
                 .allowsTightening(true)
                 .frame(maxWidth: .infinity, alignment: .leading)
-                .accessibilityLabel(
-                    "\(musicPlayerManager.currentSong?.title ?? "Unknown Title"), \(musicPlayerManager.currentSong?.artist ?? "Unknown Artist")"
-                )
         } else {
             VStack(alignment: .leading, spacing: 2) {
-                Text(musicPlayerManager.currentSong?.title ?? "Unknown Title")
+                Text(song?.title ?? "Unknown Title")
                     .font(.system(size: 15, weight: .semibold))
                     .foregroundStyle(.primary)
                     .lineLimit(1)
 
-                Text(musicPlayerManager.currentSong?.artist ?? "Unknown Artist")
-                    .font(.system(size: 13, weight: .regular))
+                Text(song?.artist ?? "Unknown Artist")
+                    .font(.system(size: 13))
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
             }
@@ -121,8 +208,10 @@ struct MiniPlayerView: View {
         }
     }
 
+    // MARK: - Backgrounds
+
     @ViewBuilder
-    private var background: some View {
+    private var activeBackground: some View {
         switch style {
         case .legacy:
             RoundedRectangle(cornerRadius: 14, style: .continuous)
@@ -137,6 +226,24 @@ struct MiniPlayerView: View {
         }
     }
 
+    @ViewBuilder
+    private var emptyBackground: some View {
+        switch style {
+        case .legacy:
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .fill(.ultraThinMaterial)
+                .opacity(0.6)
+                .overlay {
+                    RoundedRectangle(cornerRadius: 14, style: .continuous)
+                        .strokeBorder(.white.opacity(0.08), lineWidth: 0.5)
+                }
+        case .accessoryExpanded, .accessoryInline:
+            Color.clear
+        }
+    }
+
+    // MARK: - Button builder
+
     private func playbackButton(
         systemName: String,
         size: CGFloat,
@@ -148,7 +255,10 @@ struct MiniPlayerView: View {
                 .font(.system(size: size, weight: .semibold))
                 .foregroundStyle(.primary)
                 .contentTransition(.symbolEffect(.replace))
-                .frame(width: isInline ? 28 : 40, height: isInline ? 28 : 40)
+                .frame(
+                    width: isInline ? 28 : 40,
+                    height: isInline ? 28 : 40
+                )
                 .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
@@ -156,8 +266,11 @@ struct MiniPlayerView: View {
     }
 }
 
+// MARK: - iOS 26 tab accessory wrapper
+
 @available(iOS 26.0, *)
 struct IOS26MiniPlayerAccessory: View {
+
     @Environment(\.tabViewBottomAccessoryPlacement) private var placement
 
     let onOpen: () -> Void
@@ -167,9 +280,6 @@ struct IOS26MiniPlayerAccessory: View {
     }
 
     var body: some View {
-        MiniPlayerView(
-            style: style,
-            onOpen: onOpen
-        )
+        MiniPlayerView(style: style, onOpen: onOpen)
     }
 }

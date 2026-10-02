@@ -2,18 +2,18 @@
 //  EqualizerViewModel.swift
 //  NaaPaata
 //
-//  Created by Mekala Vamsi Krishna on 11/29/25.
-//
 
-import SwiftUI
+import Foundation
 import Combine
 
-class EqualizerViewModel: ObservableObject {
-    // MARK: - Published Properties
+@MainActor
+final class EqualizerViewModel: ObservableObject {
+
+    // MARK: - Published
     @Published var isEnabled: Bool = true {
         didSet { updateEQ() }
     }
-    
+
     @Published var selectedPreset: String = "Custom" {
         didSet {
             if selectedPreset != "Custom" {
@@ -22,8 +22,7 @@ class EqualizerViewModel: ObservableObject {
             saveSettings()
         }
     }
-    
-    // Rotary Knobs
+
     @Published var preAmpValue: Double = 0.0 {
         didSet {
             if !isApplyingPreset && selectedPreset != "Custom" { selectedPreset = "Custom" }
@@ -42,50 +41,52 @@ class EqualizerViewModel: ObservableObject {
             updateEQ()
         }
     }
-    
-    // Knob Toggles
+
     @Published var isPreAmpEnabled: Bool = true { didSet { updateEQ() } }
     @Published var isBassEnabled: Bool = true { didSet { updateEQ() } }
     @Published var isTrebleEnabled: Bool = true { didSet { updateEQ() } }
-    
-    // Volume Control
+
     @Published var volume: Double = 0.75 { didSet { updateVolume() } }
-    
-    // Frequency Bands (7 Bands)
-    @Published var bands: [Double] = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0] {
+
+    @Published var bands: [Double] = [0, 0, 0, 0, 0, 0, 0] {
         didSet {
-            // Only switch to Custom if the change wasn't triggered by a preset application
             if !isApplyingPreset && selectedPreset != "Custom" {
                 selectedPreset = "Custom"
             }
             updateEQ()
         }
     }
-    
+
     let frequencies = ["60Hz", "150Hz", "400Hz", "1kHz", "2.4kHz", "15kHz", "20kHz"]
-    let presets = ["Custom", "Flat", "Bass Boost", "Bass Reducer", "Treble Boost", "Treble Reducer", "Vocal Booster", "Electronic", "Hip-Hop", "Jazz", "Pop", "Rock"]
-    
+    let presets = [
+        "Custom", "Flat", "Bass Boost", "Bass Reducer",
+        "Treble Boost", "Treble Reducer", "Vocal Booster",
+        "Electronic", "Hip-Hop", "Jazz", "Pop", "Rock"
+    ]
+
     private var isApplyingPreset = false
-    
-    init() {
+
+    private let playerService: AudioPlayerServiceProtocol
+
+    init(playerService: AudioPlayerServiceProtocol) {
+        self.playerService = playerService
         loadSettings()
     }
-    
-    // MARK: - Logic
-    
+
+    // MARK: - Preset selection
+
     func selectPreset(_ preset: String) {
         selectedPreset = preset
     }
-    
+
     private func applyPreset(_ name: String) {
         isApplyingPreset = true
         defer { isApplyingPreset = false }
-        
-        // Reset all knob values first
+
         preAmpValue = 0
         bassValue = 0
         trebleValue = 0
-        
+
         switch name {
         case "Flat":
             setBands([0, 0, 0, 0, 0, 0, 0])
@@ -119,39 +120,31 @@ class EqualizerViewModel: ObservableObject {
         default:
             break
         }
-        
-        // Force UI update after preset is applied
+
         updateEQ()
     }
-    
+
     private func setBands(_ values: [Double]) {
-        self.bands = values
+        bands = values
         updateEQ()
     }
-    
-    // MARK: - Audio Engine Integration
-    
+
+    // MARK: - Engine integration
+
     private func updateEQ() {
-        let settings = EqualizerSettings(
-            isEnabled: isEnabled,
-            preAmpValue: preAmpValue,
-            bassValue: bassValue,
-            trebleValue: trebleValue,
-            bands: bands,
-            selectedPreset: selectedPreset,
-            isPreAmpEnabled: isPreAmpEnabled,
-            isBassEnabled: isBassEnabled,
-            isTrebleEnabled: isTrebleEnabled
-        )
-        
-        MusicPlayerManager.shared.updateEQ(settings: settings)
+        let settings = currentSettings
+        playerService.applyEqualizer(settings)
         saveSettings()
     }
-    
+
+    private func updateVolume() {
+        playerService.setVolume(Float(volume))
+    }
+
     // MARK: - Persistence
-    
-    private func saveSettings() {
-        let settings = EqualizerSettings(
+
+    private var currentSettings: EqualizerSettings {
+        EqualizerSettings(
             isEnabled: isEnabled,
             preAmpValue: preAmpValue,
             bassValue: bassValue,
@@ -162,46 +155,43 @@ class EqualizerViewModel: ObservableObject {
             isBassEnabled: isBassEnabled,
             isTrebleEnabled: isTrebleEnabled
         )
-        
-        if let encoded = try? JSONEncoder().encode(settings) {
-            UserDefaults.standard.set(encoded, forKey: "EqualizerSettings")
-        }
     }
-    
+
+    private func saveSettings() {
+        guard let encoded = try? JSONEncoder().encode(currentSettings) else { return }
+        UserDefaults.standard.set(encoded, forKey: "EqualizerSettings")
+    }
+
     private func loadSettings() {
-        if let data = UserDefaults.standard.data(forKey: "EqualizerSettings"),
-           let settings = try? JSONDecoder().decode(EqualizerSettings.self, from: data) {
-            
-            self.isApplyingPreset = true // Prevent triggering updateEQ loop during init
-            
-            self.isEnabled = settings.isEnabled
-            self.preAmpValue = settings.preAmpValue
-            self.bassValue = settings.bassValue
-            self.trebleValue = settings.trebleValue
-            self.bands = settings.bands
-            self.selectedPreset = settings.selectedPreset
-            self.isPreAmpEnabled = settings.isPreAmpEnabled
-            self.isBassEnabled = settings.isBassEnabled
-            self.isTrebleEnabled = settings.isTrebleEnabled
-            
-            self.isApplyingPreset = false
-            
-            // Apply loaded settings to engine
-            MusicPlayerManager.shared.updateEQ(settings: settings)
-        }
+        guard
+            let data = UserDefaults.standard.data(forKey: "EqualizerSettings"),
+            let settings = try? JSONDecoder().decode(EqualizerSettings.self, from: data)
+        else { return }
+
+        isApplyingPreset = true
+
+        isEnabled = settings.isEnabled
+        preAmpValue = settings.preAmpValue
+        bassValue = settings.bassValue
+        trebleValue = settings.trebleValue
+        bands = settings.bands
+        selectedPreset = settings.selectedPreset
+        isPreAmpEnabled = settings.isPreAmpEnabled
+        isBassEnabled = settings.isBassEnabled
+        isTrebleEnabled = settings.isTrebleEnabled
+
+        isApplyingPreset = false
+
+        playerService.applyEqualizer(settings)
     }
-    
-    // Helper to handle slider changes manually to set Custom preset
+
+    // MARK: - Manual band change
+
     func bandChanged(index: Int, value: Double) {
         bands[index] = value
         if selectedPreset != "Custom" {
             selectedPreset = "Custom"
         }
         updateEQ()
-    }
-    
-    // Update system volume
-    private func updateVolume() {
-        MusicPlayerManager.shared.setVolume(volume)
     }
 }

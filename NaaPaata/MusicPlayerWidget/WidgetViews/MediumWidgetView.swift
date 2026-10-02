@@ -10,8 +10,8 @@ import AppIntents
 import WidgetKit
 
 struct MediumWidgetView: View {
-    let title: String?
-    let artist: String?
+    let title: String
+    let artist: String
     let artworkData: Data?
     let isPlaying: Bool
 

@@ -8,92 +8,60 @@
 import SwiftUI
 
 struct SongsTopBar: View {
-    @ObservedObject var viewModel: SongsViewModel
-    var onSort: ((SongsViewModel.SortKey) -> Void)?
+
+    let count: Int
+    @Binding var sortOption: SongSortOption
+    let onPlayAll: () -> Void
+    let onShuffleAll: () -> Void
 
     var body: some View {
         HStack {
-            Text("\(viewModel.totalSongs) Songs")
+            Text("\(count) Song\(count == 1 ? "" : "s")")
                 .font(.system(size: 18, weight: .semibold))
-                .foregroundColor(.primary)
-                .padding(.leading, 5)
+                .foregroundStyle(.primary)
 
             Spacer()
-            Spacer()
 
-            HStack(spacing: 20) {
-                Button(action: viewModel.playAll) {
+            HStack(spacing: 8) {
+
+                Button(action: onPlayAll) {
                     Image(systemName: "play.fill")
-                        .font(.system(size: 18))
-                        .foregroundColor(AppColors.primary)
-                        .frame(width: 44, height: 44)
+                        .font(.system(size: 17, weight: .medium))
+                        .foregroundStyle(Color.accentColor)
+                        .frame(width: 40, height: 40)
                         .contentShape(Rectangle())
                 }
-                .buttonStyle(PlainButtonStyle())
-                
-                Button(action: viewModel.playShuffled) {
+                .buttonStyle(.plain)
+                .accessibilityLabel("Play All")
+
+                Button(action: onShuffleAll) {
                     Image(systemName: "shuffle")
-                        .font(.system(size: 18))
-                        .foregroundColor(AppColors.primary)
-                        .frame(width: 44, height: 44)
+                        .font(.system(size: 17, weight: .medium))
+                        .foregroundStyle(Color.accentColor)
+                        .frame(width: 40, height: 40)
                         .contentShape(Rectangle())
                 }
-                .buttonStyle(PlainButtonStyle())
+                .buttonStyle(.plain)
+                .accessibilityLabel("Shuffle All")
 
                 Menu {
-                    Button(action: { onSort?(.title) }) {
-                        HStack {
-                            Text("Title")
-                            if viewModel.currentSort == .title {
-                                Image(systemName: "checkmark")
-                                    .foregroundColor(AppColors.primary)
-                            }
+                    Picker("Sort By", selection: $sortOption) {
+                        ForEach(SongSortOption.allCases) { option in
+                            Text(option.title).tag(option)
                         }
                     }
-                    Button(action: { onSort?(.artist) }) {
-                        HStack {
-                            Text("Artist")
-                            if viewModel.currentSort == .artist {
-                                Image(systemName: "checkmark")
-                                    .foregroundColor(AppColors.primary)
-                            }
-                        }
-                    }
-                    Button(action: { onSort?(.duration) }) {
-                        HStack {
-                            Text("Duration")
-                            if viewModel.currentSort == .duration {
-                                Image(systemName: "checkmark")
-                                    .foregroundColor(AppColors.primary)
-                            }
-                        }
-                    }
-                    Button(action: { onSort?(.dateAddedDescending) }) {
-                        HStack {
-                            Text("Date Added (Newest)")
-                            if viewModel.currentSort == .dateAddedDescending {
-                                Image(systemName: "checkmark")
-                                    .foregroundColor(AppColors.primary)
-                            }
-                        }
-                    }
-                    Button(action: { onSort?(.dateAddedAscending) }) {
-                        HStack {
-                            Text("Date Added (Oldest)")
-                            if viewModel.currentSort == .dateAddedAscending {
-                                Image(systemName: "checkmark")
-                                    .foregroundColor(AppColors.primary)
-                            }
-                        }
-                    }
+                    .pickerStyle(.inline)
                 } label: {
                     Image(systemName: "arrow.up.arrow.down")
-                        .font(.system(size: 18))
-                        .foregroundColor(AppColors.primary)
+                        .font(.system(size: 17, weight: .medium))
+                        .foregroundStyle(Color.accentColor)
+                        .frame(width: 40, height: 40)
+                        .contentShape(Rectangle())
                 }
+                .accessibilityLabel("Sort")
             }
         }
-        .padding(.horizontal)
+        .padding(.horizontal, 16)
         .padding(.vertical, 8)
     }
 }

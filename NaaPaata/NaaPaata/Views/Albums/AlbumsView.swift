@@ -6,140 +6,105 @@
 //
 
 import SwiftUI
-import AVFoundation
 
 struct AlbumsView: View {
-    @EnvironmentObject var viewModel: AlbumsViewModel
-    @Environment(\.horizontalSizeClass) var sizeClass
 
-    @State private var showingInstructions = false
+    @EnvironmentObject private var libraryViewModel: MusicLibraryViewModel
+
+    @State private var searchText = ""
+    @State private var sortOption: AlbumSortOption = .titleAscending
+    @AppStorage("albums.sortOption") private var storedSortRawValue = AlbumSortOption.titleAscending.rawValue
+
+    private let columns = [
+        GridItem(.adaptive(minimum: 150, maximum: 200), spacing: 20)
+    ]
+
+    private var displayedAlbums: [Album] {
+        let sorted = libraryViewModel.albums.sorted(
+            by: sortOption.areInIncreasingOrder
+        )
+        guard !searchText.isEmpty else { return sorted }
+        return sorted.filter {
+            $0.title.localizedCaseInsensitiveContains(searchText) ||
+            $0.artist.localizedCaseInsensitiveContains(searchText)
+        }
+    }
 
     var body: some View {
-        GeometryReader { geometry in
-            let layout = AdaptiveLayout(
-                horizontalSizeClass: sizeClass,
-                screenWidth: geometry.size.width
-            )
-            let columns = Array(
-                repeating: GridItem(.flexible(), spacing: layout.gridSpacing),
-                count: layout.gridColumns
-            )
+        Group {
+            if libraryViewModel.isLoading && libraryViewModel.albums.isEmpty {
+                ProgressView("Scanning library…")
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
 
-            NavigationStack {
-                ZStack {
-                    LinearGradient(
-                        colors: [
-                            AppColors.background,
-                            AppColors.background.opacity(0.95),
-                            AppColors.primary.opacity(0.05)
-                        ],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    )
-                    .ignoresSafeArea()
+            } else if libraryViewModel.albums.isEmpty {
+                emptyState
 
-                    if viewModel.isLoading {
-                        VStack(spacing: 20) {
-                            AnimatedDotsLoader()
-                            Text("Loading albums...")
-                                .font(.headline)
-                                .foregroundColor(AppColors.textSecondary)
-                            if viewModel.loadingProgress > 0 {
-                                Text("\(Int(viewModel.loadingProgress * 100))%")
-                                    .font(.caption)
-                                    .foregroundColor(AppColors.textSecondary)
-                            }
-                        }
-                        .transition(.opacity)
-                    } else if viewModel.albums.isEmpty {
-                        VStack {
-                            Spacer()
-                            Image(systemName: "opticaldisc")
-                                .resizable()
-                                .scaledToFit()
-                                .frame(width: 150, height: 150)
-                                .foregroundColor(AppColors.primary).opacity(0.7)
-                                .padding(.top, 50)
+            } else {
+                albumGrid
+            }
+        }
+        .navigationTitle("Albums")
+        .toolbar { toolbarContent }
+        .onAppear {
+            sortOption = AlbumSortOption(rawValue: storedSortRawValue) ?? .titleAscending
+        }
+        .onChange(of: sortOption) { _, newValue in
+            storedSortRawValue = newValue.rawValue
+        }
+    }
 
-                            Text("Add MP3 files to the Naa Paata folder in the Files app to enjoy playback anytime.")
-                                .font(.headline)
-                                .foregroundColor(AppColors.textPrimary)
-                                .multilineTextAlignment(.center)
-                                .padding(.horizontal)
+    // MARK: - Grid
 
-                            Button(action: {
-                                showingInstructions = true
-                            }) {
-                                Text("Learn More")
-                                    .font(.system(size: 16, weight: .semibold))
-                                    .foregroundColor(.white)
-                                    .padding(.horizontal, 30)
-                                    .padding(.vertical, 12)
-                                    .background(AppColors.primary)
-                                    .clipShape(Capsule())
-                            }
-                            .padding(.top, 20)
+    private var albumGrid: some View {
+        ScrollView {
+            LazyVGrid(columns: columns, spacing: 20) {
+                ForEach(displayedAlbums) { album in
+                    NavigationLink(value: album) {
+                        AlbumCardView(album: album)
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+            .padding(20)
+        }
+    }
 
-                            Spacer()
-                        }
-                    } else {
-                        ScrollView {
-                            LazyVGrid(columns: columns, spacing: layout.gridSpacing) {
-                                Section(header:
-                                    AlbumsTopBar(
-                                        viewModel: viewModel,
-                                        count: viewModel.albums.count
-                                    ) { key in
-                                        viewModel.currentSort = key
-                                        viewModel.sortAlbums(by: key)
-                                    }
-                                    .padding(.horizontal, layout.horizontalPadding)
-                                    .padding(.top, 8)
-                                    .padding(.bottom, 8)
-                                ) {
-                                    ForEach(viewModel.albums) { album in
-                                        NavigationLink {
-                                            AlbumDetailsView(
-                                                title: album.name,
-                                                artwork: album.artworkImage,
-                                                songs: album.songs
-                                            )
-                                        } label: {
-                                            AlbumCellView(album: album, imageSize: layout.cardImageSize)
-                                        }
-                                    }
-                                }
-                            }
-                            .padding(.horizontal, layout.horizontalPadding)
-                            .padding(.bottom, 20)
-                        }
-                        .overlay(
-                            Group {
-                                if viewModel.isRefreshing {
-                                    HStack {
-                                        Spacer()
-                                        AnimatedDotsLoader()
-                                            .scaleEffect(0.5)
-                                            .padding(.trailing, 20)
-                                            .padding(.top, 10)
-                                    }
-                                    .transition(.opacity)
-                                }
-                            },
-                            alignment: .top
-                        )
+    // MARK: - Toolbar
+
+    @ToolbarContentBuilder
+    private var toolbarContent: some ToolbarContent {
+        ToolbarItem(placement: .topBarTrailing) {
+            Menu {
+                Picker("Sort By", selection: $sortOption) {
+                    ForEach(AlbumSortOption.allCases) { option in
+                        Text(option.title).tag(option)
                     }
                 }
-                .navigationTitle("Albums")
-                .sheet(isPresented: $showingInstructions) {
-                    InstructionView()
-                }
+                .pickerStyle(.inline)
+            } label: {
+                Image(systemName: "arrow.up.arrow.down")
             }
         }
     }
-}
 
-#Preview {
-    AlbumsView()
-        .environmentObject(AlbumsViewModel())
+    // MARK: - Empty state
+
+    private var emptyState: some View {
+        VStack(spacing: 12) {
+            Image(systemName: "square.stack")
+                .font(.system(size: 44, weight: .light))
+                .foregroundStyle(.secondary)
+
+            Text("No Albums Yet")
+                .font(.title3.weight(.semibold))
+
+            Text("Albums are created automatically from your songs' album metadata.")
+                .font(.callout)
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
+                .frame(maxWidth: 320)
+        }
+        .padding(40)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
 }

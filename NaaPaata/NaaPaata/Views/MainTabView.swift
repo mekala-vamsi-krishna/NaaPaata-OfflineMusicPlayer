@@ -7,31 +7,30 @@
 
 import SwiftUI
 
-// MARK: - Tab Enum (RawRepresentable for @AppStorage)
+// MARK: - Tab Enum
 enum AppTab: Int, Hashable, CaseIterable {
-    case songs = 0
-    case albums = 1
-    case playlists = 2
-    case settings = 3
-    case search = 4
+    case songs, albums, playlists, settings, search
 }
 
-// MARK: - Tab State with @AppStorage
-class TabState: ObservableObject {
+// MARK: - Tab State
+final class TabState: ObservableObject {
     @AppStorage("selectedTab") var selectedTab: AppTab = .songs
 }
 
 // MARK: - Main Tab View
 struct MainTabView: View {
+
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     @EnvironmentObject var tabState: TabState
-    @EnvironmentObject var musicPlayerManager: MusicPlayerManager
-    @EnvironmentObject var playlistsViewModel: PlaylistsViewModel
+    @EnvironmentObject var libraryViewModel: MusicLibraryViewModel
     @EnvironmentObject var sleepTimerManager: SleepTimerManager
 
-    @StateObject private var searchViewModel = SearchViewModel()
-
+    @StateObject private var songsRouter = AppRouter()
+    @StateObject private var albumsRouter = AppRouter()
+    @StateObject private var playlistsRouter = AppRouter()
+    @StateObject private var searchRouter = AppRouter()
+    
     @State private var showFullPlayer = false
     @State private var playerDismissalProgress: CGFloat = 0
 
@@ -46,7 +45,7 @@ struct MainTabView: View {
             adaptiveTabView
                 .accessibilityHidden(showFullPlayer && playerDismissalProgress == 0)
 
-            if musicPlayerManager.currentSong != nil {
+            if libraryViewModel.currentSong != nil {
                 if showFullPlayer {
                     MusicPlayerView(
                         dismissAction: dismissPlayer,
@@ -54,84 +53,108 @@ struct MainTabView: View {
                             playerDismissalProgress = progress
                         }
                     )
-                    .environmentObject(musicPlayerManager)
-                    .environmentObject(playlistsViewModel)
+                    .environmentObject(libraryViewModel)
                     .environmentObject(sleepTimerManager)
                     .transition(.move(edge: .bottom))
                     .zIndex(10)
-                } else if #available(iOS 26.0, *) {
-                    EmptyView()
                 }
             }
         }
-        .onReceive(musicPlayerManager.$currentSong) { song in
+        .onReceive(libraryViewModel.$currentSong) { song in
             guard song == nil, showFullPlayer else { return }
             showFullPlayer = false
         }
     }
+
+    // MARK: - Adaptive tab layout
 
     @ViewBuilder
     private var adaptiveTabView: some View {
         if #available(iOS 26.0, *) {
             tabs
                 .tabViewBottomAccessory {
-                    if musicPlayerManager.currentSong != nil {
-                        IOS26MiniPlayerAccessory(onOpen: presentPlayer)
-                            .opacity(showFullPlayer ? max(playerDismissalProgress, 0.001) : 1)
-                            .allowsHitTesting(!showFullPlayer)
-                            .accessibilityHidden(showFullPlayer)
-                    }
+                    IOS26MiniPlayerAccessory(onOpen: presentPlayer)
+                        .opacity(showFullPlayer ? max(playerDismissalProgress, 0.001) : 1)
+                        .allowsHitTesting(!showFullPlayer)
+                        .accessibilityHidden(showFullPlayer)
                 }
                 .tabBarMinimizeBehavior(.onScrollDown)
         } else {
             ZStack(alignment: .bottom) {
                 tabs
 
-                if musicPlayerManager.currentSong != nil {
-                    MiniPlayerView(
-                        style: .legacy,
-                        onOpen: presentPlayer
-                    )
-                    .padding(.horizontal, 8)
-                    .padding(.bottom, 58)
-                    .opacity(showFullPlayer ? max(playerDismissalProgress, 0.001) : 1)
-                    .allowsHitTesting(!showFullPlayer)
-                    .accessibilityHidden(showFullPlayer)
-                    .zIndex(1)
-                }
+                MiniPlayerView(
+                    style: .legacy,
+                    onOpen: presentPlayer
+                )
+                .padding(.horizontal, 8)
+                .padding(.bottom, 58)
+                .opacity(showFullPlayer ? max(playerDismissalProgress, 0.001) : 1)
+                .allowsHitTesting(!showFullPlayer)
+                .accessibilityHidden(showFullPlayer)
+                .zIndex(1)
             }
             .ignoresSafeArea(.keyboard, edges: .bottom)
         }
     }
 
+    // MARK: - Tabs
+
     private var tabs: some View {
         TabView(selection: $tabState.selectedTab) {
+
             Tab("Songs", systemImage: "music.quarternote.3", value: .songs) {
-                SongsView()
+                NavigationStack(path: $songsRouter.path) {
+                    SongsView()
+                        .navigationDestination(for: Album.self) { album in
+                            AlbumDetailView(album: album)
+                        }
+                }
+                .environmentObject(songsRouter)
             }
 
             Tab("Albums", systemImage: "rectangle.stack.badge.play", value: .albums) {
-                AlbumsView()
+                NavigationStack(path: $albumsRouter.path) {
+                    AlbumsView()
+                        .navigationDestination(for: Album.self) { album in
+                            AlbumDetailView(album: album)
+                        }
+                }
+                .environmentObject(albumsRouter)
             }
 
             Tab("Lists", systemImage: "music.note.list", value: .playlists) {
-                PlayListsView()
+                NavigationStack(path: $playlistsRouter.path) {
+                    PlayListsView()
+                        .navigationDestination(for: Album.self) { album in
+                            AlbumDetailView(album: album)
+                        }
+                }
+                .environmentObject(playlistsRouter)
             }
 
             Tab("Settings", systemImage: "gear", value: .settings) {
-                SettingsView()
+                NavigationStack {
+                    SettingsView()
+                }
             }
 
             Tab("Search", systemImage: "magnifyingglass", value: .search, role: .search) {
-                SearchView()
-                    .environmentObject(searchViewModel)
+                NavigationStack(path: $searchRouter.path) {
+                    SearchView()
+                        .navigationDestination(for: Album.self) { album in
+                            AlbumDetailView(album: album)
+                        }
+                }
+                .environmentObject(searchRouter)
             }
         }
-        .tint(AppColors.primary)
     }
 
+    // MARK: - Full player presentation
+
     private func presentPlayer() {
-        guard musicPlayerManager.currentSong != nil else { return }
+        guard libraryViewModel.currentSong != nil else { return }
         playerDismissalProgress = 0
         HapticManager.shared.light()
         withAnimation(playerAnimation) {

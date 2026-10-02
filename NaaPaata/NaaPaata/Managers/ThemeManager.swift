@@ -6,28 +6,36 @@
 import SwiftUI
 import Combine
 
-struct AppThemeColor: Identifiable, Equatable {
+struct AppThemeColor: Identifiable, Hashable {
+
     let id: String
     let name: String
     let color: Color
 
+    static let defaultID = "violet"
+
     static let all: [AppThemeColor] = [
-        AppThemeColor(id: "purple", name: "Purple", color: Color(hex: "#AF52DE")),
-        AppThemeColor(id: "Classic Red", name: "Classic Red",  color: Color(hex: "#FC3C44")),
-        AppThemeColor(id: "Green",   name: "Green",    color: Color(hex: "#1ED760")),
-        AppThemeColor(id: "coral",  name: "Coral",   color: Color(hex: "#FF6B6B")),
-        AppThemeColor(id: "Orange",   name: "Orange",    color: Color(hex: "#FF6B00")),
-        AppThemeColor(id: "Blue",   name: "Blue",    color: Color(hex: "#1451F0")),
+        AppThemeColor(id: "violet", name: "Violet",
+                      color: Color(red: 0.61, green: 0.11, blue: 0.66)),
+        AppThemeColor(id: "pink",   name: "Pink",
+                      color: Color(red: 0.93, green: 0.29, blue: 0.60)),
+        AppThemeColor(id: "blue",   name: "Blue",
+                      color: Color(red: 0.20, green: 0.51, blue: 0.96)),
+        AppThemeColor(id: "green",  name: "Green",
+                      color: Color(red: 0.13, green: 0.70, blue: 0.42)),
+        AppThemeColor(id: "orange", name: "Orange",
+                      color: Color(red: 0.96, green: 0.55, blue: 0.15)),
+        AppThemeColor(id: "red",    name: "Red",
+                      color: Color(red: 0.88, green: 0.22, blue: 0.22))
     ]
 
-    static let `default` = all[0]
+    static func color(forID id: String) -> Color {
+        all.first(where: { $0.id == id })?.color ?? Color.accentColor
+    }
 }
 
-// MARK: - App colour scheme (light / dark / system)
 enum AppColorScheme: String, CaseIterable, Identifiable {
-    case system = "system"
-    case light  = "light"
-    case dark   = "dark"
+    case system, light, dark
 
     var id: String { rawValue }
 
@@ -47,7 +55,7 @@ enum AppColorScheme: String, CaseIterable, Identifiable {
         }
     }
 
-    /// Maps to SwiftUI's ColorScheme? (nil means follow system).
+    /// `nil` means "follow the system".
     var swiftUIScheme: ColorScheme? {
         switch self {
         case .system: return nil
@@ -57,32 +65,56 @@ enum AppColorScheme: String, CaseIterable, Identifiable {
     }
 }
 
-// MARK: - Theme manager
+@MainActor
 final class ThemeManager: ObservableObject {
+
     static let shared = ThemeManager()
 
-    @Published private(set) var current: AppThemeColor
-    @Published private(set) var colorScheme: AppColorScheme
+    // MARK: - Appearance
 
-    private let colorKey  = "selected_theme_color_id"
-    private let schemeKey = "selected_color_scheme"
+    @Published var colorScheme: AppColorScheme {
+        didSet {
+            UserDefaults.standard.set(
+                colorScheme.rawValue,
+                forKey: "appColorScheme"
+            )
+        }
+    }
+
+    // MARK: - Accent
+
+    @Published var accentID: String {
+        didSet {
+            UserDefaults.standard.set(accentID, forKey: "appAccentID")
+        }
+    }
+
+    /// The current accent as a `Color`. Views read this to tint UI.
+    var accent: Color {
+        AppThemeColor.color(forID: accentID)
+    }
+
+    // MARK: - Init
 
     private init() {
-        let savedColor  = UserDefaults.standard.string(forKey: "selected_theme_color_id") ?? ""
-        let savedScheme = UserDefaults.standard.string(forKey: "selected_color_scheme") ?? ""
-        current     = AppThemeColor.all.first { $0.id == savedColor } ?? .default
-        colorScheme = AppColorScheme(rawValue: savedScheme) ?? .system
+        let storedScheme = UserDefaults.standard.string(forKey: "appColorScheme") ?? ""
+        self.colorScheme = AppColorScheme(rawValue: storedScheme) ?? .system
+
+        let storedAccent = UserDefaults.standard.string(forKey: "appAccentID") ?? ""
+        self.accentID = AppThemeColor.all.contains(where: { $0.id == storedAccent })
+            ? storedAccent
+            : AppThemeColor.defaultID
     }
 
-    func select(_ theme: AppThemeColor) {
-        guard theme != current else { return }
-        current = theme
-        UserDefaults.standard.set(theme.id, forKey: colorKey)
-    }
+    // MARK: - Mutations
 
-    func select(_ scheme: AppColorScheme) {
+    func set(_ scheme: AppColorScheme) {
         guard scheme != colorScheme else { return }
         colorScheme = scheme
-        UserDefaults.standard.set(scheme.rawValue, forKey: schemeKey)
+    }
+
+    func setAccent(_ id: String) {
+        guard id != accentID else { return }
+        accentID = id
     }
 }

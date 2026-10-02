@@ -6,110 +6,108 @@
 //
 
 import SwiftUI
-import AVFoundation
 
-struct AlbumDetailsView: View {
-    @EnvironmentObject var musicPlayerManager: MusicPlayerManager
-    
-    var title: String
-    var artwork: UIImage?
-    var songs: [Song]
-    
-    @State private var showFullPlayer = false
-    
-    // Total album duration
-    private var totalDuration: TimeInterval {
-        sortedSongs.reduce(0) { $0 + $1.duration }
-    }
-    
-    // Sort songs by title by default
+struct AlbumDetailView: View {
+
+    let album: Album
+
+    @EnvironmentObject private var libraryViewModel: MusicLibraryViewModel
+
+    // MARK: - Derived
+
     private var sortedSongs: [Song] {
-        songs.sorted { $0.title.localizedCaseInsensitiveCompare($1.title) == .orderedAscending }
+        album.songs.sorted {
+            $0.title.localizedCaseInsensitiveCompare($1.title) == .orderedAscending
+        }
     }
-    
+
+    private var totalDuration: TimeInterval {
+        sortedSongs.compactMap(\.duration).reduce(0, +)
+    }
+
+    // MARK: - Body
+
     var body: some View {
         ScrollView(showsIndicators: false) {
             VStack(spacing: 20) {
-                // Album Header
-                VStack(spacing: 8) {
-                    if let artwork = artwork {
-                        Image(uiImage: artwork)
-                            .resizable()
-                            .scaledToFill()
-                            .frame(width: 200, height: 200)
-                            .clipShape(RoundedRectangle(cornerRadius: 24))
-                            .shadow(radius: 10)
-                    } else {
-                        Image("default_playlist_cover")
-                            .resizable()
-                            .scaledToFill()
-                            .frame(width: 200, height: 200)
-                            .clipShape(RoundedRectangle(cornerRadius: 24))
-                            .shadow(radius: 10)
-                    }
-                    
-                    Text(title)
-                        .font(.system(size: 28, weight: .bold))
-                    
-                    Text("\(sortedSongs.count) songs • \(formatTime(totalDuration))")
-                        .foregroundColor(.secondary)
-                        .font(.subheadline)
-                }
-                .padding(.top, 20)
-                
-                // Play / Shuffle Buttons
-                HStack(spacing: 16) {
-                    actionButton(title: "Play All", isPrimary: true) {
-                        musicPlayerManager.playFromAllSongs(sortedSongs, fromPlaylist: title)
-                        showFullPlayer = true
-                    }
-                    actionButton(title: "Shuffle", isPrimary: false) {
-                        musicPlayerManager.playFromAllSongs(sortedSongs.shuffled(), fromPlaylist: title)
-                        showFullPlayer = true
-                    }
-                }
-                .padding(.horizontal, 20)
-                
-                // Songs List
-                VStack(spacing: 0) {
-                    ForEach(Array(sortedSongs.enumerated()), id: \.1.id) { index, song in
-                        SongRow(song: song, index: index + 1, isSelected: musicPlayerManager.currentSong == song && musicPlayerManager.isPlaying) {
-                            musicPlayerManager.playFromAllSongs(sortedSongs, startAt: song, fromPlaylist: title)
-                            showFullPlayer = true
-                        }
-                    }
-                }
-                .background(.ultraThinMaterial)
-                .clipShape(RoundedRectangle(cornerRadius: 24))
-                .padding(.horizontal, 20)
-                .padding(.bottom, 80)
+
+                header
+
+                actionButtons
+
+                songList
+                    .padding(.horizontal, 20)
+                    .padding(.bottom, 80)
             }
         }
+        .navigationTitle(album.title)
         .navigationBarTitleDisplayMode(.inline)
     }
-    
-    // MARK: - Helpers
-    private func formatTime(_ seconds: TimeInterval) -> String {
-        let mins = Int(seconds) / 60
-        let secs = Int(seconds) % 60
-        return "\(mins)m \(secs)s"
+
+    // MARK: - Header
+
+    private var header: some View {
+        VStack(spacing: 8) {
+
+            ArtworkView(data: album.artworkData, size: 200, cornerRadius: 24)
+                .shadow(color: .black.opacity(0.18), radius: 12, y: 4)
+
+            Text(album.title)
+                .font(.system(size: 28, weight: .bold))
+                .multilineTextAlignment(.center)
+                .lineLimit(2)
+                .padding(.horizontal, 24)
+
+            Text("\(sortedSongs.count) song\(sortedSongs.count == 1 ? "" : "s") • \(formatTime(totalDuration))")
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+        }
+        .padding(.top, 20)
     }
-    
-    private func actionButton(title: String, isPrimary: Bool, action: @escaping () -> Void) -> some View {
+
+    // MARK: - Action buttons
+
+    private var actionButtons: some View {
+        HStack(spacing: 16) {
+            actionButton(title: "Play All", icon: "play.fill", isPrimary: true) {
+                libraryViewModel.playAll(sortedSongs)
+            }
+
+            actionButton(title: "Shuffle", icon: "shuffle", isPrimary: false) {
+                libraryViewModel.shuffleAll(sortedSongs)
+            }
+        }
+        .padding(.horizontal, 20)
+    }
+
+    private func actionButton(
+        title: String,
+        icon: String,
+        isPrimary: Bool,
+        action: @escaping () -> Void
+    ) -> some View {
         Button(action: action) {
             HStack(spacing: 12) {
-                Image(systemName: isPrimary ? "play.fill" : "shuffle")
+                Image(systemName: icon)
                     .font(.system(size: 18, weight: .bold))
-                Text(title).font(.system(size: 16, weight: .bold))
+
+                Text(title)
+                    .font(.system(size: 16, weight: .bold))
             }
-            .foregroundColor(isPrimary ? .white : AppColors.primary)
+            .foregroundStyle(isPrimary ? .white : Color.accentColor)
             .frame(maxWidth: .infinity)
             .frame(height: 52)
             .background(
                 Group {
                     if isPrimary {
-                        LinearGradient(colors: [AppColors.primary, AppColors.primary.opacity(0.8)],
-                                       startPoint: .leading, endPoint: .trailing)
+                        LinearGradient(
+                            colors: [
+                                Color.accentColor,
+                                Color.accentColor.opacity(0.8)
+                            ],
+                            startPoint: .leading,
+                            endPoint: .trailing
+                        )
                     } else {
                         Capsule().fill(.ultraThinMaterial)
                     }
@@ -117,74 +115,52 @@ struct AlbumDetailsView: View {
             )
             .clipShape(Capsule())
             .overlay(
-                !isPrimary ? Capsule().strokeBorder(AppColors.primary.opacity(0.3), lineWidth: 1.5) : nil
+                !isPrimary
+                    ? Capsule().strokeBorder(
+                        Color.accentColor.opacity(0.3),
+                        lineWidth: 1.5
+                    )
+                    : nil
             )
         }
+        .buttonStyle(.plain)
     }
-}
 
+    // MARK: - Song list
 
-struct SongRow: View {
-    @EnvironmentObject var musicPlayerManager: MusicPlayerManager
-    
-    let song: Song
-    let index: Int
-    let isSelected: Bool
-    let action: () -> Void
+    private var songList: some View {
+        VStack(spacing: 0) {
+            ForEach(Array(sortedSongs.enumerated()), id: \.element.id) { index, song in
 
-    var body: some View {
-        Button(action: action) {
-            HStack(spacing: 16) {
-                // Track number or playing waveform
-                Text("\(index)")
-                    .font(.subheadline)
-                    .foregroundColor(AppColors.textSecondary)
-                    .frame(width: 32)
-                
-                // Song title and artist
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(song.title)
-                        .font(.body)
-                        .foregroundColor(.primary)
-                        .lineLimit(1)
-                    
-                    Text(song.artist)
-                        .font(.caption)
-                        .foregroundColor(AppColors.textSecondary)
-                        .lineLimit(1)
+                HStack(spacing: 12) {
+
+                    Text("\(index + 1)")
+                        .font(.subheadline.monospacedDigit())
+                        .foregroundStyle(.secondary)
+                        .frame(width: 24, alignment: .trailing)
+
+                    SongRowView(
+                        song: song,
+                        isCurrentSong: libraryViewModel.currentSong?.id == song.id
+                    )
                 }
-                
-                Spacer()
-                
-                if musicPlayerManager.currentSong == song {
-                    EqualizerBars(isPlaying: musicPlayerManager.isPlaying)
-                        .frame(width: 20, height: 20)
+                .padding(.horizontal, 16)
+                .padding(.vertical, 6)
+                .contentShape(Rectangle())
+                .onTapGesture {
+                    libraryViewModel.play(song, in: sortedSongs)
                 }
-                
-                // Duration
-                Text(formatTime(song.duration))
-                    .font(.caption)
-                    .foregroundColor(AppColors.textSecondary)
             }
-            .padding(.horizontal, 20)
-            .padding(.vertical, 12)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .background(isSelected ? Color.black.opacity(0.1) : Color.clear)
-            .animation(.spring(response: 0.3), value: isSelected)
         }
+        .background(.ultraThinMaterial)
+        .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
     }
-    
+
+    // MARK: - Helpers
+
     private func formatTime(_ seconds: TimeInterval) -> String {
         let mins = Int(seconds) / 60
         let secs = Int(seconds) % 60
-        return String(format: "%d:%02d", mins, secs)
+        return "\(mins)m \(secs)s"
     }
-}
-
-#Preview {
-    AlbumDetailsView(
-        title: "Greatest Hits",
-        artwork: nil,
-        songs: []
-    )
 }
