@@ -58,6 +58,11 @@ final class MusicLibraryViewModel: ObservableObject {
 
     private var cancellables = Set<AnyCancellable>()
     
+    /// Automatic scanning the folder
+    private var libraryWatcher: DispatchSourceFileSystemObject?
+    private var libraryWatchFileDescriptor: Int32 = -1
+    private var refreshTask: Task<Void, Never>?
+    
     private var hasRestoredSession = false
     private var lastPersistDate: Date = .distantPast
     private let persistInterval: TimeInterval = 5
@@ -80,7 +85,8 @@ final class MusicLibraryViewModel: ObservableObject {
         self.playerService = playerService
         self.playbackStateService = playbackStateService
         bindPlayer()
-        
+        startLibraryWatcher()
+
         NotificationCenter.default.addObserver(
             forName: NSApplication.willTerminateNotification,
             object: nil,
@@ -89,6 +95,87 @@ final class MusicLibraryViewModel: ObservableObject {
             Task { @MainActor [weak self] in
                 self?.persistState()
             }
+        }
+    }
+    
+    deinit {
+        libraryWatcher?.cancel()
+        refreshTask?.cancel()
+    }
+    
+    // MARK: - Library Monitoring
+
+    private func startLibraryWatcher() {
+        stopLibraryWatcher()
+
+        let folderURL = libraryService.libraryFolderURL
+
+        guard FileManager.default.fileExists(atPath: folderURL.path) else {
+            return
+        }
+
+        let fileDescriptor = open(folderURL.path, O_EVTONLY)
+
+        guard fileDescriptor >= 0 else {
+            return
+        }
+
+        libraryWatchFileDescriptor = fileDescriptor
+
+        let watcher = DispatchSource.makeFileSystemObjectSource(
+            fileDescriptor: fileDescriptor,
+            eventMask: [
+                .write,
+                .extend,
+                .rename,
+                .delete,
+                .attrib
+            ],
+            queue: DispatchQueue.global(qos: .utility)
+        )
+
+        watcher.setEventHandler { [weak self] in
+            guard let self else { return }
+
+            Task { @MainActor [weak self] in
+                self?.scheduleLibraryRefresh()
+            }
+        }
+
+        watcher.setCancelHandler { [weak self] in
+            guard let self else { return }
+
+            if self.libraryWatchFileDescriptor >= 0 {
+                close(self.libraryWatchFileDescriptor)
+                self.libraryWatchFileDescriptor = -1
+            }
+        }
+
+        libraryWatcher = watcher
+        watcher.resume()
+    }
+
+    private func stopLibraryWatcher() {
+        refreshTask?.cancel()
+        refreshTask = nil
+
+        libraryWatcher?.cancel()
+        libraryWatcher = nil
+    }
+
+    private func scheduleLibraryRefresh() {
+        refreshTask?.cancel()
+
+        refreshTask = Task { @MainActor [weak self] in
+            // Wait briefly because Finder may generate
+            // several filesystem events while copying a file.
+            try? await Task.sleep(for: .milliseconds(400))
+
+            guard !Task.isCancelled else {
+                return
+            }
+
+            await self?.refresh()
         }
     }
     

@@ -8,7 +8,8 @@
 import SwiftUI
 
 struct SongsView: View {
-
+    @Environment(\.scenePhase) private var scenePhase
+    
     @EnvironmentObject private var viewModel: MusicLibraryViewModel
 
     @State private var sortOption: SongSortOption = .titleAscending
@@ -47,6 +48,13 @@ struct SongsView: View {
         .task {
             if viewModel.songs.isEmpty {
                 await viewModel.loadLibrary()
+            }
+        }
+        .onChange(of: scenePhase) { _, newPhase in
+            if newPhase == .active {
+                Task {
+                    await viewModel.syncLibrary()
+                }
             }
         }
     }

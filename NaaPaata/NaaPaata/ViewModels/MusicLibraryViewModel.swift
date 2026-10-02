@@ -77,6 +77,11 @@ class MusicLibraryViewModel: ObservableObject {
     func refresh() async {
         await loadLibrary()
     }
+    
+    @MainActor
+    func syncLibrary() async {
+        await loadLibrary()
+    }
 
     func deleteSong(_ song: Song) {
         do {

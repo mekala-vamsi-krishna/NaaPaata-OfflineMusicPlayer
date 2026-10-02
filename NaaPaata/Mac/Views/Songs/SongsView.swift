@@ -102,15 +102,6 @@ struct SongsView: View {
             .buttonStyle(.bordered)
             .controlSize(.large)
 
-            Button {
-                Task { await viewModel.refresh() }
-            } label: {
-                Label("Refresh", systemImage: "arrow.clockwise")
-            }
-            .buttonStyle(.bordered)
-            .controlSize(.large)
-            .disabled(viewModel.isLoading)
-
             Spacer()
 
             sortMenu
