@@ -59,9 +59,9 @@ final class MusicLibraryViewModel: ObservableObject {
     private var cancellables = Set<AnyCancellable>()
     
     /// Automatic scanning the folder
-    private var libraryWatcher: DispatchSourceFileSystemObject?
-    private var libraryWatchFileDescriptor: Int32 = -1
-    private var refreshTask: Task<Void, Never>?
+//    private var libraryWatcher: DispatchSourceFileSystemObject?
+//    private var libraryWatchFileDescriptor: Int32 = -1
+//    private var refreshTask: Task<Void, Never>?
     
     private var hasRestoredSession = false
     private var lastPersistDate: Date = .distantPast
@@ -85,7 +85,7 @@ final class MusicLibraryViewModel: ObservableObject {
         self.playerService = playerService
         self.playbackStateService = playbackStateService
         bindPlayer()
-        startLibraryWatcher()
+//        startLibraryWatcher()
 
         NotificationCenter.default.addObserver(
             forName: NSApplication.willTerminateNotification,
@@ -98,13 +98,15 @@ final class MusicLibraryViewModel: ObservableObject {
         }
     }
     
+    /*
     deinit {
         libraryWatcher?.cancel()
         refreshTask?.cancel()
     }
+    */
     
     // MARK: - Library Monitoring
-
+    /*
     private func startLibraryWatcher() {
         stopLibraryWatcher()
 
@@ -162,7 +164,7 @@ final class MusicLibraryViewModel: ObservableObject {
         libraryWatcher?.cancel()
         libraryWatcher = nil
     }
-
+    
     private func scheduleLibraryRefresh() {
         refreshTask?.cancel()
 
@@ -178,6 +180,7 @@ final class MusicLibraryViewModel: ObservableObject {
             await self?.refresh()
         }
     }
+    */
     
     // MARK: - Library
 
