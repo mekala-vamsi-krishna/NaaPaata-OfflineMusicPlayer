@@ -55,16 +55,10 @@ struct MiniPlayerView: View {
     private var activePlayer: some View {
         HStack(spacing: isInline ? 6 : 12) {
 
-            Button(action: onOpen) {
-                HStack(spacing: isInline ? 6 : 12) {
-                    artworkView
-                    songInformation
-                }
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .contentShape(Rectangle())
-            }
-            .buttonStyle(.plain)
-            .accessibilityLabel("Open Now Playing")
+            artworkView
+            songInformation
+
+            Spacer(minLength: 0)
 
             playbackButton(
                 systemName: isPlaying ? "pause.fill" : "play.fill",
@@ -91,6 +85,9 @@ struct MiniPlayerView: View {
         .frame(height: isInline ? 38 : 64)
         .background(activeBackground)
         .contentShape(Rectangle())
+        .onTapGesture {
+            onOpen()
+        }
         .accessibilityElement(children: .contain)
         .accessibilityAction(named: "Open Now Playing", onOpen)
     }
@@ -148,6 +145,10 @@ struct MiniPlayerView: View {
         .frame(maxWidth: .infinity)
         .frame(height: isInline ? 38 : 64)
         .background(emptyBackground)
+        .contentShape(Rectangle())
+        .onTapGesture {
+            
+        }
         .accessibilityElement(children: .combine)
         .accessibilityLabel("Nothing playing")
     }
@@ -156,27 +157,31 @@ struct MiniPlayerView: View {
 
     @ViewBuilder
     private var artworkView: some View {
-        if let artworkImage {
-            Image(uiImage: artworkImage)
-                .resizable()
-                .scaledToFill()
-                .frame(width: artworkSize, height: artworkSize)
-                .clipShape(
+        Group {
+            if let artworkImage {
+                Image(uiImage: artworkImage)
+                    .resizable()
+                    .scaledToFill()
+                    .frame(width: artworkSize, height: artworkSize)
+                    .clipShape(
+                        RoundedRectangle(
+                            cornerRadius: isInline ? 5 : 8,
+                            style: .continuous
+                        )
+                    )
+            } else {
+                ZStack {
                     RoundedRectangle(cornerRadius: isInline ? 5 : 8, style: .continuous)
-                )
-                .accessibilityHidden(true)
-        } else {
-            ZStack {
-                RoundedRectangle(cornerRadius: isInline ? 5 : 8, style: .continuous)
-                    .fill(Color.secondary.opacity(0.16))
-
-                Image(systemName: "music.note")
-                    .font(.system(size: isInline ? 11 : 19, weight: .medium))
-                    .foregroundStyle(.secondary)
+                        .fill(Color.secondary.opacity(0.16))
+                    
+                    Image(systemName: "music.note")
+                        .font(.system(size: isInline ? 11 : 19, weight: .medium))
+                        .foregroundStyle(.secondary)
+                }
+                .frame(width: artworkSize, height: artworkSize)
             }
-            .frame(width: artworkSize, height: artworkSize)
-            .accessibilityHidden(true)
         }
+        .accessibilityHidden(true)
     }
 
     // MARK: - Song info
@@ -280,6 +285,9 @@ struct IOS26MiniPlayerAccessory: View {
     }
 
     var body: some View {
-        MiniPlayerView(style: style, onOpen: onOpen)
+        MiniPlayerView(
+            style: style,
+            onOpen: onOpen
+        )
     }
 }

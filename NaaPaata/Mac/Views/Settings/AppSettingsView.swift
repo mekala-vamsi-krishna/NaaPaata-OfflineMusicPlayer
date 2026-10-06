@@ -11,7 +11,8 @@ struct AppSettingsView: View {
 
     @ObservedObject var viewModel: MusicLibraryViewModel
     @EnvironmentObject private var appearanceService: AppearanceService
-
+    @EnvironmentObject private var store: StoreManager
+    
     @State private var selection: SettingsCategory? = .appearance
     @State private var path: [SettingsCategory] = []
 
@@ -58,6 +59,7 @@ struct AppSettingsView: View {
 
         case .notch:
             NotchSettingsView(viewModel: viewModel)
+                .environmentObject(store)
 
         case .stats:
             StatsSettingsView()

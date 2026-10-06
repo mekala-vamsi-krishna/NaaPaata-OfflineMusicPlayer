@@ -43,11 +43,19 @@
 
 /* Begin PBXFileReference section */
 		AC3A0F2F2E7538B9000CFC19 /* NaaPaata.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = NaaPaata.app; sourceTree = BUILT_PRODUCTS_DIR; };
-		AC5D08093067F19800A6A1A9 /* Mac.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Mac.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		AC5D08093067F19800A6A1A9 /* Naa Paata.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Naa Paata.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		AC6FFBC02FEE7D950017897E /* MusicPlayerWidgetExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = MusicPlayerWidgetExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		AC8F1A033073FA6200E2CCF8 /* Exceptions for "NaaPaata" folder in "Mac" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Managers/StoreManager.swift,
+				Model/PurchaseError.swift,
+			);
+			target = AC5D08083067F19800A6A1A9 /* Mac */;
+		};
 		ACD60D53306901BA0015005E /* Exceptions for "NaaPaata" folder in "NaaPaata" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
@@ -115,6 +123,7 @@
 			exceptions = (
 				ACD60D53306901BA0015005E /* Exceptions for "NaaPaata" folder in "NaaPaata" target */,
 				ACD60D54306901BA0015005E /* Exceptions for "NaaPaata" folder in "MusicPlayerWidgetExtension" target */,
+				AC8F1A033073FA6200E2CCF8 /* Exceptions for "NaaPaata" folder in "Mac" target */,
 			);
 			path = NaaPaata;
 			sourceTree = "<group>";
@@ -171,7 +180,7 @@
 			children = (
 				AC3A0F2F2E7538B9000CFC19 /* NaaPaata.app */,
 				AC6FFBC02FEE7D950017897E /* MusicPlayerWidgetExtension.appex */,
-				AC5D08093067F19800A6A1A9 /* Mac.app */,
+				AC5D08093067F19800A6A1A9 /* Naa Paata.app */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -224,7 +233,7 @@
 			packageProductDependencies = (
 			);
 			productName = Mac;
-			productReference = AC5D08093067F19800A6A1A9 /* Mac.app */;
+			productReference = AC5D08093067F19800A6A1A9 /* Naa Paata.app */;
 			productType = "com.apple.product-type.application";
 		};
 		AC6FFBBF2FEE7D950017897E /* MusicPlayerWidgetExtension */ = {
@@ -587,6 +596,7 @@
 				ENABLE_RESOURCE_ACCESS_USB = NO;
 				ENABLE_USER_SELECTED_FILES = readonly;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = "Naa Paata";
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -595,7 +605,7 @@
 				MACOSX_DEPLOYMENT_TARGET = 27.0;
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.example.Mac;
-				PRODUCT_NAME = "$(TARGET_NAME)";
+				PRODUCT_NAME = "Naa Paata";
 				REGISTER_APP_GROUPS = YES;
 				SDKROOT = macosx;
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
@@ -632,6 +642,7 @@
 				ENABLE_RESOURCE_ACCESS_USB = NO;
 				ENABLE_USER_SELECTED_FILES = readonly;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = "Naa Paata";
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -640,7 +651,7 @@
 				MACOSX_DEPLOYMENT_TARGET = 27.0;
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.example.Mac;
-				PRODUCT_NAME = "$(TARGET_NAME)";
+				PRODUCT_NAME = "Naa Paata";
 				REGISTER_APP_GROUPS = YES;
 				SDKROOT = macosx;
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;

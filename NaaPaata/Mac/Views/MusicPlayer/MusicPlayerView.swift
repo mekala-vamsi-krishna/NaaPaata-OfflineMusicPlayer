@@ -76,7 +76,9 @@ struct MusicPlayerView: View {
             ToolbarItem(placement: .primaryAction) {
                 Button {
                     WindowCoordinator.shared.hideMainWindow()
-                    openWindow(id: WindowID.miniPlayer)
+                    WindowCoordinator.shared.showMiniPlayer(
+                        libraryViewModel: viewModel
+                    )
                 } label: {
                     Label("Mini Player", systemImage: "pip.enter")
                 }

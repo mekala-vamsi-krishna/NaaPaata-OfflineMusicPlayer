@@ -31,8 +31,7 @@ struct SongsView: View {
     var body: some View {
         Group {
             if viewModel.isLoading && viewModel.songs.isEmpty {
-                ProgressView("Scanning library…")
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                LoadingView()
             } else if viewModel.songs.isEmpty {
                 EmptyStateView(
                     title: "No Songs Yet",
@@ -46,6 +45,7 @@ struct SongsView: View {
             }
         }
         .navigationTitle("Songs")
+        .animation(.easeInOut(duration: 0.25), value: viewModel.isLoading)
         .toolbarBackgroundVisibility(.hidden, for: .windowToolbar)
         .onAppear {
             sortOption = SongSortOption(rawValue: storedSortRawValue) ?? .titleAscending

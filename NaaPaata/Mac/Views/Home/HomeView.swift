@@ -24,6 +24,8 @@ struct HomeView: View {
     @State private var addToPlaylistMode: AddToPlaylistMode?
     @State private var confirmDeleteSong: Song?
 
+    @EnvironmentObject private var store: StoreManager
+    
     @ObservedObject var viewModel: MusicLibraryViewModel
 
     @StateObject private var router = AppRouter()
@@ -148,9 +150,31 @@ struct HomeView: View {
     // MARK: - Sidebar
 
     private var sidebar: some View {
-        List(SidebarItem.allCases, selection: $selection) { item in
-            Label(item.title, systemImage: item.systemImage)
-                .tag(item)
+        List(selection: $selection) {
+
+            // MARK: Library sections
+            ForEach([SidebarItem.search,
+                     .songs,
+                     .favourites,
+                     .albums,
+                     .artists,
+                     .genres,
+                     .playlists]) { item in
+
+                Label(item.title, systemImage: item.systemImage)
+                    .tag(item)
+            }
+            
+            Divider()
+                .padding(.vertical, 2)
+            
+            // MARK: Naa Paata Plus
+            NaaPaataPlusSidebarRow(
+                isSelected: selection == .naaPaataPlus,
+                isSubscribed: store.isPremimumUser
+            )
+            .tag(SidebarItem.naaPaataPlus)
+
         }
         .listStyle(.sidebar)
         .navigationSplitViewColumnWidth(min: 180, ideal: 210, max: 260)
@@ -228,12 +252,16 @@ struct HomeView: View {
 
                 case .artists:
                     ArtistsView(viewModel: viewModel)
-                    
+
                 case .genres:
                     GenresView(viewModel: viewModel)
-                    
+
                 case .playlists:
                     PlaylistsView(viewModel: viewModel)
+
+                case .naaPaataPlus:
+                    PaywallView()
+                        .background(Color(nsColor: .windowBackgroundColor))
                 }
             }
             .navigationDestination(for: Album.self) { album in

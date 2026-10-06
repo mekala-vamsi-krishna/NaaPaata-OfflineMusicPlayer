@@ -12,41 +12,61 @@ struct SubscriptionsView: View {
     @EnvironmentObject private var store: StoreManager
 
     @State private var selectedProductID: String = "Naa_Paata_12M"
-    @State private var isProcessing = false
 
     var body: some View {
         ZStack {
-            background
+            background.ignoresSafeArea()
 
-            VStack(spacing: 0) {
-                Spacer(minLength: 24)
+            ScrollView(.vertical, showsIndicators: false) {
+                VStack(spacing: 0) {
+                    Spacer(minLength: 24)
 
-                heroIcon
-                    .padding(.bottom, 20)
+                    heroIcon
+                        .padding(.bottom, 20)
 
-                titleBlock
-                    .padding(.bottom, 24)
+                    titleBlock
+                        .padding(.bottom, 24)
 
-                featureHighlight
-                    .padding(.horizontal, 24)
-                    .padding(.bottom, 24)
+                    featureHighlight
+                        .padding(.horizontal, 24)
+                        .padding(.bottom, 24)
 
-                planSection
-                    .padding(.horizontal, 24)
-                    .padding(.bottom, 20)
+                    planSection
+                        .padding(.horizontal, 24)
+                        .padding(.bottom, 20)
 
-                subscribeButton
-                    .padding(.horizontal, 24)
+                    subscribeButton
+                        .padding(.horizontal, 24)
 
-                restoreButton
-                    .padding(.top, 12)
+                    restoreButton
+                        .padding(.top, 12)
 
-                termsRow
-                    .padding(.top, 16)
-                    .padding(.bottom, 12)
+                    termsRow
+                        .padding(.top, 16)
+                        .padding(.bottom, 32)
+                }
+                .frame(maxWidth: .infinity)
+            }
+
+            // MARK: Processing overlay
+            if store.isPurchasing {
+                purchaseProcessingOverlay
+                    .transition(.opacity)
+                    .zIndex(10)
             }
         }
         .preferredColorScheme(.dark)
+        .animation(.easeInOut(duration: 0.2), value: store.isPurchasing)
+        // 👇 Dismiss only when the flag actually flips to true.
+        //    This fires for purchases, restores, and any path that
+        //    unlocks the entitlement — no more guessing after `purchase()`.
+        .onChange(of: store.isPremimumUser) { _, isPremium in
+            if isPremium { dismiss() }
+        }
+        .task {
+            await store.refreshEntitlements()
+            if store.isPremimumUser { dismiss() }
+        }
         .alert(item: $store.purchaseError) { error in
             Alert(
                 title: Text(error.title),
@@ -54,17 +74,8 @@ struct SubscriptionsView: View {
                 dismissButton: .default(Text("OK"))
             )
         }
-        .alert("Success!", isPresented: Binding(
-            get: { store.purchaseSuccessMessage != nil },
-            set: { if !$0 { store.purchaseSuccessMessage = nil } }
-        )) {
-            Button("OK") {
-                store.purchaseSuccessMessage = nil
-                if store.isPremimumUser { dismiss() }
-            }
-        } message: {
-            Text(store.purchaseSuccessMessage ?? "")
-        }
+        // ❌ Deleted: "Success!" alert. StoreKit's own confirmation is
+        //    the success signal, and `onChange` dismisses the screen.
         .alert("Restore Purchases", isPresented: $store.showRestoredAlert) {
             Button("OK") {
                 store.showRestoredAlert = false
@@ -72,6 +83,44 @@ struct SubscriptionsView: View {
             }
         } message: {
             Text(store.restoredMessage)
+        }
+    }
+
+    // MARK: - Processing overlay
+
+    private var purchaseProcessingOverlay: some View {
+        ZStack {
+            Color.black.opacity(0.55)
+                .ignoresSafeArea()
+
+            VStack(spacing: 16) {
+                ProgressView()
+                    .controlSize(.large)
+                    .tint(.white)
+
+                VStack(spacing: 4) {
+                    Text("Processing your purchase")
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundStyle(.white)
+
+                    Text("This can take a moment.\nPlease don't close the app.")
+                        .font(.system(size: 11))
+                        .foregroundStyle(.white.opacity(0.75))
+                        .multilineTextAlignment(.center)
+                }
+            }
+            .padding(.horizontal, 32)
+            .padding(.vertical, 28)
+            .background(
+                RoundedRectangle(cornerRadius: 16, style: .continuous)
+                    .fill(.ultraThinMaterial)
+                    .environment(\.colorScheme, .dark)
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 16, style: .continuous)
+                    .strokeBorder(.white.opacity(0.12), lineWidth: 1)
+            )
+            .shadow(color: .black.opacity(0.5), radius: 30, y: 10)
         }
     }
 
@@ -101,7 +150,6 @@ struct SubscriptionsView: View {
                 endRadius: 320
             )
         }
-        .ignoresSafeArea()
     }
 
     // MARK: - Hero icon
@@ -219,7 +267,7 @@ struct SubscriptionsView: View {
     private var subscribeButton: some View {
         Button(action: purchase) {
             HStack(spacing: 8) {
-                if isProcessing {
+                if store.isPurchasing {
                     ProgressView().tint(.white)
                 } else {
                     Text("Continue")
@@ -243,7 +291,7 @@ struct SubscriptionsView: View {
             .shadow(color: Color.accentColor.opacity(0.45), radius: 16, y: 6)
         }
         .buttonStyle(.plain)
-        .disabled(isProcessing || store.subscriptions.isEmpty)
+        .disabled(store.isPurchasing || store.subscriptions.isEmpty)
         .opacity(store.subscriptions.isEmpty ? 0.5 : 1)
     }
 
@@ -251,9 +299,7 @@ struct SubscriptionsView: View {
 
     private var restoreButton: some View {
         Button {
-            Task {
-                await store.restorePurchases()
-            }
+            Task { await store.restorePurchases() }
         } label: {
             Text("Restore Purchases")
                 .font(.system(size: 14, weight: .medium))
@@ -281,13 +327,11 @@ struct SubscriptionsView: View {
             $0.id == selectedProductID
         }) else { return }
 
-        isProcessing = true
         Task {
             await store.purchase(product)
-            isProcessing = false
-            if store.isPremimumUser {
-                dismiss()
-            }
+            // No dismiss here — `.onChange(of: store.isPremimumUser)`
+            // handles it the moment the flag flips. Calling dismiss()
+            // here would race the flag update.
         }
     }
 }
@@ -337,7 +381,6 @@ private struct PlanRow: View {
         Button(action: onTap) {
             HStack(spacing: 14) {
 
-                // Selection indicator
                 ZStack {
                     Circle()
                         .strokeBorder(
@@ -353,7 +396,6 @@ private struct PlanRow: View {
                     }
                 }
 
-                // Plan info
                 VStack(alignment: .leading, spacing: 2) {
                     HStack(spacing: 8) {
                         Text(product.displayName)
@@ -390,7 +432,6 @@ private struct PlanRow: View {
 
                 Spacer(minLength: 8)
 
-                // Price
                 VStack(alignment: .trailing, spacing: 2) {
                     Text(product.displayPrice)
                         .font(.system(size: 18, weight: .bold))

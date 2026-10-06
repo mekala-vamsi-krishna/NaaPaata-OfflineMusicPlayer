@@ -13,16 +13,9 @@ struct EqualizerView: View {
     @EnvironmentObject private var store: StoreManager
     @EnvironmentObject private var themeManager: ThemeManager
 
-    /// Shared chrome state — controls the mini-player (tab accessory).
-    /// The tab bar itself is handled locally via `.toolbar(_:for: .tabBar)`.
-    @Environment(UIState.self) private var uiState
-
     @Environment(\.colorScheme) private var colorScheme
 
     private var accent: Color { themeManager.accent }
-
-    /// True while the paywall is displayed.
-    private var isPaywallVisible: Bool { !store.isPremimumUser }
 
     var body: some View {
         Group {
@@ -32,27 +25,13 @@ struct EqualizerView: View {
                 SubscriptionsView()
             }
         }
-        .onAppear {
-            Task { await store.updateSubscriptionStatus() }
-            syncChrome()
+        .task {
+            await store.refreshEntitlements()
         }
-        .onChange(of: store.isPremimumUser) { _, _ in
-            syncChrome()
-        }
-        .onDisappear {
-            // Leaving the equalizer entirely → restore the mini-player
-            uiState.showTabAccessory = true
-        }
-        .animation(.easeInOut(duration: 0.2), value: store.isPremimumUser)
+        .animation(.easeInOut(duration: 0.25), value: store.isPremimumUser)
         .navigationTitle(store.isPremimumUser ? "Equalizer" : "Premium")
         .navigationBarTitleDisplayMode(.inline)
-        // Hide the tab bar when the paywall is shown, show it for premium
-        .toolbar(isPaywallVisible ? .hidden : .visible, for: .tabBar)
-    }
-
-    /// Keeps the mini-player in sync with the paywall state.
-    private func syncChrome() {
-        uiState.showTabAccessory = store.isPremimumUser
+        .toolbar(store.isPremimumUser ? .visible : .hidden, for: .tabBar)
     }
 
     // MARK: - Premium content

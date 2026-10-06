@@ -6,147 +6,259 @@
 //
 
 import StoreKit
-import SwiftUI 
+import SwiftUI
+import Combine
+
 @MainActor
-class StoreManager: ObservableObject {
-    @Published var subscriptions: [Product] = []
-    @Published var purchasedSubscriptions: [Product] = []
-    @Published var isSubscribed: Bool = false
-    @AppStorage("isPremimumUser")  var isPremimumUser: Bool = false
-       
-    // Error and success states for UI feedback
+final class StoreManager: ObservableObject {
+
+    @Published private(set) var subscriptions: [Product] = []
+    @Published private(set) var purchasedSubscriptions: [Product] = []
+    @Published private(set) var isPremimumUser: Bool = false
+    @Published private(set) var isPurchasing: Bool = false
+
     @Published var purchaseError: PurchaseError? = nil
-    @Published var purchaseSuccessMessage: String? = nil
     @Published var showRestoredAlert: Bool = false
     @Published var restoredMessage: String = ""
-    
-    private var updates: Task<Void, Never>? = nil
-    
+
+    private var updatesTask: Task<Void, Never>?
+    private static let cacheKey = "isPremimumUser"
+
+    /// True once a verified transaction has unlocked the flag during this
+    /// app session. Prevents `refreshEntitlements()` from racing a fresh
+    /// purchase and downgrading the flag back to false.
+    private var unlockedThisSession = false
+
     init() {
-        // Start listening for transaction updates immediately
-        updates = Task(priority: .background) {
-            for await result in Transaction.updates {
-                if case .verified(let transaction) = result {
-                    await transaction.finish()
-                    await updateSubscriptionStatus()
-                }
+        self.isPremimumUser = UserDefaults.standard.bool(forKey: Self.cacheKey)
+
+        updatesTask = Task { [weak self] in
+            for await update in StoreKit.Transaction.updates {
+                guard let self else { return }
+                await self.processTransactionUpdate(update)
             }
         }
-        
-        Task { await loadProducts() }
+
+        Task {
+            await loadProducts()
+            await refreshEntitlements()
+        }
     }
-    
+
     deinit {
-        updates?.cancel()
+        updatesTask?.cancel()
     }
-    
-    /// Fetch your subscription products by Product IDs
+
+    // MARK: - Products
+
     func loadProducts() async {
         do {
-            let productIDs = [
-                "Naa_Paata_1M",
-                "Naa_Paata_6M",
-                "Naa_Paata_12M"
-            ]
-            let storeProducts = try await Product.products(for: productIDs)
-            self.subscriptions = storeProducts.sorted(by: { $0.price < $1.price })
+            let ids = ["Naa_Paata_1M", "Naa_Paata_6M", "Naa_Paata_12M"]
+            let products = try await Product.products(for: ids)
+            self.subscriptions = products.sorted(by: { $0.price < $1.price })
         } catch {
-            print("Failed to load products: \(error)")
+            print("[Store] loadProducts failed:", error)
             self.purchaseError = .loadProductsFailed(error.localizedDescription)
         }
     }
-    
-    /// Check if user currently has entitlement
-    func updateSubscriptionStatus() async {
-        var activeSubscriptions: [Product] = []
-        
-        for await result in Transaction.currentEntitlements {
-            if case .verified(let transaction) = result {
-                if let product = subscriptions.first(where: { $0.id == transaction.productID }) {
-                    activeSubscriptions.append(product)
-                }
-            }
-        }
-        
-        purchasedSubscriptions = activeSubscriptions
-        isSubscribed = !activeSubscriptions.isEmpty
-        /// Assign whatever value isSubcribed has to presistent AppStorage property to prevent the app showing again and again to unlock the primimum for the use who is already purchased it.
-        isPremimumUser = isSubscribed
-    }
-    
-    /// Purchase a subscription
+
+    // MARK: - Purchase
+
     func purchase(_ product: Product) async {
-        // Reset previous error states
-        self.purchaseError = nil
-        self.purchaseSuccessMessage = nil
-        
+        purchaseError = nil
+        isPurchasing = true
+        defer { isPurchasing = false }
+
         do {
             let result = try await product.purchase()
+
             switch result {
             case .success(let verification):
-                if case .verified(let transaction) = verification {
-                    await updateSubscriptionStatus()
-                    await transaction.finish()
-                    self.purchaseSuccessMessage = "Welcome to Premium! Your subscription is now active."
-                } else {
-                    // Verification failed
-                    self.purchaseError = .authenticationFailed
-                }
+                await completePurchase(verification)
             case .userCancelled:
-                print("Purchase was cancelled by the user.")
-                self.purchaseError = .userCancelled
+                break
             case .pending:
-                print("Purchase is pending approval.")
-                self.purchaseError = .pending
+                break
             @unknown default:
-                self.purchaseError = .unknown("An unexpected result occurred.")
+                break
             }
         } catch {
-            print("Purchase failed: \(error)")
-            // Handle specific StoreKit errors
-            if let storeError = error as? StoreKitError {
-                switch storeError {
-                case .userCancelled:
-                    self.purchaseError = .userCancelled
-                case .networkError:
-                    self.purchaseError = .networkError
-                default:
-                    self.purchaseError = .unknown(storeError.localizedDescription)
+            handlePurchaseError(error)
+        }
+    }
+
+    private func completePurchase(
+        _ verification: VerificationResult<StoreKit.Transaction>
+    ) async {
+        switch verification {
+
+        case .verified(let transaction):
+            // 1. Unlock immediately — this is the entitlement, nothing
+            //    else needs to be checked.
+            unlock()
+
+            // 2. Track the product in the display array so any UI that
+            //    reads `purchasedSubscriptions` is up to date.
+            if let product = subscriptions.first(where: {
+                $0.id == transaction.productID
+            }), !purchasedSubscriptions.contains(where: { $0.id == product.id }) {
+                purchasedSubscriptions.append(product)
+            }
+
+            // 3. Finish the transaction. StoreKit stops redelivering it.
+            await transaction.finish()
+
+            // ❌ NO `refreshEntitlements()` here. `currentEntitlements`
+            //    doesn't reflect the just-finished transaction yet, and
+            //    calling refresh would flip the flag back to false.
+
+        case .unverified(let transaction, let error):
+            print("[Store] Unverified transaction:", error)
+            await transaction.finish()
+
+            // StoreKit may still consider the entitlement active even if
+            // the local signature check failed (sandbox quirk, network
+            // glitch during cert refresh). Verify against the entitlement
+            // list before giving up.
+            for await entResult in StoreKit.Transaction.currentEntitlements {
+                if case .verified(let entTxn) = entResult,
+                   entTxn.productID == transaction.productID,
+                   entTxn.revocationDate == nil {
+                    unlock()
+                    return
+                }
+            }
+
+            purchaseError = .authenticationFailed
+        }
+    }
+
+    // MARK: - Background transaction updates
+
+    private func processTransactionUpdate(
+        _ result: VerificationResult<StoreKit.Transaction>
+    ) async {
+        switch result {
+        case .verified(let transaction):
+            if transaction.revocationDate == nil {
+                let isExpired = transaction.expirationDate.map { $0 < Date() } ?? false
+                if !isExpired {
+                    // Fresh purchase or renewal — unlock from the push
+                    // channel. This typically fires BEFORE
+                    // `product.purchase()` returns, so the UI updates
+                    // within 1–3 seconds of the sheet dismissing.
+                    unlock()
+
+                    if let product = subscriptions.first(where: {
+                        $0.id == transaction.productID
+                    }), !purchasedSubscriptions.contains(where: { $0.id == product.id }) {
+                        purchasedSubscriptions.append(product)
+                    }
+                } else {
+                    // Subscription lapsed — safe to refresh.
+                    await refreshEntitlements()
                 }
             } else {
-                // Check for network-related errors
-                let nsError = error as NSError
-                if nsError.domain == NSURLErrorDomain {
-                    self.purchaseError = .networkError
-                } else {
-                    self.purchaseError = .unknown(error.localizedDescription)
-                }
+                // Refunded or revoked — safe to refresh.
+                await refreshEntitlements()
+            }
+
+            await transaction.finish()
+
+        case .unverified(_, let error):
+            print("[Store] Background update unverified:", error)
+            if case .unverified(let transaction, _) = result {
+                await transaction.finish()
             }
         }
     }
-    
-    /// Restore Purchase
+
+    // MARK: - Entitlement refresh (cold launch + restore only)
+
+    func refreshEntitlements() async {
+        var activeProducts: [Product] = []
+        var hasActive = false
+
+        for await result in StoreKit.Transaction.currentEntitlements {
+            guard case .verified(let transaction) = result else { continue }
+            if transaction.revocationDate != nil { continue }
+            if let expiry = transaction.expirationDate, expiry < Date() { continue }
+
+            hasActive = true
+
+            if let product = subscriptions.first(where: {
+                $0.id == transaction.productID
+            }) {
+                activeProducts.append(product)
+            }
+        }
+
+        purchasedSubscriptions = activeProducts
+
+        if hasActive {
+            isPremimumUser = true
+            unlockedThisSession = true
+        } else if !unlockedThisSession {
+            // Only reset if no purchase has happened this session. This
+            // prevents a race where the entitlement hasn't propagated yet
+            // but we already unlocked from a fresh purchase.
+            isPremimumUser = false
+        }
+        // If unlockedThisSession is true but hasActive is false, we leave
+        // the flag alone. It will reconcile on the next cold launch.
+
+        UserDefaults.standard.set(isPremimumUser, forKey: Self.cacheKey)
+    }
+
+    // MARK: - Unlock
+
+    private func unlock() {
+        guard !isPremimumUser else { return }
+        isPremimumUser = true
+        unlockedThisSession = true
+        UserDefaults.standard.set(true, forKey: Self.cacheKey)
+        print("[Store] Unlocked premium")
+    }
+
+    // MARK: - Restore
+
     func restorePurchases() async {
-        // Reset previous states
-        self.purchaseError = nil
-        self.showRestoredAlert = false
-        
+        purchaseError = nil
+        showRestoredAlert = false
+
         do {
             try await AppStore.sync()
-            await updateSubscriptionStatus()
-            
-            if isSubscribed {
-                self.restoredMessage = "Your purchases have been restored successfully!"
-                self.showRestoredAlert = true
-            } else {
-                self.restoredMessage = "No previous purchases found to restore."
-                self.showRestoredAlert = true
-            }
+            await refreshEntitlements()
+
+            restoredMessage = isPremimumUser
+                ? "Your purchases have been restored successfully."
+                : "No previous purchases found to restore."
+            showRestoredAlert = true
         } catch {
-            print("Restore failed: \(error)")
-            self.purchaseError = .unknown("Failed to restore purchases. Please try again.")
+            print("[Store] Restore failed:", error)
+            purchaseError = .unknown("Failed to restore purchases. Please try again.")
         }
     }
-    
 
+    // MARK: - Errors
+
+    private func handlePurchaseError(_ error: Error) {
+        print("[Store] Purchase threw:", error)
+
+        if let storeError = error as? StoreKitError {
+            switch storeError {
+            case .userCancelled:
+                return
+            case .networkError:
+                purchaseError = .networkError
+            default:
+                purchaseError = .unknown(storeError.localizedDescription)
+            }
+        } else {
+            let nsError = error as NSError
+            purchaseError = nsError.domain == NSURLErrorDomain
+                ? .networkError
+                : .unknown(error.localizedDescription)
+        }
+    }
 }

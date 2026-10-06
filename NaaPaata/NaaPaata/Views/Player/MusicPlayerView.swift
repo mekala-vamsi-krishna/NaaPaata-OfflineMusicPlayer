@@ -23,7 +23,9 @@ struct MusicPlayerView: View {
 
     // MARK: - State
     @State private var showSleepTimerSheet = false
-    @GestureState private var dragTranslation: CGFloat = 0
+    @State private var dragOffset: CGFloat = 0
+    
+    private var dismissThreshold: CGFloat { 120 }
 
     // MARK: - Derived
 
@@ -52,36 +54,47 @@ struct MusicPlayerView: View {
     }
 
     private var dismissalProgress: CGFloat {
-        min(max(dragTranslation / 520, 0), 1)
+        min(max(dragOffset / 520, 0), 1)
     }
 
-    private var playerScale: CGFloat {
-        1 - (dismissalProgress * 0.055)
+    private var playerTopCornerRadius: CGFloat {
+        // 0 at rest → 44 pt by the time dragProgress reaches 0.05
+        let ramp = min(dismissalProgress / 0.05, 1)
+        return 44 * ramp
     }
 
-    private var playerCornerRadius: CGFloat {
-        dismissalProgress * 28
+    private var playerBottomCornerRadius: CGFloat {
+        0
     }
-
-    private var playerGesture: some Gesture {
-        DragGesture(minimumDistance: 5, coordinateSpace: .global)
-            .updating($dragTranslation) { value, state, _ in
-                guard value.translation.height > 0 else { return }
-                state = value.translation.height
-            }
+    private func dismissGesture(screenHeight: CGFloat) -> some Gesture {
+        DragGesture(minimumDistance: 5)
             .onChanged { value in
-                let progress = min(max(value.translation.height / 520, 0), 1)
+                let translation = value.translation.height
+                dragOffset = translation > 0 ? translation : 0
+
+                // Report progress live so the mini player fades in during drag.
+                let progress = min(max(dragOffset / 520, 0), 1)
                 onDismissalProgressChanged(progress)
             }
             .onEnded { value in
-                let projectedDistance = max(
+                let projected = max(
                     value.translation.height,
                     value.predictedEndTranslation.height
                 )
-                if projectedDistance > 190 {
-                    completeInteractiveDismissal()
+
+                if projected > dismissThreshold {
+                    onDismissalProgressChanged(1)
+
+                    withAnimation(.spring(response: 0.4, dampingFraction: 0.9)) {
+                        dragOffset = screenHeight
+                    } completion: {
+                        dismissAction()
+                    }
                 } else {
-                    onDismissalProgressChanged(0)
+                    withAnimation(.spring(response: 0.4, dampingFraction: 0.9)) {
+                        dragOffset = 0
+                        onDismissalProgressChanged(0)
+                    }
                 }
             }
     }
@@ -90,60 +103,107 @@ struct MusicPlayerView: View {
 
     var body: some View {
         GeometryReader { geometry in
+            let topInset = geometry.safeAreaInsets.top
+
             ZStack {
                 playerBackground
+                
+                VStack(spacing: 0) {
+                    
+                    grabberBar
+                        .padding(.top, topInset + 8)
 
-                Group {
-                    if isLandscape {
-                        landscapeContent
-                    } else {
-                        portraitContent
-                    }
+                    Spacer(minLength: 8)
+                    
+                    artworkView(size: min(geometry.size.width * 0.82, 380))
+                    
+                    Spacer(minLength: 16)
+                    
+                    trackInfoBlock
+                    
+                    Spacer(minLength: 12)
+                    
+                    controlsBlock
+                        .padding(.bottom, max(geometry.safeAreaInsets.bottom, 20))
+                    
+                    Spacer(minLength: 8)
                 }
             }
             .frame(width: geometry.size.width, height: geometry.size.height)
+            .offset(y: dragOffset)
             .clipShape(
-                RoundedRectangle(cornerRadius: playerCornerRadius, style: .continuous)
-            )
-            .scaleEffect(playerScale, anchor: .center)
-            .offset(y: max(dragTranslation, 0))
-            .shadow(
-                color: .black.opacity(dismissalProgress * 0.35),
-                radius: dismissalProgress * 28,
-                y: dismissalProgress * 12
+                UnevenRoundedRectangle(
+                    topLeadingRadius: playerTopCornerRadius,
+                    bottomLeadingRadius: playerBottomCornerRadius,
+                    bottomTrailingRadius: playerBottomCornerRadius,
+                    topTrailingRadius: playerTopCornerRadius,
+                    style: .continuous
+                )
             )
             .contentShape(Rectangle())
-            .gesture(playerGesture)
-            .animation(
-                reduceMotion
-                    ? .easeOut(duration: 0.2)
-                    : .interactiveSpring(response: 0.38, dampingFraction: 0.9),
-                value: dragTranslation
-            )
+            .gesture(dismissGesture(screenHeight: geometry.size.height))
         }
         .ignoresSafeArea()
-        .background(Color.black.opacity(1 - dismissalProgress).ignoresSafeArea())
-        .animation(
-            reduceMotion
-                ? .easeInOut(duration: 0.2)
-                : .spring(response: 0.44, dampingFraction: 0.88),
-            value: isLandscape
+        .background(
+            Color.black
+                .opacity(backdropOpacity)
+                .ignoresSafeArea()
         )
+        .onAppear {
+            dragOffset = 0
+        }
         .preferredColorScheme(.dark)
-        .sheet(isPresented: $showSleepTimerSheet) {
-            SleepTimerPickerView()
-                .presentationDetents([.medium, .large])
-                .presentationDragIndicator(.visible)
+    }
+    
+    private var grabberBar: some View {
+        Capsule()
+            .fill(.white.opacity(0.35))
+            .frame(width: 36, height: 5)
+            .frame(maxWidth: .infinity)
+            .frame(height: 44)
+            .contentShape(Rectangle())
+            .padding(.top, 4)
+    }
+    
+    // MARK: - Artwork with hero effect
+    
+    @ViewBuilder
+    private func artworkView(size: CGFloat) -> some View {
+        Group {
+            if let artworkImage {
+                Image(uiImage: artworkImage)
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: size, height: size)
+            } else {
+                ZStack {
+                    brandGradient.grayscale(1).opacity(0.35)
+                    Image(systemName: "music.note")
+                        .font(.system(size: size * 0.28, weight: .light))
+                        .foregroundStyle(.white.opacity(0.35))
+                }
+                .frame(width: size, height: size)
+            }
         }
-        .onDisappear {
-            onDismissalProgressChanged(0)
-        }
+        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+        .shadow(color: .black.opacity(0.5), radius: 24, y: 10)
+    }
+    
+    // MARK: - Backdrop
+    
+    private var backdropOpacity: CGFloat {
+        0
     }
 
     private func completeInteractiveDismissal() {
-        onDismissalProgressChanged(1)
+        let screenHeight = UIScreen.main.bounds.height
+        withAnimation(.spring(response: 0.45, dampingFraction: 0.85)) {
+            dragOffset = screenHeight
+            onDismissalProgressChanged(1)
+        } completion: {
+            dismissAction()
+        }
         HapticManager.shared.light()
-        dismissAction()
     }
 
     // MARK: - Background
@@ -152,6 +212,10 @@ struct MusicPlayerView: View {
     private var playerBackground: some View {
         GeometryReader { geometry in
             ZStack {
+                // Solid black base — always there
+                Color.black
+
+                // Blurred artwork — fades out as the drag progresses
                 if let artworkImage {
                     Image(uiImage: artworkImage)
                         .resizable()
@@ -169,8 +233,7 @@ struct MusicPlayerView: View {
                                 endPoint: .bottom
                             )
                         )
-                } else {
-                    Color.black
+                        .opacity(1 - min(dismissalProgress / 0.30, 1))
                 }
             }
         }
@@ -264,8 +327,6 @@ struct MusicPlayerView: View {
             }
         }
     }
-
-    // MARK: - Reused pieces
 
     // MARK: - Artwork hero
 

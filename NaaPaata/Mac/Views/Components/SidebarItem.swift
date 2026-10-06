@@ -15,30 +15,33 @@ enum SidebarItem: String, CaseIterable, Identifiable {
     case artists
     case genres
     case playlists
+    case naaPaataPlus
 
     var id: String { rawValue }
 
     var title: String {
         switch self {
-        case .search:     return "Search"
-        case .songs:      return "Songs"
-        case .favourites: return "Favourites"
-        case .albums:     return "Albums"
-        case .artists:    return "Artists"
-        case .genres:     return "Genres"
-        case .playlists:  return "Playlists"
+        case .search:       return "Search"
+        case .songs:        return "Songs"
+        case .favourites:   return "Favourites"
+        case .albums:       return "Albums"
+        case .artists:      return "Artists"
+        case .genres:       return "Genres"
+        case .playlists:    return "Playlists"
+        case .naaPaataPlus: return "Naa Paata +"
         }
     }
 
     var systemImage: String {
         switch self {
-        case .search:     return "magnifyingglass"
-        case .songs:      return "music.note"
-        case .favourites: return "heart"
-        case .albums:     return "square.stack"
-        case .artists:    return "music.mic"
-        case .genres:     return "guitars"
-        case .playlists:  return "music.note.list"
+        case .search:       return "magnifyingglass"
+        case .songs:        return "music.note"
+        case .favourites:   return "heart"
+        case .albums:       return "square.stack"
+        case .artists:      return "music.mic"
+        case .genres:       return "guitars"
+        case .playlists:    return "music.note.list"
+        case .naaPaataPlus: return "sparkles"
         }
     }
 }

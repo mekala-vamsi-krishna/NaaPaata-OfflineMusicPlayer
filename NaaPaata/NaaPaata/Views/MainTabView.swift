@@ -19,34 +19,37 @@ final class TabState: ObservableObject {
 
 // MARK: - Main Tab View
 struct MainTabView: View {
-
+    
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     @EnvironmentObject var tabState: TabState
     @EnvironmentObject var libraryViewModel: MusicLibraryViewModel
     @EnvironmentObject var sleepTimerManager: SleepTimerManager
-
+    
     @StateObject private var songsRouter = AppRouter()
     @StateObject private var albumsRouter = AppRouter()
     @StateObject private var playlistsRouter = AppRouter()
     @StateObject private var searchRouter = AppRouter()
-
+    
     @State private var showFullPlayer = false
     @State private var playerDismissalProgress: CGFloat = 0
 
     @StateObject private var uiState = UIState()
-
+    
     private var playerAnimation: Animation {
         reduceMotion
-            ? .easeInOut(duration: 0.2)
-            : .spring(response: 0.44, dampingFraction: 0.88, blendDuration: 0.08)
+        ? .easeInOut(duration: 0.2)
+        : .spring(response: 0.44, dampingFraction: 0.88, blendDuration: 0.08)
     }
-
+    
     var body: some View {
         ZStack {
+            Color(.systemBackground)
+                .ignoresSafeArea()
+            
             adaptiveTabView
-                .accessibilityHidden(showFullPlayer && playerDismissalProgress == 0)
-
+                .accessibilityHidden(showFullPlayer)
+            
             if libraryViewModel.currentSong != nil {
                 if showFullPlayer {
                     MusicPlayerView(
@@ -57,7 +60,6 @@ struct MainTabView: View {
                     )
                     .environmentObject(libraryViewModel)
                     .environmentObject(sleepTimerManager)
-                    .transition(.move(edge: .bottom))
                     .zIndex(10)
                 }
             }
@@ -65,48 +67,42 @@ struct MainTabView: View {
         .environmentObject(uiState)
         .onReceive(libraryViewModel.$currentSong) { song in
             guard song == nil, showFullPlayer else { return }
-            showFullPlayer = false
+            withAnimation(playerAnimation) {
+                showFullPlayer = false
+            }
         }
     }
-
+    
     // MARK: - Adaptive tab layout
-
+    
     @ViewBuilder
     private var adaptiveTabView: some View {
-        if #available(iOS 26.1, *) {
+        if #available(iOS 26.0, *) {
             tabs
-                .tabViewBottomAccessory(isEnabled: uiState.showTabAccessory) {
-                    IOS26MiniPlayerAccessory(onOpen: presentPlayer)
-                        .opacity(showFullPlayer ? max(playerDismissalProgress, 0.001) : 1)
-                        .allowsHitTesting(!showFullPlayer)
-                        .accessibilityHidden(showFullPlayer)
+                .tabViewBottomAccessory {
+                    IOS26MiniPlayerAccessory(
+                        onOpen: presentPlayer
+                    )
+                    .accessibilityHidden(showFullPlayer)
                 }
                 .tabBarMinimizeBehavior(.onScrollDown)
         } else {
             ZStack(alignment: .bottom) {
                 tabs
-
-                if uiState.showTabAccessory {
-                    MiniPlayerView(
-                        style: .legacy,
-                        onOpen: presentPlayer
-                    )
-                    .padding(.horizontal, 8)
-                    .padding(.bottom, 58)
-                    .opacity(showFullPlayer ? max(playerDismissalProgress, 0.001) : 1)
-                    .allowsHitTesting(!showFullPlayer)
-                    .accessibilityHidden(showFullPlayer)
-                    .zIndex(1)
-                    .transition(.move(edge: .bottom).combined(with: .opacity))
-                }
+                
+                MiniPlayerView(
+                    style: .legacy,
+                    onOpen: presentPlayer
+                )
+                .padding(.horizontal, 8)
+                .padding(.bottom, 58)
+                .accessibilityHidden(showFullPlayer)
+                .zIndex(1)
             }
-            .animation(.easeInOut(duration: 0.2), value: uiState.showTabAccessory)
             .ignoresSafeArea(.keyboard, edges: .bottom)
         }
     }
-
-    // MARK: - Tabs
-
+    
     private var tabs: some View {
         TabView(selection: $tabState.selectedTab) {
 
@@ -157,23 +153,20 @@ struct MainTabView: View {
             }
         }
     }
-
-    // MARK: - Full player presentation
-
+    
+    // MARK: - Presentation
+    
     private func presentPlayer() {
         guard libraryViewModel.currentSong != nil else { return }
-        playerDismissalProgress = 0
         HapticManager.shared.light()
         withAnimation(playerAnimation) {
             showFullPlayer = true
         }
     }
-
+    
     private func dismissPlayer() {
         withAnimation(playerAnimation) {
             showFullPlayer = false
-        } completion: {
-            playerDismissalProgress = 0
         }
     }
 }

@@ -7,12 +7,19 @@
 
 import SwiftUI
 import SwiftData
+import AVFoundation
+import Combine
 
 @main
 struct NaaPaataForMacApp: App {
 
     @StateObject private var libraryViewModel: MusicLibraryViewModel
     @StateObject private var appearanceService = AppearanceService()
+    @StateObject private var playerService: AudioPlayerService
+    @StateObject private var store = StoreManager()
+    
+    @State private var equalizerEngine = EqualizerEngine()
+    @State private var equalizerViewModel = EqualizerViewModel()
 
     private let container: ModelContainer
 
@@ -21,7 +28,6 @@ struct NaaPaataForMacApp: App {
             "NSWindowAssertWhenDisplayCycleLimitReached": false
         ])
 
-        // Shared SwiftData container.
         let schema = Schema([
             Playlist.self,
             FavouriteSong.self,
@@ -42,30 +48,29 @@ struct NaaPaataForMacApp: App {
 
         let folderService = MusicFolderService()
         let libraryService = MusicLibraryService(folderService: folderService)
-        let playerService = AudioPlayerService()
+        let player = AudioPlayerService()
         let playbackStateService = PlaybackStateService()
 
         _libraryViewModel = StateObject(
             wrappedValue: MusicLibraryViewModel(
                 libraryService: libraryService,
-                playerService: playerService,
+                playerService: player,
                 playbackStateService: playbackStateService
             )
         )
+        _playerService = StateObject(wrappedValue: player)
     }
 
     var body: some Scene {
+
         WindowGroup {
             HomeView(viewModel: libraryViewModel)
                 .musicKeyboardShortcuts(for: libraryViewModel)
                 .tint(AppColor.primary)
                 .background(WindowConfigurator())
-                .task {
-                    // Re-open the notch panel if the user had it enabled.
-                    if UserDefaults.standard.bool(forKey: "showNotchMedia") {
-                        NotchWindowController.shared.show(viewModel: libraryViewModel)
-                    }
-                }
+                .environmentObject(equalizerViewModel)
+                .environmentObject(equalizerEngine)
+                .environmentObject(store)
         }
         .modelContainer(container)
         .windowResizability(.contentSize)
@@ -73,20 +78,33 @@ struct NaaPaataForMacApp: App {
         .commands {
             ControlsMenu(viewModel: libraryViewModel)
             SongMenu(viewModel: libraryViewModel)
+
+            CommandGroup(before: .windowList) {
+                Button("Mini Player") {
+                    WindowCoordinator.shared.showMiniPlayer(
+                        libraryViewModel: libraryViewModel
+                    )
+                }
+                .keyboardShortcut("0", modifiers: [.command, .shift])
+
+                Button("Equalizer") {
+                    WindowCoordinator.shared.showEqualizer(
+                        equalizerViewModel: equalizerViewModel,
+                        engine: equalizerEngine,
+                        playerService: playerService,
+                        store: store
+                    )
+                }
+                .keyboardShortcut("e", modifiers: .command)
+
+                Divider()
+            }
         }
-        
-        Window("Mini Player", id: WindowID.miniPlayer) {
-            MiniPlayerView(viewModel: libraryViewModel)
-        }
-        .modelContainer(container)
-        .windowStyle(.hiddenTitleBar)
-        .windowResizability(.contentSize)
-        .defaultSize(width: 380, height: 380)
-        .defaultPosition(.topTrailing)
 
         Settings {
             AppSettingsView(viewModel: libraryViewModel)
                 .environmentObject(appearanceService)
+                .environmentObject(store)
         }
     }
 }

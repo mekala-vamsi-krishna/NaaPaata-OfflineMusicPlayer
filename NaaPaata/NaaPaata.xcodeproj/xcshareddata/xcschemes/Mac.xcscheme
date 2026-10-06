@@ -16,7 +16,7 @@
             <BuildableReference
                BuildableIdentifier = "primary"
                BlueprintIdentifier = "AC5D08083067F19800A6A1A9"
-               BuildableName = "Mac.app"
+               BuildableName = "Naa Paata.app"
                ReferencedContainer = "container:NaaPaata.xcodeproj">
             </BuildableReference>
          </BuildActionEntry>
@@ -45,7 +45,7 @@
          <BuildableReference
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "AC5D08083067F19800A6A1A9"
-            BuildableName = "Mac.app"
+            BuildableName = "Naa Paata.app"
             ReferencedContainer = "container:NaaPaata.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>
@@ -64,7 +64,7 @@
          <BuildableReference
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "AC5D08083067F19800A6A1A9"
-            BuildableName = "Mac.app"
+            BuildableName = "Naa Paata.app"
             ReferencedContainer = "container:NaaPaata.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>
