@@ -20,7 +20,8 @@ struct MusicPlayerView: View {
 
     @EnvironmentObject var libraryViewModel: MusicLibraryViewModel
     @EnvironmentObject var sleepTimerManager: SleepTimerManager
-
+    @EnvironmentObject private var progressStore: PlaybackProgressStore
+    
     // MARK: - State
     @State private var showSleepTimerSheet = false
     @State private var dragOffset: CGFloat = 0
@@ -44,7 +45,11 @@ struct MusicPlayerView: View {
     }
 
     private var currentTime: TimeInterval {
-        libraryViewModel.elapsed
+        progressStore.elapsed
+    }
+    
+    private var progress: Double {
+        progressStore.progress
     }
 
     /// Decoded artwork for the hero image and blurred background.

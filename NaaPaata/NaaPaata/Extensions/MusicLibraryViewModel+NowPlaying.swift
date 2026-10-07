@@ -79,7 +79,7 @@ extension MusicLibraryViewModel {
             MPMediaItemPropertyArtist: song.artist,
             MPMediaItemPropertyAlbumTitle: song.album,
             MPMediaItemPropertyPlaybackDuration: song.duration ?? 0,
-            MPNowPlayingInfoPropertyElapsedPlaybackTime: elapsed,
+            MPNowPlayingInfoPropertyElapsedPlaybackTime: progressStore.$elapsed,
             MPNowPlayingInfoPropertyPlaybackRate: isPlaying ? 1.0 : 0.0
         ]
 

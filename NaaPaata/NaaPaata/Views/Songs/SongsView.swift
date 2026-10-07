@@ -35,7 +35,6 @@ struct SongsView: View {
             }
         }
         .navigationTitle("Songs")
-        .toolbar { toolbarContent }
         .navigationDestination(isPresented: $navigateToEqualizer) {
             EqualizerView()
         }
@@ -90,21 +89,6 @@ struct SongsView: View {
 
                 Color.clear.frame(height: 40)
             }
-        }
-    }
-
-    // MARK: - Toolbar
-
-    @ToolbarContentBuilder
-    private var toolbarContent: some ToolbarContent {
-        ToolbarItem(placement: .topBarTrailing) {
-            Button {
-                navigateToEqualizer = true
-            } label: {
-                Image(systemName: "slider.horizontal.3")
-                    .font(.system(size: 17, weight: .semibold))
-            }
-            .accessibilityLabel("Equalizer")
         }
     }
 

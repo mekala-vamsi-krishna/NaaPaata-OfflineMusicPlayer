@@ -17,14 +17,15 @@ class MusicLibraryViewModel: ObservableObject {
     // MARK: - Library
     @Published private(set) var songs: [Song] = []
     @Published private(set) var albums: [Album] = []
+    @Published private(set) var artists: [Artist] = []
+    @Published private(set) var genres: [Genre] = []
+
     @Published private(set) var isLoading = false
     @Published var errorMessage: String?
 
     // MARK: - Playback
     @Published private(set) var currentSong: Song?
     @Published private(set) var isPlaying = false
-    @Published private(set) var progress: Double = 0
-    @Published private(set) var elapsed: TimeInterval = 0
     @Published private(set) var isShuffled = false
     @Published private(set) var repeatMode: RepeatMode = .off
 
@@ -32,12 +33,14 @@ class MusicLibraryViewModel: ObservableObject {
     private let folderService: DocumentFolderService
     let libraryService: MusicLibraryServiceProtocol
     let playerService: AudioPlayerServiceProtocol
+    let progressStore: PlaybackProgressStore
+
     private var cancellables = Set<AnyCancellable>()
 
     // MARK: - Queue
     private var queue: [Song] = []
     private var currentIndex: Int?
-    
+
     // MARK: - Persistence
     private let playbackStateService: PlaybackStateServiceProtocol
     private var hasRestoredSession = false
@@ -48,12 +51,15 @@ class MusicLibraryViewModel: ObservableObject {
         libraryService: MusicLibraryServiceProtocol,
         playerService: AudioPlayerServiceProtocol,
         playbackStateService: PlaybackStateServiceProtocol,
-        folderService: DocumentFolderService
+        folderService: DocumentFolderService,
+        progressStore: PlaybackProgressStore
     ) {
         self.libraryService = libraryService
         self.playerService = playerService
         self.playbackStateService = playbackStateService
         self.folderService = folderService
+        self.progressStore = progressStore
+
         bindPlayer()
         setupRemoteCommandCenter()
         observeAppLifecycle()
@@ -69,6 +75,8 @@ class MusicLibraryViewModel: ObservableObject {
             let songs = try await libraryService.loadLibrary()
             self.songs = songs
             self.albums = Self.groupAlbums(from: songs)
+            self.artists = Self.groupArtists(from: songs)
+            self.genres = Self.groupGenres(from: songs)
         } catch {
             self.errorMessage = error.localizedDescription
         }
@@ -77,7 +85,7 @@ class MusicLibraryViewModel: ObservableObject {
     func refresh() async {
         await loadLibrary()
     }
-    
+
     @MainActor
     func syncLibrary() async {
         await loadLibrary()
@@ -87,7 +95,13 @@ class MusicLibraryViewModel: ObservableObject {
         do {
             try libraryService.delete(song)
             songs.removeAll { $0.id == song.id }
+
+            // Regroup everything — a deletion can wipe out an artist,
+            // album, or genre entirely.
             albums = Self.groupAlbums(from: songs)
+            artists = Self.groupArtists(from: songs)
+            genres = Self.groupGenres(from: songs)
+
             queue.removeAll { $0.id == song.id }
 
             if currentSong?.id == song.id {
@@ -130,7 +144,7 @@ class MusicLibraryViewModel: ObservableObject {
         repeatMode = .all
         startPlayback(of: song)
     }
-    
+
     func pausePlayback() {
         playerService.pause()
     }
@@ -161,9 +175,8 @@ class MusicLibraryViewModel: ObservableObject {
         } else {
             playerService.pause()
         }
-        
-        persistState()
 
+        persistState()
     }
 
     func playPrevious() {
@@ -181,9 +194,8 @@ class MusicLibraryViewModel: ObservableObject {
         } else if let current = currentSong {
             startPlayback(of: current)
         }
-        
-        persistState()
 
+        persistState()
     }
 
     func seek(toProgress value: Double) {
@@ -206,7 +218,7 @@ class MusicLibraryViewModel: ObservableObject {
         persistState()
     }
 
-    // MARK: - Private
+    // MARK: - Private playback
 
     private func startPlayback(of song: Song) {
         currentSong = song
@@ -237,7 +249,9 @@ class MusicLibraryViewModel: ObservableObject {
             .receive(on: DispatchQueue.main)
             .sink { [weak self] newElapsed in
                 guard let self else { return }
-                self.elapsed = newElapsed
+
+                self.progressStore.elapsed = newElapsed
+
                 MPNowPlayingInfoCenter.default().nowPlayingInfo?[
                     MPNowPlayingInfoPropertyElapsedPlaybackTime
                 ] = newElapsed
@@ -248,7 +262,8 @@ class MusicLibraryViewModel: ObservableObject {
             .receive(on: DispatchQueue.main)
             .sink { [weak self] newProgress in
                 guard let self else { return }
-                self.progress = newProgress
+
+                self.progressStore.progress = newProgress
 
                 let now = Date()
                 guard now.timeIntervalSince(self.lastPersistDate) >= self.persistInterval,
@@ -274,7 +289,7 @@ class MusicLibraryViewModel: ObservableObject {
             playNext()
         }
     }
-    
+
     func importSongs(from urls: [URL]) async {
         guard let docsURL = FileManager.default.urls(
             for: .documentDirectory,
@@ -289,7 +304,6 @@ class MusicLibraryViewModel: ObservableObject {
 
             let destination = docsURL.appendingPathComponent(sourceURL.lastPathComponent)
 
-            // Skip if the file already exists.
             guard !FileManager.default.fileExists(atPath: destination.path) else {
                 continue
             }
@@ -297,14 +311,13 @@ class MusicLibraryViewModel: ObservableObject {
             do {
                 try FileManager.default.copyItem(at: sourceURL, to: destination)
             } catch {
-                // Non-fatal — skip files that can't be copied.
                 continue
             }
         }
 
         await loadLibrary()
     }
-    
+
     func enqueueNext(_ song: Song) {
         guard let currentIndex, !queue.isEmpty else {
             play(song, in: [song])
@@ -323,7 +336,7 @@ class MusicLibraryViewModel: ObservableObject {
         queue.insert(song, at: insertAt)
         self.currentIndex = adjustedIndex
     }
-    
+
     func restoreLastSession() async {
         guard !hasRestoredSession else { return }
         hasRestoredSession = true
@@ -332,7 +345,6 @@ class MusicLibraryViewModel: ObservableObject {
             await loadLibrary()
         }
 
-        // Read the saved state.
         guard
             let state = playbackStateService.load(),
             let relativePath = state.currentSongPath,
@@ -342,7 +354,6 @@ class MusicLibraryViewModel: ObservableObject {
             return
         }
 
-        // Rebuild the queue by resolving each saved relative path.
         let restoredQueue: [Song] = state.queuePaths.compactMap { path in
             guard let url = folderService.absoluteURL(for: path) else { return nil }
             return songs.first { $0.url.path == url.path }
@@ -363,20 +374,20 @@ class MusicLibraryViewModel: ObservableObject {
             return
         }
 
-        self.elapsed = state.elapsed
-        self.progress = (song.duration ?? 0) > 0
+        self.progressStore.elapsed = state.elapsed
+        self.progressStore.progress = (song.duration ?? 0) > 0
             ? state.elapsed / (song.duration ?? 0)
             : 0
 
         updateNowPlayingInfo()
     }
-    
+
     private func persistState() {
         let state = PlaybackState(
             currentSongPath: currentSong.flatMap {
                 folderService.relativePath(for: $0.url)
             },
-            elapsed: elapsed,
+            elapsed: progressStore.elapsed,
             queuePaths: queue.compactMap {
                 folderService.relativePath(for: $0.url)
             },
@@ -388,24 +399,7 @@ class MusicLibraryViewModel: ObservableObject {
         playbackStateService.save(state)
         lastPersistDate = Date()
     }
-    
-    private static func groupAlbums(from songs: [Song]) -> [Album] {
-        Dictionary(grouping: songs, by: \.album)
-            .map { key, value in
-                Album(
-                    id: key,
-                    title: key,
-                    artist: value.first?.artist ?? "Unknown Artist",
-                    songs: value.sorted {
-                        $0.title.localizedStandardCompare($1.title) == .orderedAscending
-                    }
-                )
-            }
-            .sorted {
-                $0.title.localizedStandardCompare($1.title) == .orderedAscending
-            }
-    }
-    
+
     private func observeAppLifecycle() {
         NotificationCenter.default.addObserver(
             forName: UIApplication.didEnterBackgroundNotification,
@@ -419,6 +413,92 @@ class MusicLibraryViewModel: ObservableObject {
     }
 }
 
+// MARK: - Grouping
+
+extension MusicLibraryViewModel {
+
+    // MARK: - Albums
+
+    static func groupAlbums(from songs: [Song]) -> [Album] {
+        Dictionary(grouping: songs, by: \.album)
+            .map { key, value in
+                Album(
+                    id: key,
+                    title: key,
+                    // Album artist: whichever artist appears on the album's
+                    // first song. Good enough for a library view — albums
+                    // rarely have mixed artists, and when they do, the first
+                    // song is a defensible representative.
+                    artist: value.first?.artist ?? "Unknown Artist",
+                    songs: value.sorted {
+                        $0.title.localizedStandardCompare($1.title) == .orderedAscending
+                    }
+                )
+            }
+            .sorted {
+                $0.title.localizedStandardCompare($1.title) == .orderedAscending
+            }
+    }
+
+    // MARK: - Artists
+
+    static func groupArtists(from songs: [Song]) -> [Artist] {
+        Dictionary(grouping: songs, by: \.artist)
+            .map { key, value in
+                Artist(id: key, name: key, songs: value)
+            }
+            .sorted {
+                $0.name.localizedStandardCompare($1.name) == .orderedAscending
+            }
+    }
+
+    // MARK: - Genres
+
+    static func groupGenres(from songs: [Song]) -> [Genre] {
+        Dictionary(grouping: songs, by: \.genre)
+            .map { key, value in
+                Genre(
+                    id: key,
+                    name: key,
+                    songs: value.sorted {
+                        $0.title.localizedStandardCompare($1.title) == .orderedAscending
+                    }
+                )
+            }
+            .sorted {
+                $0.name.localizedStandardCompare($1.name) == .orderedAscending
+            }
+    }
+}
+
+// MARK: - Lookups
+
+extension MusicLibraryViewModel {
+
+    /// Returns the `Artist` object that matches the given song's artist name.
+    /// Used when navigating from a song row or album detail.
+    func artist(for song: Song) -> Artist? {
+        artists.first { $0.name == song.artist }
+    }
+
+    /// Returns the `Artist` whose name matches, if any.
+    func artist(named name: String) -> Artist? {
+        artists.first { $0.name == name }
+    }
+
+    /// Returns the `Genre` that matches the given song's genre.
+    func genre(for song: Song) -> Genre? {
+        genres.first { $0.name == song.genre }
+    }
+
+    /// Returns the `Album` that matches the given song's album.
+    func album(for song: Song) -> Album? {
+        albums.first { $0.title == song.album }
+    }
+}
+
+// MARK: - Relative-path lookups
+
 extension MusicLibraryViewModel {
 
     /// Resolves a list of paths (relative to Documents) against the
@@ -427,8 +507,6 @@ extension MusicLibraryViewModel {
         forRelativePaths paths: [String],
         folderService: DocumentFolderService
     ) -> [Song] {
-        // Build the lookup once per call. O(n) for the library, O(m)
-        // for the requested paths.
         var byRelativePath: [String: Song] = [:]
         byRelativePath.reserveCapacity(songs.count)
 
@@ -446,8 +524,6 @@ extension MusicLibraryViewModel {
 
 extension MusicLibraryViewModel {
 
-    /// Pushes the current playback state to the shared container and asks
-    /// WidgetKit to refresh. Called whenever the song or play state changes.
     private func syncWidget() {
         SharedDataManager.shared.updateWidgetData(
             title: currentSong?.title,

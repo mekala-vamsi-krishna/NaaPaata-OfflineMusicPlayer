@@ -87,29 +87,29 @@ struct AlbumDetailView: View {
         action: @escaping () -> Void
     ) -> some View {
         Button(action: action) {
-            HStack(spacing: 12) {
+            HStack(spacing: 8) {
                 Image(systemName: icon)
-                    .font(.system(size: 18, weight: .bold))
+                    .font(.system(size: 14, weight: .bold))
 
                 Text(title)
-                    .font(.system(size: 16, weight: .bold))
+                    .font(.system(size: 14, weight: .semibold))
             }
             .foregroundStyle(isPrimary ? .white : Color.accentColor)
             .frame(maxWidth: .infinity)
-            .frame(height: 52)
+            .frame(height: 40)
             .background(
                 Group {
                     if isPrimary {
                         LinearGradient(
                             colors: [
                                 Color.accentColor,
-                                Color.accentColor.opacity(0.8)
+                                Color.accentColor.opacity(0.85)
                             ],
                             startPoint: .leading,
                             endPoint: .trailing
                         )
                     } else {
-                        Capsule().fill(.ultraThinMaterial)
+                        Color.accentColor.opacity(0.12)
                     }
                 }
             )
@@ -117,8 +117,8 @@ struct AlbumDetailView: View {
             .overlay(
                 !isPrimary
                     ? Capsule().strokeBorder(
-                        Color.accentColor.opacity(0.3),
-                        lineWidth: 1.5
+                        Color.accentColor.opacity(0.35),
+                        lineWidth: 1
                     )
                     : nil
             )

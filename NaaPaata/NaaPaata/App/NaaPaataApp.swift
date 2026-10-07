@@ -13,6 +13,7 @@ struct NaaPaataApp: App {
 
     @StateObject private var libraryViewModel: MusicLibraryViewModel
     @StateObject private var equalizerViewModel: EqualizerViewModel
+    @StateObject private var progressStore: PlaybackProgressStore
 
     @StateObject private var tabState = TabState()
     @StateObject private var storeManager = StoreManager()
@@ -27,11 +28,12 @@ struct NaaPaataApp: App {
         let container = Self.makeContainer()
         self.container = container
 
-        let folder = DocumentFolderService()
+        let folderService = DocumentFolderService()
         let playerService = AudioPlayerService()
         let playbackStateService = PlaybackStateService()
+        let progress = PlaybackProgressStore()
 
-        guard let folderURL = folder.naaPaataFolderURL else {
+        guard let folderURL = folderService.naaPaataFolderURL else {
             fatalError("Could not resolve Documents directory.")
         }
 
@@ -41,19 +43,21 @@ struct NaaPaataApp: App {
             libraryService: libraryService,
             playerService: playerService,
             playbackStateService: playbackStateService,
-            folderService: folder
+            folderService: folderService,
+            progressStore: progress
         )
 
         let equalizer = EqualizerViewModel(playerService: playerService)
 
         AppDelegate.libraryViewModel = library
-        AppDelegate.folderService = folder
+        AppDelegate.folderService = folderService
         AppDelegate.modelContainer = container
 
         _libraryViewModel = StateObject(wrappedValue: library)
         _equalizerViewModel = StateObject(wrappedValue: equalizer)
-        _folderService = StateObject(wrappedValue: folder)
-
+        _folderService = StateObject(wrappedValue: folderService)
+        _progressStore = StateObject(wrappedValue: progress)
+        
         WidgetCommandHandler.shared.libraryViewModel = library
         WidgetCommandHandler.shared.start()
     }
@@ -68,6 +72,7 @@ struct NaaPaataApp: App {
                 .environmentObject(themeManager)
                 .environmentObject(storeManager)
                 .environmentObject(folderService)
+                .environmentObject(progressStore)
                 .tint(themeManager.accent)
                 .preferredColorScheme(themeManager.colorScheme.swiftUIScheme)
                 .task {

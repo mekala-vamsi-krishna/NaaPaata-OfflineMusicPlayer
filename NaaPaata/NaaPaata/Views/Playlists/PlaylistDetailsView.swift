@@ -220,7 +220,7 @@ struct PlaylistDetailsView: View {
 
     @ViewBuilder
     private var coverImage: some View {
-        if let data = playlist.coverImageData, let image = UIImage(data: data) {
+        if let data = playlist.coverImageData, let _ = UIImage(data: data) {
             ArtworkView(
                     data: playlist.coverImageData,
                     size: 120,
@@ -268,57 +268,84 @@ struct PlaylistDetailsView: View {
     // MARK: - Action buttons
 
     private var actionButtons: some View {
-        HStack(spacing: 16) {
-            Button {
-                libraryViewModel.playAll(sortedSongs)
-            } label: {
-                HStack(spacing: 12) {
-                    Image(systemName: "play.fill")
-                        .font(.system(size: 18, weight: .bold))
-                    Text("Play All")
-                        .font(.system(size: 16, weight: .bold))
+        HStack(spacing: 12) {
+            actionButton(
+                title: "Play All",
+                icon: "play.fill",
+                isPrimary: true,
+                action: {
+                    guard !sortedSongs.isEmpty else { return }
+                    HapticManager.shared.medium()
+                    libraryViewModel.playAll(sortedSongs)
                 }
-                .foregroundStyle(.white)
-                .frame(maxWidth: .infinity, minHeight: 52)
-                .background(
-                    LinearGradient(
-                        colors: [
-                            Color.accentColor,
-                            Color.accentColor.opacity(0.8)
-                        ],
-                        startPoint: .leading,
-                        endPoint: .trailing
-                    )
-                )
-                .clipShape(Capsule())
-            }
-            .disabled(playlist.songRelativePaths.isEmpty)
-            .opacity(playlist.songRelativePaths.isEmpty ? 0.5 : 1.0)
+            )
+            .disabled(sortedSongs.isEmpty)
+            .opacity(sortedSongs.isEmpty ? 0.5 : 1)
 
-            Button {
-                libraryViewModel.shuffleAll(sortedSongs)
-            } label: {
-                HStack(spacing: 12) {
-                    Image(systemName: "shuffle")
-                        .font(.system(size: 18, weight: .bold))
-                    Text("Shuffle")
-                        .font(.system(size: 16, weight: .bold))
+            actionButton(
+                title: "Shuffle",
+                icon: "shuffle",
+                isPrimary: false,
+                action: {
+                    guard !sortedSongs.isEmpty else { return }
+                    HapticManager.shared.medium()
+                    libraryViewModel.shuffleAll(sortedSongs)
                 }
-                .foregroundStyle(Color.accentColor)
-                .frame(maxWidth: .infinity, minHeight: 52)
-                .background(Color.black.opacity(0.1))
-                .clipShape(Capsule())
-                .overlay(
-                    Capsule().strokeBorder(
-                        Color.accentColor.opacity(0.3),
-                        lineWidth: 1.5
-                    )
-                )
-            }
-            .disabled(playlist.songRelativePaths.isEmpty)
-            .opacity(playlist.songRelativePaths.isEmpty ? 0.5 : 1.0)
+            )
+            .disabled(sortedSongs.isEmpty)
+            .opacity(sortedSongs.isEmpty ? 0.5 : 1)
         }
         .padding(.horizontal, 20)
+    }
+
+    // MARK: - Action button helper
+
+    private func actionButton(
+        title: String,
+        icon: String,
+        isPrimary: Bool,
+        action: @escaping () -> Void
+    ) -> some View {
+        Button(action: action) {
+            HStack(spacing: 8) {
+                Image(systemName: icon)
+                    .font(.system(size: 14, weight: .bold))
+
+                Text(title)
+                    .font(.system(size: 14, weight: .semibold))
+            }
+            .foregroundStyle(isPrimary ? .white : Color.accentColor)
+            .frame(maxWidth: .infinity)
+            .frame(height: 40)
+            .background(
+                Group {
+                    if isPrimary {
+                        LinearGradient(
+                            colors: [
+                                Color.accentColor,
+                                Color.accentColor.opacity(0.85)
+                            ],
+                            startPoint: .leading,
+                            endPoint: .trailing
+                        )
+                    } else {
+                        // Soft accent tint — reads as enabled on both light
+                        // and dark modes, unlike `.ultraThinMaterial`.
+                        Color.accentColor.opacity(0.12)
+                    }
+                }
+            )
+            .clipShape(Capsule())
+            .overlay(
+                !isPrimary
+                    ? Capsule().strokeBorder(
+                        Color.accentColor.opacity(0.35),
+                        lineWidth: 1
+                    )
+                    : nil
+            )
+        }
+        .buttonStyle(.plain)
     }
 
     // MARK: - Search & sort
