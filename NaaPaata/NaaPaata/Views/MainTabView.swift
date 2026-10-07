@@ -119,6 +119,12 @@ struct MainTabView: View {
                                 viewModel: libraryViewModel
                             )
                         }
+                        .navigationDestination(for: Genre.self) { genre in
+                            GenreDetailView(
+                                genre: genre,
+                                viewModel: libraryViewModel
+                            )
+                        }
                 }
                 .environmentObject(homeRouter)
             }
@@ -166,7 +172,7 @@ struct MainTabView: View {
         case .artists:
             ArtistsView(viewModel: libraryViewModel)
         case .genres:
-            placeholderView(title: "Genres", symbol: "guitars")
+            GenresView()
         case .favourites:
             placeholderView(title: "Favourites", symbol: "heart.fill")
         }

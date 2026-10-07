@@ -56,7 +56,7 @@ struct HomeView: View {
                 title: "Genres",
                 countText: "\(libraryViewModel.genres.count) genres",
                 symbol: "guitars",
-                route: nil
+                route: .genres
             ),
             LibraryCard(
                 id: "favourites",

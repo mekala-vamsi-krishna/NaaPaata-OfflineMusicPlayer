@@ -215,9 +215,10 @@ struct ArtistDetailView: View {
     // MARK: - Song row
 
     private func artistSongRow(song: Song) -> some View {
-        HStack(spacing: 14) {
+        let isCurrent = viewModel.currentSong?.id == song.id
 
-            // Tappable play area: artwork + metadata
+        return HStack(spacing: 14) {
+
             Button {
                 HapticManager.shared.light()
                 viewModel.play(song, in: songs)
@@ -229,11 +230,7 @@ struct ArtistDetailView: View {
                     VStack(alignment: .leading, spacing: 2) {
                         Text(song.title)
                             .font(.system(size: 15, weight: .medium))
-                            .foregroundStyle(
-                                viewModel.currentSong?.id == song.id
-                                ? Color.accentColor
-                                : .primary
-                            )
+                            .foregroundStyle(isCurrent ? Color.accentColor : .primary)
                             .lineLimit(1)
 
                         Text(song.album)
@@ -244,6 +241,16 @@ struct ArtistDetailView: View {
 
                     Spacer(minLength: 8)
 
+                    if isCurrent {
+                        EqualizerBars(
+                            isPlaying: viewModel.isPlaying,
+                            size: 18,
+                            barCount: 3,
+                            color: .accentColor
+                        )
+                        .transition(.opacity.combined(with: .scale))
+                    }
+
                     if let duration = song.duration {
                         Text(formattedDuration(duration))
                             .font(.system(size: 13, design: .monospaced))
@@ -253,8 +260,8 @@ struct ArtistDetailView: View {
                 .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
+            .animation(.easeInOut(duration: 0.2), value: isCurrent)
 
-            // Menu: separate button, iOS-native Menu UI
             Menu {
                 Button {
                     viewModel.enqueueNext(song)
