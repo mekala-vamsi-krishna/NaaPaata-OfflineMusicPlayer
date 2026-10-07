@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import SwiftData
 
 struct LibraryCard: Identifiable {
     let id: String
@@ -19,6 +20,8 @@ struct HomeView: View {
 
     @EnvironmentObject private var libraryViewModel: MusicLibraryViewModel
     @EnvironmentObject private var themeManager: ThemeManager
+    
+    @Query private var favourites: [FavouriteSong]
 
     private var accent: Color { themeManager.accent }
 
@@ -63,7 +66,7 @@ struct HomeView: View {
                 title: "Favourites",
                 countText: "Your picks",
                 symbol: "heart.fill",
-                route: nil
+                route: .favourites
             )
         ]
     }

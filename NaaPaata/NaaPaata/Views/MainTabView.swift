@@ -25,7 +25,9 @@ struct MainTabView: View {
     @EnvironmentObject var tabState: TabState
     @EnvironmentObject var libraryViewModel: MusicLibraryViewModel
     @EnvironmentObject var sleepTimerManager: SleepTimerManager
-
+    @EnvironmentObject private var progressStore: PlaybackProgressStore
+    @EnvironmentObject private var folderService: DocumentFolderService
+    
     @StateObject private var homeRouter = AppRouter()
     @StateObject private var playlistsRouter = AppRouter()
     @StateObject private var searchRouter = AppRouter()
@@ -49,18 +51,30 @@ struct MainTabView: View {
             adaptiveTabView
                 .accessibilityHidden(showFullPlayer)
 
-            if libraryViewModel.currentSong != nil {
-                if showFullPlayer {
-                    MusicPlayerView(
-                        dismissAction: dismissPlayer,
-                        onDismissalProgressChanged: { progress in
-                            playerDismissalProgress = progress
+            if libraryViewModel.currentSong != nil, showFullPlayer {
+                MusicPlayerView(
+                    dismissAction: dismissPlayer,
+                    onDismissalProgressChanged: { progress in
+                        playerDismissalProgress = progress
+                    },
+                    onGoToAlbum: { album in
+                        // Dismiss the player, switch to Home tab, then push the album.
+                        withAnimation(playerAnimation) {
+                            showFullPlayer = false
                         }
-                    )
-                    .environmentObject(libraryViewModel)
-                    .environmentObject(sleepTimerManager)
-                    .zIndex(10)
-                }
+                        tabState.selectedTab = .home
+
+                        // Wait a beat for the Home tab to appear, then push.
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
+                            homeRouter.push(album)
+                        }
+                    }
+                )
+                .environmentObject(libraryViewModel)
+                .environmentObject(sleepTimerManager)
+                .environmentObject(progressStore)
+                .environmentObject(folderService)
+                .zIndex(10)
             }
         }
         .environmentObject(uiState)
@@ -125,6 +139,9 @@ struct MainTabView: View {
                                 viewModel: libraryViewModel
                             )
                         }
+                        .navigationDestination(for: Playlist.self) { playlist in
+                            PlaylistDetailsView(playlist: playlist)
+                        }
                 }
                 .environmentObject(homeRouter)
             }
@@ -174,7 +191,7 @@ struct MainTabView: View {
         case .genres:
             GenresView()
         case .favourites:
-            placeholderView(title: "Favourites", symbol: "heart.fill")
+            FavouritesView()
         }
     }
 

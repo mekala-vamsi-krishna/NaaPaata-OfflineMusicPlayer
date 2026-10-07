@@ -58,6 +58,9 @@ struct NaaPaataApp: App {
         _folderService = StateObject(wrappedValue: folderService)
         _progressStore = StateObject(wrappedValue: progress)
         
+        SleepTimerManager.shared.setup(modelContext: container.mainContext)
+        SleepTimerManager.shared.libraryViewModel = library
+        
         WidgetCommandHandler.shared.libraryViewModel = library
         WidgetCommandHandler.shared.start()
     }
@@ -85,7 +88,7 @@ struct NaaPaataApp: App {
     // MARK: - Container
 
     private static func makeContainer() -> ModelContainer {
-        let schema = Schema([Playlist.self])
+        let schema = Schema([Playlist.self, FavouriteSong.self, SleepTimerModel.self,])
         let config = ModelConfiguration("NaaPaata", schema: schema)
 
         do {

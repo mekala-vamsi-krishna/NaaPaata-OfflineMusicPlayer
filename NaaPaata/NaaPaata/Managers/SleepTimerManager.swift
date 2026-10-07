@@ -19,7 +19,7 @@ final class SleepTimerManager: ObservableObject {
     private var modelContext: ModelContext?
     private var timerModel: SleepTimerModel?
 
-    weak var libraryViewModel: MusicLibraryViewModel?
+    var libraryViewModel: MusicLibraryViewModel?
 
     static let shared = SleepTimerManager()
 
@@ -62,7 +62,10 @@ final class SleepTimerManager: ObservableObject {
     // MARK: - Public API
 
     func setTimer(hours: Int, minutes: Int) {
-        guard let model = timerModel else { return }
+        guard let model = timerModel else {
+            assertionFailure("SleepTimerManager.setTimer called before setup(modelContext:). Call SleepTimerManager.shared.setup(...) at app launch.")
+            return
+        }
 
         let totalSeconds = TimeInterval(hours * 3600 + minutes * 60)
         guard totalSeconds > 0 else {
