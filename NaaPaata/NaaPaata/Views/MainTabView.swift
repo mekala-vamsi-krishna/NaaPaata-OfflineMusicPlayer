@@ -8,7 +8,7 @@
 import SwiftUI
 
 // MARK: - Tab Enum
-enum AppTab: Int, Hashable, CaseIterable {
+enum AppTab: String, Hashable, CaseIterable {
     case home, playlists, settings, search
 }
 
@@ -139,6 +139,12 @@ struct MainTabView: View {
                                 viewModel: libraryViewModel
                             )
                         }
+                        .navigationDestination(for: SmartPlaylistRoute.self) { route in
+                            SmartPlaylistDetailView(
+                                kind: route.kind,
+                                viewModel: libraryViewModel
+                            )
+                        }
                         .navigationDestination(for: Playlist.self) { playlist in
                             PlaylistDetailsView(playlist: playlist)
                         }
@@ -149,7 +155,19 @@ struct MainTabView: View {
             // MARK: Playlists
             Tab("Playlists", systemImage: "music.note.list", value: .playlists) {
                 NavigationStack(path: $playlistsRouter.path) {
-                    PlayListsView()
+                    PlaylistsView()
+
+                        .navigationDestination(for: Playlist.self) { playlist in
+                            PlaylistDetailsView(playlist: playlist)
+                        }
+
+                        .navigationDestination(for: SmartPlaylistRoute.self) { route in
+                            SmartPlaylistDetailView(
+                                kind: route.kind,
+                                viewModel: libraryViewModel
+                            )
+                        }
+
                         .navigationDestination(for: Album.self) { album in
                             AlbumDetailView(album: album)
                         }

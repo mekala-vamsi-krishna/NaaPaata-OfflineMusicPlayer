@@ -32,6 +32,8 @@ struct NaaPaataApp: App {
         let playerService = AudioPlayerService()
         let playbackStateService = PlaybackStateService()
         let progress = PlaybackProgressStore()
+        
+        let playHistoryService = PlayHistoryService(context: container.mainContext)
 
         guard let folderURL = folderService.naaPaataFolderURL else {
             fatalError("Could not resolve Documents directory.")
@@ -44,6 +46,7 @@ struct NaaPaataApp: App {
             playerService: playerService,
             playbackStateService: playbackStateService,
             folderService: folderService,
+            playHistoryService: playHistoryService,
             progressStore: progress
         )
 
@@ -88,7 +91,12 @@ struct NaaPaataApp: App {
     // MARK: - Container
 
     private static func makeContainer() -> ModelContainer {
-        let schema = Schema([Playlist.self, FavouriteSong.self, SleepTimerModel.self,])
+        let schema = Schema([
+            Playlist.self,
+            FavouriteSong.self,
+            SleepTimerModel.self,
+            PlayHistoryEntry.self,
+        ])
         let config = ModelConfiguration("NaaPaata", schema: schema)
 
         do {

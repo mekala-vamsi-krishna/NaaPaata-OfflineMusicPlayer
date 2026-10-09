@@ -34,6 +34,7 @@ class MusicLibraryViewModel: ObservableObject {
     let libraryService: MusicLibraryServiceProtocol
     let playerService: AudioPlayerServiceProtocol
     let progressStore: PlaybackProgressStore
+    private let playHistoryService: PlayHistoryService
 
     private var cancellables = Set<AnyCancellable>()
 
@@ -52,12 +53,14 @@ class MusicLibraryViewModel: ObservableObject {
         playerService: AudioPlayerServiceProtocol,
         playbackStateService: PlaybackStateServiceProtocol,
         folderService: DocumentFolderService,
+        playHistoryService: PlayHistoryService,
         progressStore: PlaybackProgressStore
     ) {
         self.libraryService = libraryService
         self.playerService = playerService
         self.playbackStateService = playbackStateService
         self.folderService = folderService
+        self.playHistoryService = playHistoryService
         self.progressStore = progressStore
 
         bindPlayer()
@@ -229,6 +232,11 @@ class MusicLibraryViewModel: ObservableObject {
         } catch {
             errorMessage = "Could not play \"\(song.title)\"."
         }
+        
+        if let rel = folderService.relativePath(for: song.url) {
+            try? playHistoryService.recordPlay(rel)
+        }
+        
         updateNowPlayingInfo()
         persistState()
         syncWidget()

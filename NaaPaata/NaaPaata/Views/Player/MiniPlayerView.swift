@@ -189,13 +189,22 @@ struct MiniPlayerView: View {
     @ViewBuilder
     private var songInformation: some View {
         if isInline {
-            Text(song?.title ?? "Unknown Title")
-                .font(.system(size: 12, weight: .semibold))
-                .foregroundStyle(.primary)
-                .lineLimit(1)
-                .minimumScaleFactor(0.72)
-                .allowsTightening(true)
-                .frame(maxWidth: .infinity, alignment: .leading)
+            VStack(alignment: .leading, spacing: 0) {
+                Text(song?.title ?? "Unknown Title")
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(.primary)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.75)
+                    .allowsTightening(true)
+
+                Text(song?.artist ?? "Unknown Artist")
+                    .font(.system(size: 11))
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.75)
+                    .allowsTightening(true)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
         } else {
             VStack(alignment: .leading, spacing: 2) {
                 Text(song?.title ?? "Unknown Title")
