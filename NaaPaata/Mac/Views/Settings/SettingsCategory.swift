@@ -12,7 +12,6 @@ enum SettingsCategory: String, CaseIterable, Identifiable, Hashable {
     case notch
     case stats
     case library
-    case audioEngine
     case about
 
     var id: String { rawValue }
@@ -23,7 +22,6 @@ enum SettingsCategory: String, CaseIterable, Identifiable, Hashable {
         case .notch:        return "Notch"
         case .stats:        return "Stats"
         case .library:      return "Library"
-        case .audioEngine:  return "Audio Engine"
         case .about:        return "About"
         }
     }
@@ -34,7 +32,6 @@ enum SettingsCategory: String, CaseIterable, Identifiable, Hashable {
         case .notch:        return "rectangle.topthird.inset.filled"
         case .stats:        return "chart.bar"
         case .library:      return "folder"
-        case .audioEngine:  return "waveform"
         case .about:        return "info.circle"
         }
     }

@@ -67,12 +67,6 @@ struct AppSettingsView: View {
         case .library:
             LibrarySettingsView(viewModel: viewModel)
 
-        case .audioEngine:
-            PlaceholderSettingsView(
-                category: .audioEngine,
-                message: "Audio engine preferences are coming in a future update."
-            )
-
         case .about:
             AboutSettingsView()
         }
