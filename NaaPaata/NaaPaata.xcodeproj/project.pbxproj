@@ -525,6 +525,7 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = NaaPaata/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = "Naa Paata";
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.music";
 				INFOPLIST_KEY_LSSupportsOpeningDocumentsInPlace = YES;
 				INFOPLIST_KEY_NSUserTrackingUsageDescription = "This identifier will be used to deliver personalized ads to you.";
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
@@ -566,6 +567,7 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = NaaPaata/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = "Naa Paata";
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.music";
 				INFOPLIST_KEY_LSSupportsOpeningDocumentsInPlace = YES;
 				INFOPLIST_KEY_NSUserTrackingUsageDescription = "This identifier will be used to deliver personalized ads to you.";
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
@@ -617,6 +619,7 @@
 				ENABLE_USER_SELECTED_FILES = readonly;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = "Naa Paata";
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.music";
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -663,6 +666,7 @@
 				ENABLE_USER_SELECTED_FILES = readonly;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = "Naa Paata";
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.music";
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
