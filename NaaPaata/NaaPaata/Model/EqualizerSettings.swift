@@ -8,17 +8,13 @@
 import Foundation
 
 struct EqualizerSettings: Codable {
-    var isEnabled: Bool = true
-    var preAmpValue: Double = 0.0
-    var bassValue: Double = 0.0
-    var trebleValue: Double = 0.0
-    var bands: [Double] = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
-    var selectedPreset: String = "Custom"
-    
-    // Individual knob toggles
-    var isPreAmpEnabled: Bool = true
-    var isBassEnabled: Bool = true
-    var isTrebleEnabled: Bool = true
-    
-    static let defaultSettings = EqualizerSettings()
+    var isEnabled: Bool
+    var preAmpValue: Double
+    var bassValue: Double
+    var trebleValue: Double
+    var bands: [Double]
+    var selectedPreset: String
+    var isPreAmpEnabled: Bool
+    var isBassEnabled: Bool
+    var isTrebleEnabled: Bool
 }

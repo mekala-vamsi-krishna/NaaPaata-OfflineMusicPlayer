@@ -2,20 +2,22 @@
 //  AppDelegate.swift
 //  NaaPaata
 //
-//  Created by Mekala Vamsi Krishna on 8/11/26.
-//
+
 import Foundation
 import SwiftUI
+import SwiftData
 
-class AppDelegate: NSObject, UIApplicationDelegate {
-    static var dataService: DataServiceProtocol?
-    static var songLibraryService: SongLibraryService?
-    static var songsViewModel: SongsViewModel?
-    static var albumsViewModel: AlbumsViewModel?
-    static var playlistsViewModel: PlaylistsViewModel?
+final class AppDelegate: NSObject, UIApplicationDelegate {
+
+    static weak var libraryViewModel: MusicLibraryViewModel?
+    static weak var folderService: DocumentFolderService?
+
+    static var modelContainer: ModelContainer?
 
     func application(
         _ application: UIApplication,
         didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil
-    ) -> Bool { true }
+    ) -> Bool {
+        true
+    }
 }

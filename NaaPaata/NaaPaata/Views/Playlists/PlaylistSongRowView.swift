@@ -2,111 +2,64 @@
 //  PlaylistSongRowView.swift
 //  NaaPaata
 //
-//  Created by Mekala Vamsi Krishna on 10/5/25.
-//
 
 import SwiftUI
-import AVFoundation
+import UIKit
 
 struct PlaylistSongRowView: View {
-    @EnvironmentObject var musicManager: MusicPlayerManager
-    
+
+    @EnvironmentObject private var libraryViewModel: MusicLibraryViewModel
+    @EnvironmentObject private var router: AppRouter
+
     let song: Song
-    let editMode: EditMode  // Keep for compatibility but not used
     let onPlay: () -> Void
     let onDelete: () -> Void
-    
-    // Async Artwork
-    @State private var artwork: UIImage?
-    
-    // Share Properties
+
     @State private var showShareSheet = false
     @State private var shareItems: [Any] = []
 
+    private var isCurrentSong: Bool {
+        libraryViewModel.currentSong?.id == song.id
+    }
+
+    private var artworkImage: UIImage? {
+        guard let data = song.artworkData else { return nil }
+        return UIImage(data: data)
+    }
+
     var body: some View {
         HStack(spacing: 15) {
-            // Artwork
-            if let artwork = artwork {
-                Image(uiImage: artwork)
-                    .resizable()
-                    .scaledToFill()
-                    .frame(width: 50, height: 50)
-                    .background(AppColors.background.opacity(0.2))
-                    .cornerRadius(8)
-            } else {
-                Image(systemName: "music.note")
-                    .resizable()
-                    .scaledToFit()
-                    .padding(10)
-                    .frame(width: 50, height: 50)
-                    .background(AppColors.background.opacity(0.2))
-                    .cornerRadius(8)
-                    .foregroundColor(AppColors.primary)
-                    .task {
-                        self.artwork = await musicManager.loadArtworkAsync(for: song)
-                    }
-            }
 
-            // Song details
+            artwork
+
             VStack(alignment: .leading, spacing: 4) {
                 Text(song.title)
                     .fontWeight(.semibold)
-                    .foregroundColor(AppColors.textPrimary)
+                    .foregroundStyle(isCurrentSong ? Color.accentColor : .primary)
                     .lineLimit(1)
 
                 Text(song.artist)
                     .font(.subheadline)
-                    .foregroundColor(AppColors.textSecondary)
+                    .foregroundStyle(.secondary)
                     .lineLimit(1)
             }
 
-            Spacer()
+            Spacer(minLength: 8)
 
-            // Now Playing Indicator
-            if musicManager.currentSong == song {
-                EqualizerBars(isPlaying: musicManager.isPlaying)
-                    .frame(width: 20, height: 20)
+            if isCurrentSong {
+                EqualizerBars(
+                    isPlaying: libraryViewModel.isPlaying,
+                    size: 18,
+                    barCount: 3,
+                    color: .accentColor
+                )
             }
 
-            // Ellipsis menu
-            Menu {
-                Button(action: onPlay) {
-                    Label("Play Now", systemImage: "play.fill")
-                }
-                
-                Button {
-                    musicManager.addToQueueNext(song)
-                } label: {
-                    Label("Play Next", systemImage: "text.insert")
-                }
-
-                Button {
-                    shareItems = [song.url ?? URL(fileURLWithPath: "")]
-                    showShareSheet = true
-                } label: {
-                    Label("Share", systemImage: "square.and.arrow.up")
-                }
-
-                Divider()
-
-                Button(role: .destructive, action: onDelete) {
-                    Label("Remove", systemImage: "trash")
-                }
-
-            } label: {
-                Image(systemName: "ellipsis")
-                    .rotationEffect(.degrees(90))
-                    .font(.system(size: 18))
-                    .foregroundColor(.gray)
-                    .padding(10)
-                    .contentShape(Rectangle())
-            }
+            menu
         }
         .padding(.vertical, 4)
         .contentShape(Rectangle())
-        .onTapGesture {
-            onPlay()
-        }
+        .onTapGesture { onPlay() }
         .swipeActions(edge: .trailing, allowsFullSwipe: true) {
             Button(role: .destructive) {
                 onDelete()
@@ -114,11 +67,88 @@ struct PlaylistSongRowView: View {
                 Label("Remove", systemImage: "trash")
             }
         }
-        // Share Sheet
         .sheet(isPresented: $showShareSheet) {
             ActivityViewController(activityItems: shareItems)
                 .presentationDetents([.fraction(0.4)])
         }
     }
-}
 
+    // MARK: - Artwork
+
+    @ViewBuilder
+    private var artwork: some View {
+        if let artworkImage {
+            Image(uiImage: artworkImage)
+                .resizable()
+                .scaledToFill()
+                .frame(width: 50, height: 50)
+                .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+        } else {
+            ZStack {
+                RoundedRectangle(cornerRadius: 8, style: .continuous)
+                    .fill(Color.gray.opacity(0.15))
+
+                Image(systemName: "music.note")
+                    .font(.system(size: 22, weight: .medium))
+                    .foregroundStyle(Color.accentColor)
+            }
+            .frame(width: 50, height: 50)
+        }
+    }
+
+    // MARK: - Menu
+
+    private var menu: some View {
+        Menu {
+            Button(action: onPlay) {
+                Label("Play Now", systemImage: "play.fill")
+            }
+
+            Button {
+                libraryViewModel.enqueueNext(song)
+            } label: {
+                Label("Play Next", systemImage: "text.insert")
+            }
+
+            Button {
+                goToAlbum()
+            } label: {
+                Label("Go to Album", systemImage: "square.stack")
+            }
+
+            Button {
+                shareItems = [song.url]
+                showShareSheet = true
+            } label: {
+                Label("Share", systemImage: "square.and.arrow.up")
+            }
+
+            Divider()
+
+            Button(role: .destructive, action: onDelete) {
+                Label("Remove", systemImage: "trash")
+            }
+        } label: {
+            Image(systemName: "ellipsis")
+                .rotationEffect(.degrees(90))
+                .font(.system(size: 18))
+                .foregroundStyle(.secondary)
+                .padding(10)
+                .contentShape(Rectangle())
+        }
+    }
+
+    // MARK: - Actions
+
+    private func goToAlbum() {
+        guard let album = libraryViewModel.albums.first(where: {
+            $0.title == song.album
+        }) else {
+            print("⚠️ No album found for: \(song.album)")
+            return
+        }
+
+        print("→ Pushing album: \(album.title)")
+        router.push(album)
+    }
+}

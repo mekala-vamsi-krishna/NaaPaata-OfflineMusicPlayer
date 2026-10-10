@@ -10,8 +10,8 @@ import AppIntents
 import WidgetKit
 
 struct MediumWidgetView: View {
-    let title: String?
-    let artist: String?
+    let title: String
+    let artist: String
     let artworkData: Data?
     let isPlaying: Bool
 
@@ -66,14 +66,14 @@ struct MediumWidgetView: View {
                     VStack(alignment: .leading, spacing: 6) {
                         Spacer()
 
-                        Text(title ?? "No song playing")
+                        Text(title)
                             .font(.system(.headline, design: .rounded))
                             .fontWeight(.semibold)
                             .foregroundColor(.white)
                             .lineLimit(1)
                             .shadow(radius: 1)
 
-                        Text(artist ?? " ")
+                        Text(artist)
                             .font(.system(.subheadline, design: .rounded))
                             .foregroundColor(.white.opacity(0.8))
                             .lineLimit(1)

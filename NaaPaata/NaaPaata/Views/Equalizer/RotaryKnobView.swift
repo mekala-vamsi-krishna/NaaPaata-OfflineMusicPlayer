@@ -126,7 +126,7 @@ struct RotaryKnobView: View {
     private func handleDrag(_ gesture: DragGesture.Value) {
         // Simple horizontal drag for value change
         let sensitivity = 0.2
-        let delta = gesture.translation.width * sensitivity
+        let _ = gesture.translation.width * sensitivity
         
         // We need a state to hold the initial value on drag start to make this relative
         // For now, let's just increment based on drag. 

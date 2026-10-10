@@ -2,38 +2,42 @@
 //  CarPlaySceneDelegate.swift
 //  NaaPaata
 //
-//  Created by Mekala Vamsi Krishna on 8/5/26.
-//
 
 import Foundation
 import CarPlay
 import UIKit
 import AVFoundation
-import SwiftData
+import Combine
 import MediaPlayer
+import SwiftData
 
 class CarPlaySceneDelegate: UIResponder,
                             CPTemplateApplicationSceneDelegate,
-                            MusicPlayerManagerDelegate,
                             CPTabBarTemplateDelegate {
 
-    // MARK: - Properties
-    var interfaceController: CPInterfaceController?
-    private lazy var placeholderArtwork = defaultArtworkImage()
+    // MARK: - Dependencies
 
-    // View models
-    var songsViewModel: SongsViewModel!
-    var albumsViewModel: AlbumsViewModel!
-    var playlistsViewModel: PlaylistsViewModel!
+    var interfaceController: CPInterfaceController?
+    var libraryViewModel: MusicLibraryViewModel!
+    var folderService: DocumentFolderService!
+    var modelContext: ModelContext!
+
+    private var cancellables = Set<AnyCancellable>()
+
+    private lazy var placeholderArtwork = defaultArtworkImage()
 
     private var isNowPlayingActive   = false
     private var hasEnteredNowPlaying = false
     private var selectedTabIndex     = 0
 
-    private var songListItems: [UUID: CPListItem] = [:]
-    private var currentlyHighlightedSongID: UUID?
+    private var songListItems: [URL: CPListItem] = [:]
+    private var currentlyHighlightedSongID: URL?
 
     private var nowPlayingTemplate: CPNowPlayingTemplate { .shared }
+
+    /// Max images per `CPListImageRowItem`. CarPlay caps this visually;
+    /// more than 8 pushes off-screen without adding value.
+    private let imageRowLimit = 8
 
     // MARK: - Scene Lifecycle
 
@@ -42,69 +46,100 @@ class CarPlaySceneDelegate: UIResponder,
         didConnect interfaceController: CPInterfaceController
     ) {
         self.interfaceController = interfaceController
-        MusicPlayerManager.shared.delegate = self
-        
-        guard let songsViewModel = AppDelegate.songsViewModel,
-              let albumsViewModel = AppDelegate.albumsViewModel,
-              let playlistsViewModel = AppDelegate.playlistsViewModel else {
-            fatalError("Services not initialized – NaaPaataApp must set them up before CarPlay connects")
+
+        guard
+            let library = AppDelegate.libraryViewModel,
+            let folder = AppDelegate.folderService,
+            let container = AppDelegate.modelContainer
+        else {
+            fatalError("Services not initialized — NaaPaataApp must set them up before CarPlay connects")
         }
-        
-        self.songsViewModel = songsViewModel
-        self.albumsViewModel = albumsViewModel
-        self.playlistsViewModel = playlistsViewModel
-        
+
+        self.libraryViewModel = library
+        self.folderService = folder
+        self.modelContext = container.mainContext
+
+        observeLibraryViewModel()
+
         Task {
-            await songsViewModel.loadSongs()
-            albumsViewModel.fetchAlbums(from: songsViewModel.songs)
-            playlistsViewModel.loadPlaylists()
+            await library.loadLibrary()
 
             let root = makeRootTabBarTemplate()
             root.delegate = self
+
             await MainActor.run {
-                interfaceController.setRootTemplate(root, animated: true) { [weak self] _, _ in
-                    self?.selectTab(at: self?.selectedTabIndex ?? 0, in: root)
+                interfaceController.setRootTemplate(root, animated: true) { _, _ in
+                    self.selectTab(at: self.selectedTabIndex, in: root)
                 }
             }
         }
     }
 
-    func templateApplicationScene(
+    private func templateApplicationScene(
         _ templateApplicationScene: CPTemplateApplicationScene,
         didDisconnect interfaceController: CPInterfaceController
     ) {
-        MusicPlayerManager.shared.delegate = nil
+        cancellables.removeAll()
         self.interfaceController = nil
         songListItems.removeAll()
         currentlyHighlightedSongID = nil
     }
 
-    // MARK: - MusicPlayerManagerDelegate
-    func musicPlayerManager(_ manager: MusicPlayerManager, didChangeCurrentSong song: Song?) {
-        updatePlayingIndicators(currentSong: song, isPlaying: manager.isPlaying)
-        if song != nil && !isNowPlayingActive && !hasEnteredNowPlaying {
+    // MARK: - View model observation
+
+    private func observeLibraryViewModel() {
+        libraryViewModel.$currentSong
+            .receive(on: RunLoop.main)
+            .sink { [weak self] song in
+                self?.handleCurrentSongChange(song)
+            }
+            .store(in: &cancellables)
+
+        libraryViewModel.$isPlaying
+            .receive(on: RunLoop.main)
+            .sink { [weak self] _ in
+                self?.handlePlaybackStateChange()
+            }
+            .store(in: &cancellables)
+
+        libraryViewModel.$isShuffled
+            .receive(on: RunLoop.main)
+            .sink { [weak self] _ in
+                self?.updateNowPlayingButtons()
+            }
+            .store(in: &cancellables)
+
+        libraryViewModel.$repeatMode
+            .receive(on: RunLoop.main)
+            .sink { [weak self] _ in
+                self?.updateNowPlayingButtons()
+            }
+            .store(in: &cancellables)
+    }
+
+    private func handleCurrentSongChange(_ song: Song?) {
+        updatePlayingIndicators(
+            currentSong: song,
+            isPlaying: libraryViewModel.isPlaying
+        )
+
+        if song != nil, !isNowPlayingActive, !hasEnteredNowPlaying {
             pushNowPlayingTemplate()
         }
-        manager.updateNowPlayingInfo()
-        setPlaybackState(playing: manager.isPlaying)
+
+        libraryViewModel.updateNowPlayingInfo()
+        setPlaybackState(playing: libraryViewModel.isPlaying)
     }
 
-    func musicPlayerManagerDidChangePlaybackState(_ manager: MusicPlayerManager) {
+    private func handlePlaybackStateChange() {
         updateNowPlayingButtons()
-        updatePlayingIndicators(currentSong: manager.currentSong, isPlaying: manager.isPlaying)
-        manager.updateNowPlayingInfo()
-        setPlaybackState(playing: manager.isPlaying)
+        updatePlayingIndicators(
+            currentSong: libraryViewModel.currentSong,
+            isPlaying: libraryViewModel.isPlaying
+        )
+        libraryViewModel.updateNowPlayingInfo()
+        setPlaybackState(playing: libraryViewModel.isPlaying)
     }
-
-    func musicPlayerManagerDidChangeShuffle(_ manager: MusicPlayerManager) {
-        updateNowPlayingButtons()
-    }
-
-    func musicPlayerManagerDidChangeRepeat(_ manager: MusicPlayerManager) {
-        updateNowPlayingButtons()
-    }
-
-    // MARK: - Helper to set playback state in NowPlayingInfoCenter
 
     private func setPlaybackState(playing: Bool) {
         DispatchQueue.main.async {
@@ -112,14 +147,16 @@ class CarPlaySceneDelegate: UIResponder,
         }
     }
 
-    // MARK: - CPTabBarTemplateDelegate
+    // MARK: - Tab bar delegate
+
     func tabBarTemplate(_ tabBarTemplate: CPTabBarTemplate, didSelect selectedTemplate: CPTemplate) {
         if let index = tabBarTemplate.templates.firstIndex(where: { $0 === selectedTemplate }) {
             selectedTabIndex = index
         }
     }
 
-    // MARK: - Now playing indicator update
+    // MARK: - Now playing indicator
+
     private func updatePlayingIndicators(currentSong: Song?, isPlaying: Bool) {
         let newID = isPlaying ? currentSong?.id : nil
 
@@ -128,7 +165,6 @@ class CarPlaySceneDelegate: UIResponder,
         if let prev = currentlyHighlightedSongID {
             songListItems[prev]?.isPlaying = false
         }
-
         if let next = newID {
             songListItems[next]?.isPlaying = true
         }
@@ -136,63 +172,61 @@ class CarPlaySceneDelegate: UIResponder,
         currentlyHighlightedSongID = newID
     }
 
-    // MARK: - Shared UI helpers
+    // MARK: - Tab selection
+
     private func selectTab(at index: Int, in tabBar: CPTabBarTemplate) {
         guard index < tabBar.templates.count else { return }
         tabBar.selectTemplate(at: index)
     }
 
+    // MARK: - Now Playing buttons
+
     private func updateNowPlayingButtons() {
-        let m = MusicPlayerManager.shared
         nowPlayingTemplate.updateNowPlayingButtons([
-            makeShuffleButton(isActive: m.shuffleIsActive),
-            makeRepeatButton(mode: m.currentRepeatMode),
+            makeShuffleButton(isActive: libraryViewModel.isShuffled),
+            makeRepeatButton(mode: libraryViewModel.repeatMode)
         ])
     }
 
-    // MARK: - Now Playing navigation
     private func pushNowPlayingTemplate() {
         guard let interface = interfaceController else { return }
         hasEnteredNowPlaying = true
 
-        let manager = MusicPlayerManager.shared
-        manager.updateNowPlayingInfo()
-        setPlaybackState(playing: manager.isPlaying)
+        libraryViewModel.updateNowPlayingInfo()
+        setPlaybackState(playing: libraryViewModel.isPlaying)
 
         interface.pushTemplate(nowPlayingTemplate, animated: true) { [weak self] success, _ in
-            guard success else { return }
-            self?.isNowPlayingActive = true
+            guard success, let self else { return }
+            self.isNowPlayingActive = true
 
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                manager.updateNowPlayingInfo()
-                self?.setPlaybackState(playing: manager.isPlaying)
+                self.libraryViewModel.updateNowPlayingInfo()
+                self.setPlaybackState(playing: self.libraryViewModel.isPlaying)
             }
-
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                manager.updateNowPlayingInfo()
-                self?.setPlaybackState(playing: manager.isPlaying)
+                self.libraryViewModel.updateNowPlayingInfo()
+                self.setPlaybackState(playing: self.libraryViewModel.isPlaying)
             }
         }
     }
 
-    // MARK: - Button builders
     private func makeShuffleButton(isActive: Bool) -> CPNowPlayingImageButton {
         let image = makeButtonImage(symbol: "shuffle", isActive: isActive)
-        return CPNowPlayingImageButton(image: image) { _ in
-            MusicPlayerManager.shared.toggleShuffle()
+        return CPNowPlayingImageButton(image: image) { [weak self] _ in
+            self?.libraryViewModel.toggleShuffle()
             DispatchQueue.main.async {
-                self.updateNowPlayingButtons()
+                self?.updateNowPlayingButtons()
             }
         }
     }
 
-    private func makeRepeatButton(mode: MusicPlayerManager.RepeatMode) -> CPNowPlayingImageButton {
+    private func makeRepeatButton(mode: RepeatMode) -> CPNowPlayingImageButton {
         let symbol = mode == .one ? "repeat.1" : "repeat"
         let image = makeButtonImage(symbol: symbol, isActive: mode != .off)
-        return CPNowPlayingImageButton(image: image) { _ in
-            MusicPlayerManager.shared.cycleRepeatMode()
+        return CPNowPlayingImageButton(image: image) { [weak self] _ in
+            self?.libraryViewModel.cycleRepeatMode()
             DispatchQueue.main.async {
-                self.updateNowPlayingButtons()
+                self?.updateNowPlayingButtons()
             }
         }
     }
@@ -200,133 +234,405 @@ class CarPlaySceneDelegate: UIResponder,
     private func makeButtonImage(symbol: String, isActive: Bool) -> UIImage {
         let configuration = UIImage.SymbolConfiguration(pointSize: 18, weight: .medium)
         return UIImage(systemName: symbol, withConfiguration: configuration)?
-            .withTintColor(isActive ? .purple : .white, renderingMode: .alwaysOriginal) ?? UIImage()
+            .withTintColor(
+                isActive ? UIColor.tintColor : .white,
+                renderingMode: .alwaysOriginal
+            ) ?? UIImage()
     }
 
     // MARK: - Root tab bar
+
     private func makeRootTabBarTemplate() -> CPTabBarTemplate {
-        let songs     = makeSongsListTemplate()
-        let albums    = makeAlbumsListTemplate()
+        let library   = makeLibraryTemplate()
         let playlists = makePlaylistsListTemplate()
-        let tabBar    = CPTabBarTemplate(templates: [songs, albums, playlists])
+        let search    = makeSearchPlaceholderTemplate()
+
+        let tabBar = CPTabBarTemplate(templates: [library, playlists, search])
         tabBar.delegate = self
         return tabBar
     }
 
-    // MARK: - Songs tab
-    private func makeSongsListTemplate() -> CPListTemplate {
-        let manager = MusicPlayerManager.shared
+    // MARK: - Library tab (image-row grid)
+
+    /// Library tab — shows horizontal rows of artwork for the top-level
+    /// categories, mirroring Apple Music's CarPlay design.
+    ///
+    /// Each row uses `CPListImageRowItem` — the public CarPlay API for
+    /// a horizontally scrolling strip of images with an optional title.
+    private func makeLibraryTemplate() -> CPListTemplate {
         songListItems.removeAll()
         currentlyHighlightedSongID = nil
 
-        let songItems = songsViewModel.songs.map { song in
-            let item = CPListItem(
-                text:       truncate(song.title,  to: 23),
-                detailText: "\(truncate(song.artist, to: 20)) • \(fmt(song.duration))",
-                image:      resolveArtwork(for: song)
+        var sections: [CPListSection] = []
+
+        // ── Recently Added ──────────────────────────────────────────
+        let recentlyAdded = Array(
+            libraryViewModel.songs
+                .sorted { $0.dateAdded > $1.dateAdded }
+                .prefix(imageRowLimit)
+        )
+        if !recentlyAdded.isEmpty {
+            let row = makeImageRow(
+                title: "Recently Added",
+                songs: recentlyAdded
             )
-            let playing = manager.isPlaying && song.id == manager.currentSong?.id
+            sections.append(CPListSection(items: [row]))
+        }
+
+        // ── Albums ──────────────────────────────────────────────────
+        let albums = Array(libraryViewModel.albums.prefix(imageRowLimit))
+        if !albums.isEmpty {
+            let row = makeImageRow(
+                title: "Albums",
+                albums: albums
+            )
+            sections.append(CPListSection(items: [row]))
+        }
+
+        // ── Artists ─────────────────────────────────────────────────
+        let artists = Array(libraryViewModel.artists.prefix(imageRowLimit))
+        if !artists.isEmpty {
+            let row = makeImageRow(
+                title: "Artists",
+                artists: artists
+            )
+            sections.append(CPListSection(items: [row]))
+        }
+
+        // ── Playlists ───────────────────────────────────────────────
+        let playlists = Array(fetchPlaylists().prefix(imageRowLimit))
+        if !playlists.isEmpty {
+            let row = makeImageRow(
+                title: "Playlists",
+                playlists: playlists
+            )
+            sections.append(CPListSection(items: [row]))
+        }
+
+        // ── All Songs ───────────────────────────────────────────────
+        let allSongsRow = makeAllSongsRow()
+        if !allSongsRow.items.isEmpty {
+            sections.append(allSongsRow)
+        }
+
+        // Fallback: if truly nothing, show an empty state.
+        if sections.isEmpty {
+            let empty = CPListItem(
+                text: "No Music Yet",
+                detailText: "Add songs in the iPhone app"
+            )
+            sections = [CPListSection(items: [empty])]
+        }
+
+        let tmpl = CPListTemplate(title: "Library", sections: sections)
+        tmpl.tabImage = UIImage(systemName: "square.grid.2x2.fill")
+        return tmpl
+    }
+
+    // MARK: - Image row builders
+
+    private func makeImageRow(title: String, songs: [Song]) -> CPListImageRowItem {
+        let images = songs.map { artworkImage(for: $0) }
+        let titles = songs.map { truncate($0.title, to: 20) }
+
+        let row = CPListImageRowItem(
+            text: title,
+            images: images,
+            imageTitles: titles
+        )
+
+        row.listImageRowHandler = { [weak self] _, index, done in
+            guard let self, songs.indices.contains(index) else {
+                done()
+                return
+            }
+            self.libraryViewModel.play(songs[index], in: songs)
+            self.pushNowPlayingIfNeeded()
+            done()
+        }
+
+        return row
+    }
+
+    private func makeImageRow(title: String, albums: [Album]) -> CPListImageRowItem {
+        let images = albums.map { artworkImage(for: $0) }
+        let titles = albums.map { truncate($0.title, to: 20) }
+
+        let row = CPListImageRowItem(
+            text: title,
+            images: images,
+            imageTitles: titles
+        )
+
+        row.listImageRowHandler = { [weak self] _, index, done in
+            guard let self, albums.indices.contains(index) else {
+                done()
+                return
+            }
+            self.pushAlbumDetail(album: albums[index])
+            done()
+        }
+
+        return row
+    }
+
+    private func makeImageRow(title: String, artists: [Artist]) -> CPListImageRowItem {
+        // Artist artwork is derived from their first song with artwork.
+        let images = artists.map { artist -> UIImage in
+            if let data = artist.artworkData, let image = UIImage(data: data) {
+                return image
+            }
+            return placeholderArtwork
+        }
+        let titles = artists.map { truncate($0.name, to: 20) }
+
+        let row = CPListImageRowItem(
+            text: title,
+            images: images,
+            imageTitles: titles
+        )
+
+        row.listImageRowHandler = { [weak self] _, index, done in
+            guard let self, artists.indices.contains(index) else {
+                done()
+                return
+            }
+            self.pushArtistDetail(artist: artists[index])
+            done()
+        }
+
+        return row
+    }
+
+    private func makeImageRow(title: String, playlists: [Playlist]) -> CPListImageRowItem {
+        let images = playlists.map { artworkImage(for: $0) }
+        let titles = playlists.map { truncate($0.name, to: 20) }
+
+        let row = CPListImageRowItem(
+            text: title,
+            images: images,
+            imageTitles: titles
+        )
+
+        row.listImageRowHandler = { [weak self] _, index, done in
+            guard let self, playlists.indices.contains(index) else {
+                done()
+                return
+            }
+            self.pushPlaylistDetail(playlist: playlists[index])
+            done()
+        }
+
+        return row
+    }
+
+    /// A section containing the full songs list, so the user can still
+    /// scroll the complete library from the Library tab.
+    private func makeAllSongsRow() -> CPListSection {
+        let allSongs = libraryViewModel.songs
+
+        guard !allSongs.isEmpty else {
+            return CPListSection(items: [])
+        }
+
+        let items = allSongs.prefix(50).map { song -> CPListItem in
+            let item = CPListItem(
+                text:       truncate(song.title, to: 23),
+                detailText: "\(truncate(song.artist, to: 20)) • \(song.formattedDuration)",
+                image:      artworkImage(for: song)
+            )
+
+            let playing = libraryViewModel.isPlaying && song.id == libraryViewModel.currentSong?.id
             item.isPlaying = playing
             if playing { currentlyHighlightedSongID = song.id }
             songListItems[song.id] = item
+
             item.handler = { [weak self] _, done in
-                self?.songsViewModel.play(song)
-                self?.pushNowPlayingIfNeeded()
+                guard let self else { done(); return }
+                self.libraryViewModel.play(song, in: allSongs)
+                self.pushNowPlayingIfNeeded()
                 done()
             }
+
             return item
         }
 
-        let tmpl = CPListTemplate(title: "Songs", sections: [CPListSection(items: songItems)])
-        tmpl.tabImage = UIImage(systemName: "music.quarternote.3")
-        return tmpl
-    }
-
-    // MARK: - Albums tab
-    private func makeAlbumsListTemplate() -> CPListTemplate {
-        let albumItems = albumsViewModel.albums.map { album in
-            let artwork: UIImage = album.artworkImage ?? placeholderArtwork
-            let item = CPListItem(
-                text:       truncate(album.name,   to: 23),
-                detailText: "\(truncate(album.artist, to: 20)) • \(album.songs.count == 1 ? "\(album.songs.count) Song" : "\(album.songs.count) Songs")",
-                image:      artwork
-            )
-            item.handler = { [weak self] _, done in
-                self?.pushAlbumDetail(album: album)
-                done()
-            }
-            return item
-        }
-
-        let section = CPListSection(
-            items: albumItems.isEmpty ? [CPListItem(text: "No Albums", detailText: nil)] : albumItems
+        return CPListSection(
+            items: Array(items),
+            header: "All Songs",
+            sectionIndexTitle: nil
         )
-        let tmpl = CPListTemplate(title: "Albums", sections: [section])
-        tmpl.tabImage = UIImage(systemName: "rectangle.stack.badge.play")
-        return tmpl
     }
+
+    // MARK: - Album detail
 
     private func pushAlbumDetail(album: Album) {
         guard let interface = interfaceController else { return }
-        let manager = MusicPlayerManager.shared
+        let songs = album.songs
 
-        let playAllItem = CPListItem(
-            text: "Play All",
-            detailText: "\(album.songs.count) songs",
-            image: UIImage(systemName: "play.circle.fill")
+        // ── Header section ──────────────────────────────────────────
+        let hero = CPListItem(
+            text: album.title,
+            detailText: "\(album.artist) • \(album.songs.count) song\(album.songs.count == 1 ? "" : "s")",
+            image: artworkImage(for: album)
         )
-        playAllItem.handler = { [weak self] _, done in
-            MusicPlayerManager.shared.playFromAllSongs(album.songs, fromPlaylist: album.name)
+        hero.isEnabled = false
+
+        let playAll = CPListItem(
+            text: "Play",
+            detailText: nil,
+            image: UIImage(systemName: "play.fill")
+        )
+        playAll.handler = { [weak self] _, done in
+            self?.libraryViewModel.playAll(songs)
             self?.pushNowPlayingIfNeeded()
             done()
         }
-        let shuffleItem = CPListItem(
+
+        let shuffle = CPListItem(
             text: "Shuffle",
             detailText: nil,
             image: UIImage(systemName: "shuffle")
         )
-        shuffleItem.handler = { [weak self] _, done in
-            MusicPlayerManager.shared.shufflePlay(playlist: album.songs, fromPlaylist: album.name)
+        shuffle.handler = { [weak self] _, done in
+            self?.libraryViewModel.shuffleAll(songs)
             self?.pushNowPlayingIfNeeded()
             done()
         }
 
-        let songItems = album.songs.map { song in
+        let headerSection = CPListSection(items: [hero, playAll, shuffle])
+
+        // ── Songs section ───────────────────────────────────────────
+        let songItems = songs.map { song -> CPListItem in
             let item = CPListItem(
-                text:       truncate(song.title,  to: 23),
-                detailText: "\(truncate(song.artist, to: 20)) • \(fmt(song.duration))",
-                image:      resolveArtwork(for: song)
+                text:       truncate(song.title, to: 23),
+                detailText: "\(truncate(song.artist, to: 20)) • \(song.formattedDuration)",
+                image:      artworkImage(for: song)
             )
-            item.isPlaying = manager.isPlaying && song.id == manager.currentSong?.id
+            item.isPlaying = libraryViewModel.isPlaying && song.id == libraryViewModel.currentSong?.id
             songListItems[song.id] = item
+
             item.handler = { [weak self] _, done in
-                MusicPlayerManager.shared.playFromAllSongs(
-                    album.songs, startAt: song, fromPlaylist: album.name
-                )
+                self?.libraryViewModel.play(song, in: songs)
                 self?.pushNowPlayingIfNeeded()
                 done()
             }
             return item
         }
 
-        let headerSection = CPListSection(items: [playAllItem, shuffleItem])
-        let songsSection  = CPListSection(items: songItems, header: songItems.count == 1 ? "\(songItems.count) Song" : "\(songItems.count) Songs", sectionIndexTitle: "")
+        let songsSection = CPListSection(
+            items: songItems,
+            header: "\(songItems.count) \(songItems.count == 1 ? "Song" : "Songs")",
+            sectionIndexTitle: nil
+        )
 
-        let detail = CPListTemplate(title: album.name, sections: [headerSection, songsSection])
+        let detail = CPListTemplate(
+            title: album.title,
+            sections: [headerSection, songsSection]
+        )
+        interface.pushTemplate(detail, animated: true, completion: nil)
+    }
+
+    // MARK: - Artist detail
+
+    private func pushArtistDetail(artist: Artist) {
+        guard let interface = interfaceController else { return }
+        let songs = artist.songs
+
+        let hero = CPListItem(
+            text: artist.name,
+            detailText: "\(songs.count) song\(songs.count == 1 ? "" : "s")",
+            image: {
+                if let data = artist.artworkData, let image = UIImage(data: data) {
+                    return image
+                }
+                return placeholderArtwork
+            }()
+        )
+        hero.isEnabled = false
+
+        let playAll = CPListItem(
+            text: "Play",
+            detailText: nil,
+            image: UIImage(systemName: "play.fill")
+        )
+        playAll.handler = { [weak self] _, done in
+            self?.libraryViewModel.playAll(songs)
+            self?.pushNowPlayingIfNeeded()
+            done()
+        }
+
+        let shuffle = CPListItem(
+            text: "Shuffle",
+            detailText: nil,
+            image: UIImage(systemName: "shuffle")
+        )
+        shuffle.handler = { [weak self] _, done in
+            self?.libraryViewModel.shuffleAll(songs)
+            self?.pushNowPlayingIfNeeded()
+            done()
+        }
+
+        let headerSection = CPListSection(items: [hero, playAll, shuffle])
+
+        let songItems = songs.map { song -> CPListItem in
+            let item = CPListItem(
+                text:       truncate(song.title, to: 23),
+                detailText: "\(truncate(song.album, to: 20)) • \(song.formattedDuration)",
+                image:      artworkImage(for: song)
+            )
+            item.isPlaying = libraryViewModel.isPlaying && song.id == libraryViewModel.currentSong?.id
+            songListItems[song.id] = item
+
+            item.handler = { [weak self] _, done in
+                self?.libraryViewModel.play(song, in: songs)
+                self?.pushNowPlayingIfNeeded()
+                done()
+            }
+            return item
+        }
+
+        let songsSection = CPListSection(
+            items: songItems,
+            header: "\(songItems.count) \(songItems.count == 1 ? "Song" : "Songs")",
+            sectionIndexTitle: nil
+        )
+
+        let detail = CPListTemplate(
+            title: artist.name,
+            sections: [headerSection, songsSection]
+        )
         interface.pushTemplate(detail, animated: true, completion: nil)
     }
 
     // MARK: - Playlists tab
-    private func makePlaylistsListTemplate() -> CPListTemplate {
-        let playlists = playlistsViewModel.getAllPlaylists()
 
-        let playlistItems = playlists.map { playlist in
-            let songCount = playlist.songPaths.count
-            let artwork: UIImage = playlist.coverImage ?? placeholderArtwork
+    private func makePlaylistsListTemplate() -> CPListTemplate {
+        let playlists = fetchPlaylists()
+
+        guard !playlists.isEmpty else {
+            let empty = CPListItem(
+                text: "No Playlists",
+                detailText: "Create one in the iPhone app"
+            )
+            let tmpl = CPListTemplate(title: "Playlists", sections: [CPListSection(items: [empty])])
+            tmpl.tabImage = UIImage(systemName: "music.note.list")
+            return tmpl
+        }
+
+        // Row of playlist covers at the top
+        let gridRow = makeImageRow(
+            title: "Recently Created",
+            playlists: Array(playlists.prefix(imageRowLimit))
+        )
+
+        // Full list below
+        let listItems = playlists.map { playlist -> CPListItem in
+            let count = playlist.songRelativePaths.count
             let item = CPListItem(
                 text:       truncate(playlist.name, to: 23),
-                detailText: "\(songCount) song\(songCount == 1 ? "" : "s")",
-                image:      artwork
+                detailText: "\(count) song\(count == 1 ? "" : "s")",
+                image:      artworkImage(for: playlist)
             )
             item.handler = { [weak self] _, done in
                 self?.pushPlaylistDetail(playlist: playlist)
@@ -335,64 +641,114 @@ class CarPlaySceneDelegate: UIResponder,
             return item
         }
 
-        let section = CPListSection(
-            items: playlistItems.isEmpty ? [CPListItem(text: "No Playlists", detailText: nil)] : playlistItems
+        let tmpl = CPListTemplate(
+            title: "Playlists",
+            sections: [
+                CPListSection(items: [gridRow]),
+                CPListSection(items: listItems, header: "All Playlists", sectionIndexTitle: nil)
+            ]
         )
-        let tmpl = CPListTemplate(title: "Playlists", sections: [section])
         tmpl.tabImage = UIImage(systemName: "music.note.list")
         return tmpl
     }
 
     private func pushPlaylistDetail(playlist: Playlist) {
         guard let interface = interfaceController else { return }
-        let manager = MusicPlayerManager.shared
-        let songs = playlistsViewModel.getSongs(for: playlist)
 
-        let playAllItem = CPListItem(
-            text: "Play All",
-            detailText: "\(songs.count) songs",
-            image: UIImage(systemName: "play.circle.fill")
+        let songs = resolvedSongs(for: playlist)
+
+        let hero = CPListItem(
+            text: playlist.name,
+            detailText: "\(songs.count) song\(songs.count == 1 ? "" : "s")",
+            image: artworkImage(for: playlist)
         )
-        playAllItem.handler = { [weak self] _, done in
-            MusicPlayerManager.shared.playFromAllSongs(songs, fromPlaylist: playlist.name)
+        hero.isEnabled = false
+
+        let playAll = CPListItem(
+            text: "Play",
+            detailText: nil,
+            image: UIImage(systemName: "play.fill")
+        )
+        playAll.handler = { [weak self] _, done in
+            self?.libraryViewModel.playAll(songs)
             self?.pushNowPlayingIfNeeded()
             done()
         }
-        let shuffleItem = CPListItem(
+
+        let shuffle = CPListItem(
             text: "Shuffle",
             detailText: nil,
             image: UIImage(systemName: "shuffle")
         )
-        shuffleItem.handler = { [weak self] _, done in
-            MusicPlayerManager.shared.shufflePlay(playlist: songs, fromPlaylist: playlist.name)
+        shuffle.handler = { [weak self] _, done in
+            self?.libraryViewModel.shuffleAll(songs)
             self?.pushNowPlayingIfNeeded()
             done()
         }
 
-        let songItems = songs.map { song in
+        let headerSection = CPListSection(items: [hero, playAll, shuffle])
+
+        let songItems = songs.map { song -> CPListItem in
             let item = CPListItem(
-                text:       truncate(song.title,  to: 23),
-                detailText: "\(truncate(song.artist, to: 20)) • \(fmt(song.duration))",
-                image:      resolveArtwork(for: song)
+                text:       truncate(song.title, to: 23),
+                detailText: "\(truncate(song.artist, to: 20)) • \(song.formattedDuration)",
+                image:      artworkImage(for: song)
             )
-            item.isPlaying = manager.isPlaying && song.id == manager.currentSong?.id
+            item.isPlaying = libraryViewModel.isPlaying && song.id == libraryViewModel.currentSong?.id
             songListItems[song.id] = item
+
             item.handler = { [weak self] _, done in
-                MusicPlayerManager.shared.playFromAllSongs(songs, startAt: song, fromPlaylist: playlist.name)
+                self?.libraryViewModel.play(song, in: songs)
                 self?.pushNowPlayingIfNeeded()
                 done()
             }
             return item
         }
 
-        let headerSection = CPListSection(items: [playAllItem, shuffleItem])
-        let songsSection  = CPListSection(items: songItems, header: songItems.count == 1 ? "\(songItems.count) Song" : "\(songItems.count) Songs", sectionIndexTitle: "")
+        let songsSection = CPListSection(
+            items: songItems,
+            header: "\(songItems.count) \(songItems.count == 1 ? "Song" : "Songs")",
+            sectionIndexTitle: nil
+        )
 
-        let detail = CPListTemplate(title: playlist.name, sections: [headerSection, songsSection])
+        let detail = CPListTemplate(
+            title: playlist.name,
+            sections: [headerSection, songsSection]
+        )
         interface.pushTemplate(detail, animated: true, completion: nil)
     }
 
-    // MARK: - Shared helpers
+    // MARK: - Search placeholder
+
+    private func makeSearchPlaceholderTemplate() -> CPListTemplate {
+        let item = CPListItem(
+            text: "Use Siri to search",
+            detailText: "Say \"Play [song name] on Naa Paata\"",
+            image: UIImage(systemName: "mic.fill")
+        )
+
+        let tmpl = CPListTemplate(title: "Search", sections: [CPListSection(items: [item])])
+        tmpl.tabImage = UIImage(systemName: "magnifyingglass")
+        return tmpl
+    }
+
+    // MARK: - Playlist helpers
+
+    private func fetchPlaylists() -> [Playlist] {
+        let descriptor = FetchDescriptor<Playlist>(
+            sortBy: [SortDescriptor(\.dateCreated, order: .reverse)]
+        )
+        return (try? modelContext.fetch(descriptor)) ?? []
+    }
+
+    private func resolvedSongs(for playlist: Playlist) -> [Song] {
+        libraryViewModel.songs(
+            forRelativePaths: playlist.songRelativePaths,
+            folderService: folderService
+        )
+    }
+
+    // MARK: - Push helpers
 
     private func pushNowPlayingIfNeeded() {
         guard !hasEnteredNowPlaying else { return }
@@ -401,18 +757,27 @@ class CarPlaySceneDelegate: UIResponder,
         }
     }
 
-    private func resolveArtwork(for song: Song) -> UIImage {
-        if let img = song.artworkImage { return img }
-        guard let url = song.resolvedURL ?? song.url else { return placeholderArtwork }
-        let asset = AVAsset(url: url)
-        for meta in asset.commonMetadata where meta.commonKey?.rawValue == "artwork" {
-            if let data = meta.value as? Data, let img = UIImage(data: data) { return img }
+    // MARK: - Artwork
+
+    private func artworkImage(for song: Song) -> UIImage {
+        if let data = song.artworkData, let image = UIImage(data: data) {
+            return image
         }
         return placeholderArtwork
     }
 
-    private func fmt(_ seconds: Double) -> String {
-        String(format: "%d:%02d", Int(seconds) / 60, Int(seconds) % 60)
+    private func artworkImage(for album: Album) -> UIImage {
+        if let data = album.artworkData, let image = UIImage(data: data) {
+            return image
+        }
+        return placeholderArtwork
+    }
+
+    private func artworkImage(for playlist: Playlist) -> UIImage {
+        if let data = playlist.coverImageData, let image = UIImage(data: data) {
+            return image
+        }
+        return placeholderArtwork
     }
 
     private func truncate(_ text: String, to max: Int) -> String {
@@ -425,9 +790,10 @@ class CarPlaySceneDelegate: UIResponder,
         return UIGraphicsImageRenderer(size: size).image { _ in
             UIColor.white.setFill()
             UIBezierPath(roundedRect: CGRect(origin: .zero, size: size), cornerRadius: 8).fill()
+
             let cfg = UIImage.SymbolConfiguration(pointSize: 24, weight: .medium)
             if let note = UIImage(systemName: "music.note", withConfiguration: cfg)?
-                            .withTintColor(UIColor(AppColors.primary), renderingMode: .alwaysOriginal) {
+                .withTintColor(UIColor.tintColor, renderingMode: .alwaysOriginal) {
                 note.draw(at: CGPoint(
                     x: (size.width  - note.size.width)  / 2,
                     y: (size.height - note.size.height) / 2

@@ -10,8 +10,8 @@ import AppIntents
 import WidgetKit
 
 struct SmallWidgetView: View {
-    let title: String?
-    let artist: String?
+    let title: String
+    let artist: String
     let artworkData: Data?
     let isPlaying: Bool
 
@@ -96,13 +96,13 @@ struct SmallWidgetView: View {
 
                 // Bottom row: title & artist at bottom‑leading
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(title ?? "No song playing")
+                    Text(title)
                         .font(.system(.headline, design: .rounded))
                         .fontWeight(.semibold)
                         .foregroundColor(.white)
                         .lineLimit(1)
                         .shadow(radius: 1)
-                    Text(artist ?? " ")
+                    Text(artist)
                         .font(.system(.caption, design: .rounded))
                         .foregroundColor(.white.opacity(0.8))
                         .lineLimit(1)

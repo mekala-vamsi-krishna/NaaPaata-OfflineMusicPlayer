@@ -8,33 +8,96 @@
 import SwiftUI
 
 struct EqualizerBars: View {
-    @State private var heights: [CGFloat] = [5, 10, 7]
-    @Environment(\.scenePhase) private var scenePhase
-    @State private var isAnimating = false
-    
+
     let isPlaying: Bool
-    private let timer = Timer.publish(every: 0.3, on: .main, in: .common).autoconnect()
+    var size: CGFloat = 16
+    var barCount: Int = 3
+    var color: Color = .accentColor
+
+    @State private var heights: [CGFloat]
+    @State private var animationTask: Task<Void, Never>?
+
+    private let tickInterval: Double = 0.3
+    private let minHeight: CGFloat = 3
+    private let maxHeight: CGFloat = 16
+
+    init(
+        isPlaying: Bool,
+        size: CGFloat = 16,
+        barCount: Int = 3,
+        color: Color = .accentColor
+    ) {
+        self.isPlaying = isPlaying
+        self.size = size
+        self.barCount = barCount
+        self.color = color
+
+        // Start with evenly-spaced mid-height bars so the initial render
+        // isn't a flat line.
+        let initial = Array(repeating: size * 0.5, count: barCount)
+        _heights = State(initialValue: initial)
+    }
 
     var body: some View {
-        HStack(spacing: 2) {
-            ForEach(0..<heights.count, id: \.self) { i in
-                RoundedRectangle(cornerRadius: 2)
-                    .fill(AppColors.primary)
-                    .frame(width: 3, height: heights[i])
+        HStack(alignment: .center, spacing: barSpacing) {
+            ForEach(0..<barCount, id: \.self) { index in
+                Capsule()
+                    .fill(color)
+                    .frame(width: barWidth, height: heights[index])
             }
         }
-        .onReceive(timer) { _ in
-            guard isPlaying else { return }
-            withAnimation(.linear(duration: 0.25)) {
-                heights = heights.map { _ in CGFloat(Int.random(in: 5...15)) }
+        .frame(width: size, height: size)
+        .onAppear { updateAnimationState() }
+        .onDisappear { stopAnimation() }
+        .onChange(of: isPlaying) { _, _ in updateAnimationState() }
+    }
+
+    // MARK: - Layout
+
+    private var barSpacing: CGFloat {
+        max(size * 0.08, 2)
+    }
+
+    private var barWidth: CGFloat {
+        let totalSpacing = barSpacing * CGFloat(barCount - 1)
+        return max((size - totalSpacing) / CGFloat(barCount), 2)
+    }
+
+    // MARK: - Animation
+
+    private func updateAnimationState() {
+        stopAnimation()
+
+        guard isPlaying else {
+            // Freeze the bars mid-height when paused — same visual as
+            // the macOS version. Reads as "this row is the current
+            // song, currently paused".
+            withAnimation(.easeOut(duration: 0.25)) {
+                heights = Array(repeating: size * 0.35, count: barCount)
             }
+            return
         }
-        .onChange(of: isPlaying) { newValue in
-            if !newValue {
-                withAnimation(.easeOut(duration: 0.3)) {
-                    heights = [5, 5, 5]
+
+        animationTask = Task { @MainActor in
+            while !Task.isCancelled {
+                let newHeights = (0..<barCount).map { _ in
+                    CGFloat.random(in: minHeight...maxHeight)
+                        * (size / 16)
                 }
+
+                withAnimation(.easeInOut(duration: tickInterval * 0.9)) {
+                    heights = newHeights
+                }
+
+                try? await Task.sleep(
+                    nanoseconds: UInt64(tickInterval * 1_000_000_000)
+                )
             }
         }
+    }
+
+    private func stopAnimation() {
+        animationTask?.cancel()
+        animationTask = nil
     }
 }

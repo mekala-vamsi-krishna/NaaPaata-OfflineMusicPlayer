@@ -43,7 +43,6 @@ struct AnimatedDotsLoader: View {
 
 #Preview {
     AnimatedDotsLoader()
-        .previewLayout(.sizeThatFits)
         .padding()
         .background(Color.black)
 }

@@ -7,138 +7,239 @@
 
 import SwiftUI
 
-// MARK: - Tab Enum (RawRepresentable for @AppStorage)
-enum AppTab: Int, Hashable, CaseIterable {
-    case songs = 0
-    case albums = 1
-    case playlists = 2
-    case settings = 3
-    case search = 4
+// MARK: - Tab Enum
+enum AppTab: String, Hashable, CaseIterable {
+    case home, playlists, settings, search
 }
 
-// MARK: - Tab State with @AppStorage
-class TabState: ObservableObject {
-    @AppStorage("selectedTab") var selectedTab: AppTab = .songs
+// MARK: - Tab State
+final class TabState: ObservableObject {
+    @AppStorage("selectedTab") var selectedTab: AppTab = .home
 }
 
 // MARK: - Main Tab View
 struct MainTabView: View {
-    @EnvironmentObject var tabState: TabState
-    @EnvironmentObject var musicPlayerManager: MusicPlayerManager
-    @EnvironmentObject var playlistsViewModel: PlaylistsViewModel
-    @EnvironmentObject var sleepTimerManager: SleepTimerManager
 
-    @StateObject private var searchViewModel = SearchViewModel()
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    @EnvironmentObject var tabState: TabState
+    @EnvironmentObject var libraryViewModel: MusicLibraryViewModel
+    @EnvironmentObject var sleepTimerManager: SleepTimerManager
+    @EnvironmentObject private var progressStore: PlaybackProgressStore
+    @EnvironmentObject private var folderService: DocumentFolderService
+    
+    @StateObject private var homeRouter = AppRouter()
+    @StateObject private var playlistsRouter = AppRouter()
+    @StateObject private var searchRouter = AppRouter()
 
     @State private var showFullPlayer = false
-    @State private var keyboardHeight: CGFloat = 0
-    @Namespace private var playerTransition
+    @State private var playerDismissalProgress: CGFloat = 0
+
+    @StateObject private var uiState = UIState()
+
+    private var playerAnimation: Animation {
+        reduceMotion
+        ? .easeInOut(duration: 0.2)
+        : .spring(response: 0.44, dampingFraction: 0.88, blendDuration: 0.08)
+    }
 
     var body: some View {
-        GeometryReader { geometry in
-            let bottomSafeArea = geometry.safeAreaInsets.bottom
+        ZStack {
+            Color(.systemBackground)
+                .ignoresSafeArea()
 
+            adaptiveTabView
+                .accessibilityHidden(showFullPlayer)
+
+            if libraryViewModel.currentSong != nil, showFullPlayer {
+                MusicPlayerView(
+                    dismissAction: dismissPlayer,
+                    onDismissalProgressChanged: { progress in
+                        playerDismissalProgress = progress
+                    },
+                    onGoToAlbum: { album in
+                        // Dismiss the player, switch to Home tab, then push the album.
+                        withAnimation(playerAnimation) {
+                            showFullPlayer = false
+                        }
+                        tabState.selectedTab = .home
+
+                        // Wait a beat for the Home tab to appear, then push.
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
+                            homeRouter.push(album)
+                        }
+                    }
+                )
+                .environmentObject(libraryViewModel)
+                .environmentObject(sleepTimerManager)
+                .environmentObject(progressStore)
+                .environmentObject(folderService)
+                .zIndex(10)
+            }
+        }
+        .environmentObject(uiState)
+        .onReceive(libraryViewModel.$currentSong) { song in
+            guard song == nil, showFullPlayer else { return }
+            withAnimation(playerAnimation) {
+                showFullPlayer = false
+            }
+        }
+    }
+
+    // MARK: - Adaptive tab layout
+
+    @ViewBuilder
+    private var adaptiveTabView: some View {
+        if #available(iOS 26.0, *) {
+            tabs
+                .tabViewBottomAccessory {
+                    IOS26MiniPlayerAccessory(onOpen: presentPlayer)
+                        .accessibilityHidden(showFullPlayer)
+                }
+                .tabBarMinimizeBehavior(.onScrollDown)
+        } else {
             ZStack(alignment: .bottom) {
-                // MARK: - Main TabView (iOS 18+)
-                if #available(iOS 18.0, *) {
-                    TabView(selection: $tabState.selectedTab) {
-                        Tab("Songs", systemImage: "music.quarternote.3", value: .songs) {
-                            SongsView()
-                        }
-                        Tab("Albums", systemImage: "rectangle.stack.badge.play", value: .albums) {
-                            AlbumsView()
-                        }
-                        Tab("Lists", systemImage: "music.note.list", value: .playlists) {
-                            PlayListsView()
-                        }
-                        Tab("Settings", systemImage: "gear", value: .settings) {
-                            SettingsView()
-                        }
-                        Tab("Search", systemImage: "magnifyingglass", value: .search, role: .search) {
-                            SearchView()
-                                .environmentObject(searchViewModel)
-                        }
-                    }
-                    .accentColor(AppColors.primary)
-                } else {
-                    TabView(selection: $tabState.selectedTab) {
-                        SongsView()
-                            .tabItem {
-                                Image(systemName: "music.quarternote.3")
-                                Text("Songs")
-                            }
-                            .tag(0)
-                        AlbumsView()
-                            .tabItem {
-                                Image(systemName: "rectangle.stack.badge.play")
-                                Text("Albums")
-                            }
-                            .tag(1)
-                        PlayListsView()
-                            .tabItem {
-                                Image(systemName: "music.note.list")
-                                Text("Lists")
-                            }
-                            .tag(2)
-                        SettingsView()
-                            .tabItem {
-                                Image(systemName: "gear")
-                                Text("Settings")
-                            }
-                            .tag(3)
-                        SearchView()
-                            .environmentObject(searchViewModel)
-                            .tabItem {
-                                Image(systemName: "magnifyingglass")
-                                Text("Search")
-                            }
-                            .tag(4)
-                    }
-                    .accentColor(AppColors.primary)
-                }
+                tabs
 
-                // MARK: - Mini Player / Full Player
-                if musicPlayerManager.currentSong != nil {
-                    if showFullPlayer {
-                        MusicPlayerView(
-                            dismissAction: {
-                                withAnimation(.spring(response: 0.5, dampingFraction: 0.85)) {
-                                    showFullPlayer = false
-                                }
-                            },
-                            namespace: playerTransition
-                        )
-                        .environmentObject(musicPlayerManager)
-                        .environmentObject(playlistsViewModel)
-                        .environmentObject(sleepTimerManager)
-                        .transition(.opacity)
-                        .zIndex(1)
-                    } else {
-                        MiniPlayerView(namespace: playerTransition)
-                            .environmentObject(musicPlayerManager)
-                            .environmentObject(playlistsViewModel)
-                            .environmentObject(sleepTimerManager)
-                            .padding(.horizontal, 8)
-                            .padding(.bottom, keyboardHeight > 0 ? max(0, keyboardHeight - bottomSafeArea) + 4 : bottomSafeArea + 16)
-                            .onTapGesture {
-                                withAnimation(.spring(response: 0.5, dampingFraction: 0.85)) {
-                                    showFullPlayer = true
-                                }
-                            }
-                            .zIndex(1)
-                    }
+                MiniPlayerView(
+                    style: .legacy,
+                    onOpen: presentPlayer
+                )
+                .padding(.horizontal, 8)
+                .padding(.bottom, 58)
+                .accessibilityHidden(showFullPlayer)
+                .zIndex(1)
+            }
+            .ignoresSafeArea(.keyboard, edges: .bottom)
+        }
+    }
+
+    private var tabs: some View {
+        TabView(selection: $tabState.selectedTab) {
+
+            // MARK: Home
+            Tab("Home", systemImage: "house.fill", value: .home) {
+                NavigationStack(path: $homeRouter.path) {
+                    HomeView()
+                        .navigationDestination(for: LibraryRoute.self) { route in
+                            libraryDestination(for: route)
+                        }
+                        .navigationDestination(for: Album.self) { album in
+                            AlbumDetailView(album: album)
+                        }
+                        .navigationDestination(for: Artist.self) { artist in
+                            ArtistDetailView(
+                                artist: artist,
+                                viewModel: libraryViewModel
+                            )
+                        }
+                        .navigationDestination(for: Genre.self) { genre in
+                            GenreDetailView(
+                                genre: genre,
+                                viewModel: libraryViewModel
+                            )
+                        }
+                        .navigationDestination(for: SmartPlaylistRoute.self) { route in
+                            SmartPlaylistDetailView(
+                                kind: route.kind,
+                                viewModel: libraryViewModel
+                            )
+                        }
+                        .navigationDestination(for: Playlist.self) { playlist in
+                            PlaylistDetailsView(playlist: playlist)
+                        }
+                }
+                .environmentObject(homeRouter)
+            }
+
+            // MARK: Playlists
+            Tab("Playlists", systemImage: "music.note.list", value: .playlists) {
+                NavigationStack(path: $playlistsRouter.path) {
+                    PlaylistsView()
+
+                        .navigationDestination(for: Playlist.self) { playlist in
+                            PlaylistDetailsView(playlist: playlist)
+                        }
+
+                        .navigationDestination(for: SmartPlaylistRoute.self) { route in
+                            SmartPlaylistDetailView(
+                                kind: route.kind,
+                                viewModel: libraryViewModel
+                            )
+                        }
+
+                        .navigationDestination(for: Album.self) { album in
+                            AlbumDetailView(album: album)
+                        }
+                }
+                .environmentObject(playlistsRouter)
+            }
+
+            // MARK: Settings
+            Tab("Settings", systemImage: "gearshape.fill", value: .settings) {
+                NavigationStack {
+                    SettingsView()
                 }
             }
-        }
-        .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillShowNotification)) { notification in
-            if let keyboardFrame = notification.userInfo?[UIResponder.keyboardFrameEndUserInfoKey] as? CGRect {
-                if musicPlayerManager.currentSong != nil && !showFullPlayer {
-                    keyboardHeight = keyboardFrame.height
+
+            // MARK: Search
+            Tab("Search", systemImage: "magnifyingglass", value: .search, role: .search) {
+                NavigationStack(path: $searchRouter.path) {
+                    SearchView()
+                        .navigationDestination(for: Album.self) { album in
+                            AlbumDetailView(album: album)
+                        }
                 }
+                .environmentObject(searchRouter)
             }
         }
-        .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillHideNotification)) { _ in
-            keyboardHeight = 0
+    }
+
+    // MARK: - Library destinations
+
+    @ViewBuilder
+    private func libraryDestination(for route: LibraryRoute) -> some View {
+        switch route {
+        case .songs:
+            SongsView()
+        case .albums:
+            AlbumsView()
+        case .artists:
+            ArtistsView(viewModel: libraryViewModel)
+        case .genres:
+            GenresView()
+        case .favourites:
+            FavouritesView()
+        }
+    }
+
+    private func placeholderView(title: String, symbol: String) -> some View {
+        VStack(spacing: 12) {
+            Image(systemName: symbol)
+                .font(.system(size: 44, weight: .light))
+                .foregroundStyle(.tertiary)
+            Text("\(title) — coming soon")
+                .font(.headline)
+                .foregroundStyle(.secondary)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .navigationTitle(title)
+        .navigationBarTitleDisplayMode(.inline)
+    }
+
+    // MARK: - Presentation
+
+    private func presentPlayer() {
+        guard libraryViewModel.currentSong != nil else { return }
+        HapticManager.shared.light()
+        withAnimation(playerAnimation) {
+            showFullPlayer = true
+        }
+    }
+
+    private func dismissPlayer() {
+        withAnimation(playerAnimation) {
+            showFullPlayer = false
         }
     }
 }

@@ -2,157 +2,177 @@
 //  EditPlaylistView.swift
 //  NaaPaata
 //
-//  Created by Mekala Vamsi Krishna on 10/5/25.
-//
 
 import SwiftUI
 import PhotosUI
+import SwiftData
 
 struct EditPlaylistView: View {
-    @Environment(\.dismiss) var dismiss
-    @Binding var playlist: Playlist
+
+    @Environment(\.dismiss) private var dismiss
+    @Environment(\.modelContext) private var modelContext
+
+    let playlist: Playlist
 
     @State private var name: String
     @State private var selectedItem: PhotosPickerItem?
     @State private var selectedCoverImage: UIImage?
     @FocusState private var isNameFocused: Bool
 
-    init(playlist: Binding<Playlist>) {
-        _playlist = playlist
-        _name = State(initialValue: playlist.wrappedValue.name)
-        _selectedCoverImage = State(initialValue: playlist.wrappedValue.coverImage)
+    init(playlist: Playlist) {
+        self.playlist = playlist
+        _name = State(initialValue: playlist.name)
+
+        let existingImage: UIImage? = playlist.coverImageData
+            .flatMap { UIImage(data: $0) }
+        _selectedCoverImage = State(initialValue: existingImage)
     }
 
     var body: some View {
         NavigationStack {
             ZStack {
-                AppColors.background.ignoresSafeArea()
+                Color(.systemBackground).ignoresSafeArea()
 
                 ScrollView {
                     VStack(spacing: 24) {
-                        // MARK: - Cover Image Picker with remove button
-                        VStack(spacing: 8) {
-                            ZStack(alignment: .topTrailing) {
-                                // Image picker
-                                PhotosPicker(selection: $selectedItem, matching: .images) {
-                                    ZStack {
-                                        RoundedRectangle(cornerRadius: 20)
-                                            .fill(Color.gray.opacity(0.15))
-                                            .frame(width: 160, height: 160)
-
-                                        if let image = selectedCoverImage {
-                                            Image(uiImage: image)
-                                                .resizable()
-                                                .scaledToFill()
-                                                .frame(width: 160, height: 160)
-                                                .clipShape(RoundedRectangle(cornerRadius: 20))
-                                        } else {
-                                            Image(systemName: "music.note")
-                                                .font(.system(size: 48))
-                                                .foregroundColor(AppColors.primary)
-                                        }
-                                    }
-                                    .overlay(
-                                        RoundedRectangle(cornerRadius: 20)
-                                            .stroke(
-                                                AppColors.textSecondary,
-                                                style: StrokeStyle(lineWidth: 2, dash: [6, 4])
-                                            )
-                                    )
-                                    .contentShape(RoundedRectangle(cornerRadius: 20))
-                                }
-                                .buttonStyle(.plain)
-
-                                // Remove button
-                                if selectedCoverImage != nil {
-                                    Button {
-                                        removeImage()
-                                    } label: {
-                                        Image(systemName: "xmark.circle.fill")
-                                            .font(.system(size: 24))
-                                            .foregroundColor(.white)
-                                            .background(
-                                                Circle()
-                                                    .fill(Color.red)
-                                                    .frame(width: 28, height: 28)
-                                            )
-                                            .shadow(color: .black.opacity(0.15), radius: 4, x: 0, y: 2)
-                                    }
-                                    .offset(x: 8, y: -8)
-                                }
-                            }
-
-                            // Hint text
-                            Text(selectedCoverImage == nil ? "Tap to add cover image" : "Tap to change")
-                                .font(.caption)
-                                .foregroundColor(AppColors.textSecondary)
-                                .multilineTextAlignment(.center)
-                        }
-                        .padding(.top, 20)
-
-                        // MARK: - Name Field
-                        VStack(alignment: .leading, spacing: 8) {
-                            Text("Playlist Name")
-                                .font(.system(size: 14, weight: .semibold))
-                                .foregroundColor(AppColors.textSecondary)
-
-                            TextField("Enter playlist name", text: $name)
-                                .focused($isNameFocused)
-                                .padding()
-                                .background(.ultraThinMaterial)
-                                .clipShape(RoundedRectangle(cornerRadius: 12))
-                                .foregroundColor(AppColors.textPrimary)
-                                .font(.system(size: 16))
-                        }
-                        .padding(.horizontal, 20)
-
+                        coverPicker
+                        nameField
                         Spacer()
                     }
                 }
             }
             .navigationTitle("Edit Playlist")
             .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarLeading) {
-                    Button("Cancel") { dismiss() }
-                        .foregroundColor(AppColors.textSecondary)
-                }
-
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("Save") {
-                        // Update the playlist
-                        playlist.name = name
-
-                        // Save cover image
-                        if let newImage = selectedCoverImage {
-                            playlist.coverImageData = newImage.jpegData(compressionQuality: 0.8)
-                        } else {
-                            // If user removed the image, coverImageData will be nil
-                            playlist.coverImageData = nil
-                        }
-
-                        dismiss()
-                    }
-                    .font(.system(size: 16, weight: .semibold))
-                    .foregroundColor(AppColors.primary)
-                    .disabled(name.trimmingCharacters(in: .whitespaces).isEmpty)
-                }
-            }
+            .toolbar { toolbarContent }
             .onAppear { isNameFocused = true }
-            .onChange(of: selectedItem) { newItem in
+            .onChange(of: selectedItem) { _, newItem in
                 Task {
-                    if let data = try? await newItem?.loadTransferable(type: Data.self),
-                       let image = UIImage(data: data) {
-                        await MainActor.run {
-                            selectedCoverImage = image
-                        }
+                    guard
+                        let data = try? await newItem?.loadTransferable(type: Data.self),
+                        let image = UIImage(data: data)
+                    else { return }
+
+                    await MainActor.run {
+                        selectedCoverImage = image
                     }
                 }
             }
         }
     }
 
-    // MARK: - Helpers
+    // MARK: - Cover picker
+
+    private var coverPicker: some View {
+        VStack(spacing: 8) {
+            ZStack(alignment: .topTrailing) {
+
+                PhotosPicker(selection: $selectedItem, matching: .images) {
+                    ZStack {
+                        RoundedRectangle(cornerRadius: 20)
+                            .fill(Color.gray.opacity(0.15))
+                            .frame(width: 160, height: 160)
+
+                        if let selectedCoverImage {
+                            Image(uiImage: selectedCoverImage)
+                                .resizable()
+                                .scaledToFill()
+                                .frame(width: 160, height: 160)
+                                .clipShape(RoundedRectangle(cornerRadius: 20))
+                        } else {
+                            Image(systemName: "music.note")
+                                .font(.system(size: 48))
+                                .foregroundStyle(Color.accentColor)
+                        }
+                    }
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 20)
+                            .stroke(
+                                Color.secondary,
+                                style: StrokeStyle(lineWidth: 2, dash: [6, 4])
+                            )
+                    )
+                    .contentShape(RoundedRectangle(cornerRadius: 20))
+                }
+                .buttonStyle(.plain)
+
+                if selectedCoverImage != nil {
+                    Button(action: removeImage) {
+                        Image(systemName: "xmark.circle.fill")
+                            .font(.system(size: 24))
+                            .foregroundStyle(.white)
+                            .background(
+                                Circle()
+                                    .fill(Color.red)
+                                    .frame(width: 28, height: 28)
+                            )
+                            .shadow(color: .black.opacity(0.15), radius: 4, y: 2)
+                    }
+                    .offset(x: 8, y: -8)
+                }
+            }
+
+            Text(selectedCoverImage == nil ? "Tap to add cover image" : "Tap to change")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
+        }
+        .padding(.top, 20)
+    }
+
+    // MARK: - Name field
+
+    private var nameField: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("Playlist Name")
+                .font(.system(size: 14, weight: .semibold))
+                .foregroundStyle(.secondary)
+
+            TextField("Enter playlist name", text: $name)
+                .focused($isNameFocused)
+                .padding()
+                .background(.ultraThinMaterial)
+                .clipShape(RoundedRectangle(cornerRadius: 12))
+                .foregroundStyle(.primary)
+                .font(.system(size: 16))
+        }
+        .padding(.horizontal, 20)
+    }
+
+    // MARK: - Toolbar
+
+    @ToolbarContentBuilder
+    private var toolbarContent: some ToolbarContent {
+
+        ToolbarItem(placement: .navigationBarLeading) {
+            Button("Cancel") { dismiss() }
+                .foregroundStyle(.secondary)
+        }
+
+        ToolbarItem(placement: .navigationBarTrailing) {
+            Button("Save", action: save)
+                .font(.system(size: 16, weight: .semibold))
+                .foregroundStyle(Color.accentColor)
+                .disabled(name.trimmingCharacters(in: .whitespaces).isEmpty)
+        }
+    }
+
+    // MARK: - Actions
+
+    private func save() {
+        let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return }
+
+        let service = PlaylistService(context: modelContext)
+
+        try? service.updateName(trimmed, for: playlist)
+        try? service.updateCover(
+            selectedCoverImage?.jpegData(compressionQuality: 0.85),
+            for: playlist
+        )
+
+        dismiss()
+    }
+
     private func removeImage() {
         selectedCoverImage = nil
         selectedItem = nil

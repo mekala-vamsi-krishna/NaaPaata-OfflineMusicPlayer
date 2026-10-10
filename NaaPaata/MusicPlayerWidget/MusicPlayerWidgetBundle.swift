@@ -10,8 +10,9 @@ import SwiftUI
 
 @main
 struct MusicPlayerWidgetBundle: WidgetBundle {
+
     var body: some Widget {
+
         MusicPlayerWidget()
-        MusicPlayerWidgetControl()
     }
 }

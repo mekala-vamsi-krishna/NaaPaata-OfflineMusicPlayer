@@ -2,38 +2,33 @@
 //  AlbumModel.swift
 //  NaaPaata
 //
-//  Created by Mekala Vamsi Krishna on 10/18/25.
+//  Created by Mekala Vamsi Krishna on 9/26/26.
 //
 
 import Foundation
-import SwiftUI
 
 struct Album: Identifiable {
-    let id = UUID()
-    let name: String
+    let id: String
+    let title: String
     let artist: String
-    var artworkImage: UIImage? = nil
-    var songs: [Song]
-    
-    var dateAdded: Date
-    var dateModified: Date
-    var totalSize: Int64
-    
-    var artwork: Image {
-        if let uiImage = artworkImage {
-            return Image(uiImage: uiImage)
-        } else {
-            return Image(systemName: "opticaldisc")
-        }
+    let songs: [Song]
+
+    var artworkData: Data? {
+        songs.first(where: { $0.artworkData != nil })?.artworkData
     }
-    
-    init(name: String, artist: String, songs: [Song], artworkImage: UIImage? = nil, dateAdded: Date, dateModified: Date, totalSize: Int64 = 0) {
-        self.name = name
-        self.artist = artist
-        self.songs = songs
-        self.artworkImage = artworkImage
-        self.dateAdded = dateAdded
-        self.dateModified = dateModified
-        self.totalSize = totalSize
+
+    var trackCount: Int { songs.count }
+
+    var totalDuration: TimeInterval {
+        songs.compactMap(\.duration).reduce(0, +)
     }
+
+    var subtitle: String {
+        "\(trackCount) song\(trackCount == 1 ? "" : "s")"
+    }
+}
+
+extension Album: Hashable {
+    static func == (lhs: Album, rhs: Album) -> Bool { lhs.id == rhs.id }
+    func hash(into hasher: inout Hasher) { hasher.combine(id) }
 }
