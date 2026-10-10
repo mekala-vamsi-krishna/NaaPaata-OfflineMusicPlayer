@@ -111,22 +111,10 @@ final class EqualizerEngine: ObservableObject {
         engine.attach(eq)
         engine.disconnectNodeOutput(source)
 
-        try engine.connectNode(
-            source,
-            to: eq,
-            fromBus: 0,
-            toBus: 0,
-            format: nil
-        )
-        try engine.connectNode(
-            eq,
-            to: destination,
-            fromBus: 0,
-            toBus: 0,
-            format: nil
-        )
+        engine.connect(source, to: eq, format: nil)
+        engine.connect(eq, to: destination, format: nil)
 
-        try installSpectrumTap(on: eq)
+        installSpectrumTap(on: eq)
 
         if wasRunning {
             engine.prepare()
@@ -153,7 +141,7 @@ final class EqualizerEngine: ObservableObject {
         eq.removeTap(onBus: 0)
         engine.disconnectNodeOutput(eq)
 
-        try? engine.connectNode(
+        try? engine.connect(
             source,
             to: dest,
             fromBus: 0,
@@ -210,22 +198,19 @@ final class EqualizerEngine: ObservableObject {
 
     // MARK: - Spectrum Tap
 
-    private func installSpectrumTap(on node: AVAudioNode) throws {
+    private func installSpectrumTap(on node: AVAudioNode) {
         let format = node.outputFormat(forBus: 0)
 
-        // Capture the Sendable state object, not `self`.
-        // `TapState` is safe to touch from the audio thread.
+        // Capture the Sendable state object, never `self`.
         let state = tapState
 
-        try node.installAudioTap(
+        node.installTap(
             onBus: 0,
             bufferSize: AVAudioFrameCount(tapState.fft.fftSize),
             format: format
         ) { buffer, _ in
-            // Bail immediately if the equalizer window isn't visible.
-            // This is what keeps the menu bar from rebuilding 60×/sec.
-            let isVisible = state.visible.withLock { $0 }
-            guard isVisible else { return }
+            // Skip everything if the EQ window isn't visible.
+            guard state.visible.withLock({ $0 }) else { return }
 
             let result = state.fft.process(buffer: buffer)
 

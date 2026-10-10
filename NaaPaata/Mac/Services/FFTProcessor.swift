@@ -27,53 +27,46 @@ nonisolated final class FFTProcessor {
     init(fftSize: Int = 2048, binCount: Int = 64) {
         self.fftSize = fftSize
         self.binCount = binCount
-        self.fftSetup = vDSP_create_fftsetup(vDSP_Length(log2(Float(fftSize))),
-                                             FFTRadix(kFFTRadix2))
-        self.windowed = [Float](repeating: 0, count: fftSize)
-        self.real = [Float](repeating: 0, count: fftSize / 2)
-        self.imag = [Float](repeating: 0, count: fftSize / 2)
-        self.magnitudes = [Float](repeating: 0, count: fftSize / 2)
-        self.decibels = [Float](repeating: 0, count: fftSize / 2)
-        self.smoothed = [Float](repeating: 0, count: binCount)
+        self.fftSetup = vDSP_create_fftsetup(
+            vDSP_Length(log2(Float(fftSize))),
+            FFTRadix(kFFTRadix2)
+        )
+        self.windowed    = [Float](repeating: 0, count: fftSize)
+        self.real        = [Float](repeating: 0, count: fftSize / 2)
+        self.imag        = [Float](repeating: 0, count: fftSize / 2)
+        self.magnitudes  = [Float](repeating: 0, count: fftSize / 2)
+        self.decibels    = [Float](repeating: 0, count: fftSize / 2)
+        self.smoothed    = [Float](repeating: 0, count: binCount)
 
         var window = [Float](repeating: 0, count: fftSize)
         vDSP_hann_window(&window, vDSP_Length(fftSize), Int32(vDSP_HANN_NORM))
         self.window = window
     }
 
-    /// Accepts the read-only buffer delivered by `installAudioTap`.
-    func process(buffer: AVReadOnlyAudioPCMBuffer) -> (spectrum: [Float], rms: Float) {
+    func process(buffer: AVAudioPCMBuffer) -> (spectrum: [Float], rms: Float) {
         guard let setup = fftSetup else { return (smoothed, 0) }
         let available = Int(buffer.frameLength)
         guard available >= fftSize else { return (smoothed, 0) }
 
-        let channel = buffer.channelData(0)
-
-        switch channel {
-
-        case .float(let span):
-            let stride = max(buffer.stride, 1)
-            let sampleCount = span.count / stride
-            let count = min(sampleCount, fftSize)
-
-            for i in 0..<count {
-                windowed[i] = span[i * stride]
-            }
-            // Zero-pad if the incoming buffer is shorter than fftSize.
-            if count < fftSize {
-                for i in count..<fftSize { windowed[i] = 0 }
-            }
-
-        default:
-            // int16 / int32 — the mixer never produces these, but bail
-            // gracefully if we ever get one.
+        // Extract mono samples into the windowed buffer.
+        guard let channelData = buffer.floatChannelData?[0] else {
             return (smoothed, 0)
         }
+        let stride = max(Int(buffer.stride), 1)
+        let sampleCount = available / stride
+        let count = min(sampleCount, fftSize)
 
-        // Apply the Hann window.
+        for i in 0..<count {
+            windowed[i] = channelData[i * stride]
+        }
+        if count < fftSize {
+            for i in count..<fftSize { windowed[i] = 0 }
+        }
+
+        // Apply Hann window.
         vDSP_vmul(windowed, 1, window, 1, &windowed, 1, vDSP_Length(fftSize))
 
-        // RMS for the level meter.
+        // RMS.
         var rms: Float = 0
         vDSP_rmsqv(windowed, 1, &rms, vDSP_Length(fftSize))
 
@@ -81,8 +74,10 @@ nonisolated final class FFTProcessor {
         windowed.withUnsafeBufferPointer { wPtr in
             real.withUnsafeMutableBufferPointer { rPtr in
                 imag.withUnsafeMutableBufferPointer { iPtr in
-                    var split = DSPSplitComplex(realp: rPtr.baseAddress!,
-                                                imagp: iPtr.baseAddress!)
+                    var split = DSPSplitComplex(
+                        realp: rPtr.baseAddress!,
+                        imagp: iPtr.baseAddress!
+                    )
                     wPtr.baseAddress!.withMemoryRebound(
                         to: DSPComplex.self,
                         capacity: fftSize / 2
@@ -101,7 +96,7 @@ nonisolated final class FFTProcessor {
         vDSP_vdbcon(magnitudes, 1, &one, &decibels, 1,
                     vDSP_Length(fftSize / 2), 1)
 
-        // Downsample to binCount log-spaced buckets, normalized to 0…1.
+        // Downsample to log-spaced buckets.
         let halfN = fftSize / 2
         let minBin = 2
         let maxBin = halfN - 2
