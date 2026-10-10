@@ -68,15 +68,14 @@ class CarPlaySceneDelegate: UIResponder,
             root.delegate = self
 
             await MainActor.run {
-                interfaceController.setRootTemplate(root, animated: true) { [weak self] _, _ in
-                    guard let self else { return }
+                interfaceController.setRootTemplate(root, animated: true) { _, _ in
                     self.selectTab(at: self.selectedTabIndex, in: root)
                 }
             }
         }
     }
 
-    func templateApplicationScene(
+    private func templateApplicationScene(
         _ templateApplicationScene: CPTemplateApplicationScene,
         didDisconnect interfaceController: CPInterfaceController
     ) {
