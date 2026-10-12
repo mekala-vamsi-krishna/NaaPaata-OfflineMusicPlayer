@@ -627,7 +627,7 @@
 				);
 				MACOSX_DEPLOYMENT_TARGET = 15.0;
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.naapata.mp3;
+				PRODUCT_BUNDLE_IDENTIFIER = com.naapaata.mp3;
 				PRODUCT_NAME = "Naa Paata";
 				REGISTER_APP_GROUPS = YES;
 				SDKROOT = macosx;
@@ -674,7 +674,7 @@
 				);
 				MACOSX_DEPLOYMENT_TARGET = 15.0;
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.naapata.mp3;
+				PRODUCT_BUNDLE_IDENTIFIER = com.naapaata.mp3;
 				PRODUCT_NAME = "Naa Paata";
 				REGISTER_APP_GROUPS = YES;
 				SDKROOT = macosx;
