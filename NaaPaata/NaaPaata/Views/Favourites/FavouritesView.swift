@@ -276,7 +276,7 @@ struct FavouritesView: View {
             return
         }
         let service = FavouritesService(context: modelContext)
-        try? service.removeFavourite(relativePath)
+        _ = try? service.removeFavourite(relativePath)
     }
 
     private func formattedDuration(_ duration: TimeInterval) -> String {

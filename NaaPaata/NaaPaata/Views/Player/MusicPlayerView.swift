@@ -2,14 +2,19 @@
 //  MusicPlayerView.swift
 //  NaaPaata
 //
-//  Created by Mekala Vamsi Krishna on 9/13/25.
-//
 
 import SwiftUI
 import UIKit
 import SwiftData
 
 struct MusicPlayerView: View {
+
+    // MARK: - Dependencies
+
+    var size: CGSize
+    var safeArea: EdgeInsets
+    var namespace: Namespace.ID
+    @Binding var config: PlayerContainerConfig
 
     // MARK: - Environment
 
@@ -18,15 +23,8 @@ struct MusicPlayerView: View {
     @EnvironmentObject private var libraryViewModel: MusicLibraryViewModel
     @EnvironmentObject private var sleepTimerManager: SleepTimerManager
     @EnvironmentObject private var progressStore: PlaybackProgressStore
-    @Environment(\.verticalSizeClass) private var verticalSizeClass
 
     @Query private var favourites: [FavouriteSong]
-
-    // MARK: - Dependencies
-
-    let dismissAction: () -> Void
-    let onDismissalProgressChanged: (CGFloat) -> Void
-    let onGoToAlbum: (Album) -> Void
 
     // MARK: - State
 
@@ -34,17 +32,11 @@ struct MusicPlayerView: View {
     @State private var showAddToPlaylist = false
     @State private var infoSong: Song?
     @State private var showDeleteAlert = false
-    @State private var dragOffset: CGFloat = 0
-
-    private var dismissThreshold: CGFloat { 120 }
+    @State private var fadeIn = false
 
     // MARK: - Derived
 
     private var song: Song? { libraryViewModel.currentSong }
-
-    private var isLandscape: Bool {
-        verticalSizeClass == .compact
-    }
 
     private var repeatIconName: String {
         libraryViewModel.repeatMode == .one ? "repeat.1" : "repeat"
@@ -59,83 +51,99 @@ struct MusicPlayerView: View {
 
     private var duration: TimeInterval { song?.duration ?? 0 }
     private var currentTime: TimeInterval { progressStore.elapsed }
-    private var progress: Double { progressStore.progress }
 
     private var artworkImage: UIImage? {
         guard let data = song?.artworkData else { return nil }
         return UIImage(data: data)
     }
 
-    private var dismissalProgress: CGFloat {
-        min(max(dragOffset / 520, 0), 1)
-    }
-
-    private var playerTopCornerRadius: CGFloat {
-        let ramp = min(dismissalProgress / 0.05, 1)
-        return 44 * ramp
-    }
-
-    private var backdropOpacity: CGFloat { 0 }
-
-    private var topSafeAreaInset: CGFloat {
-        UIApplication.shared.connectedScenes
-            .compactMap { $0 as? UIWindowScene }
-            .flatMap { $0.windows }
-            .first { $0.isKeyWindow }?
-            .safeAreaInsets.top ?? 59
-    }
-
-    private var bottomSafeAreaInset: CGFloat {
-        UIApplication.shared.connectedScenes
-            .compactMap { $0 as? UIWindowScene }
-            .flatMap { $0.windows }
-            .first { $0.isKeyWindow }?
-            .safeAreaInsets.bottom ?? 34
+    /// Artwork size, matching the video's `size.width - 120`.
+    private var artworkSize: CGFloat {
+        max(size.width - 120, 200)
     }
 
     // MARK: - Body
 
     var body: some View {
-        GeometryReader { geometry in
-            ZStack {
-                playerBackground
+        VStack(spacing: 15) {
 
-                VStack(spacing: 0) {
-                    grabberBar
-                        .padding(.top, topSafeAreaInset + 14)
-                        .padding(.bottom, 12)
-
-                    if isLandscape {
-                        landscapeLayout(in: geometry)
-                    } else {
-                        portraitLayout(in: geometry)
-                    }
+            // ── Grabber ─────────────────────────────────────────
+            Capsule()
+                .fill(.white.secondary)
+                .frame(width: 50, height: 4)
+                .animation(config.animation.speed(2)) {
+                    $0.opacity(config.expandPlayer ? 1 : 0)
                 }
-                .frame(width: geometry.size.width, height: geometry.size.height)
+                .opacity(fadeIn ? 1 : 0)
+
+            Spacer(minLength: 0)
+
+            // ── Artwork ─────────────────────────────────────────
+            artwork
+                .frame(width: artworkSize, height: artworkSize)
+                .clipShape(.rect(cornerRadius: 10))
+                .matchedGeometryEffect(id: "artwork", in: namespace)
+                .shadow(color: .black.opacity(0.4), radius: 20, y: 10)
+
+            // ── Track info ──────────────────────────────────────
+            VStack(spacing: 6) {
+                Text(song?.title ?? "Not Playing")
+                    .font(.system(size: 20, weight: .semibold))
+                    .foregroundStyle(.white)
+                    .lineLimit(1)
+                    .matchedGeometryEffect(id: "title", in: namespace)
+
+                Text(song?.artist ?? "Unknown Artist")
+                    .font(.system(size: 14))
+                    .foregroundStyle(.white.opacity(0.65))
+                    .lineLimit(1)
+                    .matchedGeometryEffect(id: "artist", in: namespace)
             }
-            .offset(y: dragOffset)
-            .clipShape(
-                UnevenRoundedRectangle(
-                    topLeadingRadius: playerTopCornerRadius,
-                    bottomLeadingRadius: 0,
-                    bottomTrailingRadius: 0,
-                    topTrailingRadius: playerTopCornerRadius,
-                    style: .continuous
+            .padding(.horizontal, 24)
+            .animation(config.animation.speed(2)) {
+                $0.opacity(config.expandPlayer ? 1 : 0)
+            }
+
+            // ── Controls ────────────────────────────────────────
+            VStack(spacing: 20) {
+
+                actionRow
+                    .padding(.horizontal, 24)
+
+                PlayerProgressSection(
+                    currentTime: currentTime,
+                    duration: duration,
+                    onSeek: { seek(to: $0) }
                 )
-            )
-            .contentShape(Rectangle())
-            .gesture(dismissGesture(screenHeight: geometry.size.height))
+                .padding(.horizontal, 24)
+
+                playbackControlsRow
+                    .padding(.horizontal, 24)
+            }
+            .animation(config.animation.speed(2)) {
+                $0.opacity(config.expandPlayer ? 1 : 0)
+            }
+            .opacity(fadeIn ? 1 : 0)
+
+            Spacer(minLength: 0)
         }
-        .ignoresSafeArea()
-        .background(
-            Color.black
-                .opacity(backdropOpacity)
-                .ignoresSafeArea()
-        )
-        .onAppear { dragOffset = 0 }
+        .padding(.top, safeArea.top)
+        .padding(.bottom, safeArea.bottom + 10)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background {
+            playerBackground
+        }
+        .onAppear {
+            withAnimation(config.animation.delay(0.1)) {
+                fadeIn = true
+            }
+        }
+        .onDisappear {
+            fadeIn = false
+        }
         .preferredColorScheme(.dark)
 
-        // MARK: Sheets
+        // MARK: - Sheets
 
         .sheet(isPresented: $showSleepTimerSheet) {
             SleepTimerPickerView()
@@ -163,7 +171,6 @@ struct MusicPlayerView: View {
             Button("Delete", role: .destructive) {
                 if let song {
                     libraryViewModel.deleteSong(song)
-                    dismissAction()
                 }
             }
             Button("Cancel", role: .cancel) {}
@@ -172,199 +179,23 @@ struct MusicPlayerView: View {
         }
     }
 
-    // MARK: - Grabber
+    // MARK: - Artwork
 
-    private var grabberBar: some View {
-        Capsule()
-            .fill(.white.opacity(0.35))
-            .frame(width: 36, height: 5)
-    }
-
-    // MARK: - Portrait layout
-
-    private func portraitLayout(in geometry: GeometryProxy) -> some View {
-        let horizontalPadding: CGFloat = 32
-
-        // Height reserved for everything below the artwork.
-        let reservedBelowArtwork: CGFloat = 240 + bottomSafeAreaInset
-
-        // Space left over for artwork after the grabber.
-        let availableForArtwork = geometry.size.height
-            - topSafeAreaInset
-            - 14 - 5 - 12                 // grabber block
-            - reservedBelowArtwork
-
-        let maxByWidth = geometry.size.width - (horizontalPadding * 2)
-        let artworkSize = max(min(maxByWidth, availableForArtwork, 420), 160)
-
-        return VStack(spacing: 0) {
-            artworkView(size: artworkSize)
-                .frame(maxWidth: .infinity)
-
-            Spacer(minLength: 24)
-
-            headerRow
-                .padding(.horizontal, horizontalPadding)
-
-            Spacer(minLength: 20)
-
-            progressSection
-                .padding(.horizontal, horizontalPadding)
-
-            Spacer(minLength: 20)
-
-            playbackControlsRow
-                .padding(.horizontal, horizontalPadding)
-
-            Spacer(minLength: 0)
+    @ViewBuilder
+    private var artwork: some View {
+        if let artworkImage {
+            Image(uiImage: artworkImage)
+                .resizable()
+                .scaledToFill()
+        } else {
+            RoundedRectangle(cornerRadius: 5)
+                .fill(brandGradient)
+                .overlay {
+                    Image(systemName: "music.note")
+                        .font(.system(size: 64, weight: .light))
+                        .foregroundStyle(.white.opacity(0.35))
+                }
         }
-        .padding(.bottom, bottomSafeAreaInset + 12)
-    }
-
-    // MARK: - Landscape layout
-
-    private func landscapeLayout(in geometry: GeometryProxy) -> some View {
-        let horizontalPadding: CGFloat = 32
-        let hStackSpacing: CGFloat = 24
-
-        let availableWidth = geometry.size.width
-            - (horizontalPadding * 2)
-            - hStackSpacing
-
-        let reservedVertical = topSafeAreaInset
-            + 14 + 5 + 12               // grabber block
-            + bottomSafeAreaInset
-            + 16                        // bottom padding
-            + 24                        // breathing room
-
-        let availableHeight = geometry.size.height - reservedVertical
-
-        let artworkFromWidth = availableWidth * 0.44
-        let artworkSize = max(min(artworkFromWidth, availableHeight, 420), 160)
-
-        return HStack(alignment: .center, spacing: hStackSpacing) {
-            artworkView(size: artworkSize)
-
-            VStack(alignment: .leading, spacing: 20) {
-                headerRow
-                progressSection
-                playbackControlsRow
-
-                Spacer(minLength: 0)
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-        }
-        .padding(.horizontal, horizontalPadding)
-        .padding(.bottom, bottomSafeAreaInset + 16)
-        .frame(maxWidth: .infinity)
-    }
-
-    // MARK: - Header row
-
-    private var headerRow: some View {
-        HStack(alignment: .center, spacing: 8) {
-
-            VStack(alignment: .leading, spacing: 4) {
-                MarqueeText(
-                    text: song?.title ?? "Not Playing",
-                    font: .system(size: 20, weight: .semibold, design: .rounded),
-                    color: .white
-                )
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .frame(height: 26)
-
-                MarqueeText(
-                    text: song?.artist ?? "Unknown Artist",
-                    font: .system(size: 14),
-                    color: .white.opacity(0.65)
-                )
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .frame(height: 18)
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-
-            // Favourite
-            Button {
-                toggleFavourite()
-            } label: {
-                Image(systemName: isCurrentSongFavourite ? "heart.fill" : "heart")
-                    .font(.system(size: 20, weight: .medium))
-                    .foregroundColor(isCurrentSongFavourite ? .pink : .white)
-                    .contentTransition(.symbolEffect(.replace))
-                    .symbolEffect(.bounce, value: isCurrentSongFavourite)
-                    .frame(width: 40, height: 40)
-                    .contentShape(Rectangle())
-            }
-            .buttonStyle(.plain)
-            .accessibilityLabel(
-                isCurrentSongFavourite
-                ? "Remove from Favourites"
-                : "Add to Favourites"
-            )
-
-            // Menu
-            Menu {
-                Button {
-                    infoSong = song
-                } label: {
-                    Label("Info", systemImage: "info.circle")
-                }
-
-                Button {
-                    showAddToPlaylist = true
-                } label: {
-                    Label("Add to Playlist", systemImage: "music.note.list")
-                }
-
-                Button {
-                    goToAlbum()
-                } label: {
-                    Label("Go to Album", systemImage: "square.stack")
-                }
-
-                Button {
-                    showSleepTimerSheet = true
-                } label: {
-                    if sleepTimerManager.isTimerActive {
-                        Label(
-                            "Timer · \(sleepTimerManager.formattedTimeRemaining)",
-                            systemImage: "moon.fill"
-                        )
-                    } else {
-                        Label("Set Timer", systemImage: "moon.stars")
-                    }
-                }
-
-                Divider()
-
-                Button(role: .destructive) {
-                    showDeleteAlert = true
-                } label: {
-                    Label("Delete", systemImage: "trash")
-                        .tint(.red)
-                }
-            } label: {
-                Image(systemName: "ellipsis")
-                    .rotationEffect(.degrees(90))
-                    .font(.system(size: 20, weight: .medium))
-                    .foregroundColor(.white)
-                    .frame(width: 40, height: 40)
-                    .contentShape(Rectangle())
-            }
-            .buttonStyle(.plain)
-            .tint(.primary)
-
-        }
-    }
-
-    // MARK: - Progress section
-
-    private var progressSection: some View {
-        PlayerProgressSection(
-            currentTime: currentTime,
-            duration: duration,
-            onSeek: { seek(to: $0) }
-        )
     }
 
     // MARK: - Playback controls
@@ -403,6 +234,7 @@ struct MusicPlayerView: View {
                         libraryViewModel.togglePlayPause()
                     }
                 )
+                .matchedGeometryEffect(id: "playButton", in: namespace)
 
                 PlaybackButton(
                     icon: "forward.fill",
@@ -430,28 +262,58 @@ struct MusicPlayerView: View {
         }
     }
 
-    // MARK: - Artwork
+    // MARK: - Action row
 
-    @ViewBuilder
-    private func artworkView(size: CGFloat) -> some View {
-        Group {
-            if let artworkImage {
-                Image(uiImage: artworkImage)
-                    .resizable()
-                    .scaledToFill()
-            } else {
-                ZStack {
-                    brandGradient.grayscale(1).opacity(0.35)
+    private var actionRow: some View {
+        // FIX: Spacer at the beginning pushes the buttons to the trailing side
+        HStack(spacing: 16) {
+            Spacer()
 
-                    Image(systemName: "music.note")
-                        .font(.system(size: size * 0.28, weight: .light))
-                        .foregroundStyle(.white.opacity(0.35))
-                }
+            Button {
+                toggleFavourite()
+            } label: {
+                Image(systemName: isCurrentSongFavourite ? "heart.fill" : "heart")
+                    .font(.system(size: 20, weight: .medium))
+                    .foregroundStyle(isCurrentSongFavourite ? .pink : .white)
+                    .contentTransition(.symbolEffect(.replace))
+                    .frame(width: 44, height: 44)
+                    .contentShape(Rectangle())
             }
+            .buttonStyle(.plain)
+
+            Menu {
+                Button { infoSong = song } label: {
+                    Label("Info", systemImage: "info.circle")
+                }
+                Button { showAddToPlaylist = true } label: {
+                    Label("Add to Playlist", systemImage: "music.note.list")
+                }
+                Button { showSleepTimerSheet = true } label: {
+                    if sleepTimerManager.isTimerActive {
+                        Label(
+                            "Timer · \(sleepTimerManager.formattedTimeRemaining)",
+                            systemImage: "moon.fill"
+                        )
+                    } else {
+                        Label("Set Timer", systemImage: "moon.stars")
+                    }
+                }
+                Divider()
+                Button(role: .destructive) { showDeleteAlert = true } label: {
+                    Label("Delete", systemImage: "trash").tint(.red)
+                }
+            } label: {
+                Image(systemName: "ellipsis")
+                    .rotationEffect(.degrees(90))
+                    .font(.system(size: 20, weight: .medium))
+                    .foregroundStyle(.white)
+                    .frame(width: 44, height: 44)
+                    .contentShape(Rectangle())
+            }
+            .menuStyle(.borderlessButton)
+            .menuIndicator(.hidden)
+            .fixedSize()
         }
-        .frame(width: size, height: size)
-        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
-        .shadow(color: .black.opacity(0.5), radius: 24, y: 10)
     }
 
     // MARK: - Background
@@ -459,28 +321,23 @@ struct MusicPlayerView: View {
     @ViewBuilder
     private var playerBackground: some View {
         ZStack {
-            Color.black
+            LinearGradient(
+                colors: [
+                    Color(red: 0.08, green: 0.06, blue: 0.14),
+                    Color.black
+                ],
+                startPoint: .top,
+                endPoint: .bottom
+            )
 
             if let artworkImage {
-                GeometryReader { geo in
-                    Image(uiImage: artworkImage)
-                        .resizable()
-                        .scaledToFill()
-                        .frame(width: geo.size.width, height: geo.size.height)
-                        .scaleEffect(1.2)
-                        .blur(radius: 80)
-                        .overlay(
-                            LinearGradient(
-                                colors: [
-                                    Color.black.opacity(0.55),
-                                    Color.black.opacity(0.85)
-                                ],
-                                startPoint: .top,
-                                endPoint: .bottom
-                            )
-                        )
-                        .opacity(1 - min(dismissalProgress / 0.30, 1))
-                }
+                Image(uiImage: artworkImage)
+                    .resizable()
+                    .scaledToFill()
+                    .scaleEffect(1.2)
+                    .blur(radius: 80)
+                    .opacity(0.55)
+                    .clipped()
             }
         }
         .ignoresSafeArea()
@@ -500,40 +357,6 @@ struct MusicPlayerView: View {
         )
     }
 
-    // MARK: - Drag gesture
-
-    private func dismissGesture(screenHeight: CGFloat) -> some Gesture {
-        DragGesture(minimumDistance: 8)
-            .onChanged { value in
-                let translation = value.translation.height
-                dragOffset = translation > 0 ? translation : 0
-
-                let progress = min(max(dragOffset / 520, 0), 1)
-                onDismissalProgressChanged(progress)
-            }
-            .onEnded { value in
-                let projected = max(
-                    value.translation.height,
-                    value.predictedEndTranslation.height
-                )
-
-                if projected > dismissThreshold {
-                    onDismissalProgressChanged(1)
-
-                    withAnimation(.spring(response: 0.4, dampingFraction: 0.9)) {
-                        dragOffset = screenHeight
-                    } completion: {
-                        dismissAction()
-                    }
-                } else {
-                    withAnimation(.spring(response: 0.4, dampingFraction: 0.9)) {
-                        dragOffset = 0
-                        onDismissalProgressChanged(0)
-                    }
-                }
-            }
-    }
-
     // MARK: - Actions
 
     private func toggleFavourite() {
@@ -543,30 +366,12 @@ struct MusicPlayerView: View {
 
         HapticManager.shared.light()
         let service = FavouritesService(context: modelContext)
-        try? service.toggleFavourite(relativePath)
-    }
-
-    private func goToAlbum() {
-        guard let song,
-              let album = libraryViewModel.albums.first(where: {
-                  $0.title == song.album
-              })
-        else { return }
-
-        HapticManager.shared.light()
-        onGoToAlbum(album)
+        _ = try? service.toggleFavourite(relativePath)
     }
 
     private func seek(to time: TimeInterval) {
         guard duration > 0 else { return }
         libraryViewModel.seek(toProgress: time / duration)
-    }
-
-    // MARK: - Helpers
-
-    private func formattedTime(_ time: TimeInterval) -> String {
-        let total = Int(time.rounded())
-        return String(format: "%d:%02d", total / 60, total % 60)
     }
 }
 
