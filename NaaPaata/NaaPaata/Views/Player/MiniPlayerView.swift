@@ -114,7 +114,6 @@ struct MiniPlayerView: View {
         }
         .padding(.horizontal, 12)
         .frame(maxWidth: .infinity)
-        .frame(height: 60)
     }
 
     // MARK: - Artwork
