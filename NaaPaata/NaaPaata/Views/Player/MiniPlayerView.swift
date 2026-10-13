@@ -6,41 +6,22 @@
 import SwiftUI
 import UIKit
 
-enum MiniPlayerStyle {
-    case accessoryExpanded
-    case accessoryInline
-    case legacy
-}
-
 struct MiniPlayerView: View {
 
     @EnvironmentObject private var libraryViewModel: MusicLibraryViewModel
 
-    let style: MiniPlayerStyle
-    let onOpen: () -> Void
+    var namespace: Namespace.ID
 
-    private var isInline: Bool {
-        style == .accessoryInline
-    }
-
-    private var artworkSize: CGFloat {
-        isInline ? 26 : 38
-    }
-
-    private var song: Song? {
-        libraryViewModel.currentSong
-    }
+    private var song: Song? { libraryViewModel.currentSong }
 
     private var artworkImage: UIImage? {
         guard let data = song?.artworkData else { return nil }
         return UIImage(data: data)
     }
 
-    private var isPlaying: Bool {
-        libraryViewModel.isPlaying
-    }
+    private var isPlaying: Bool { libraryViewModel.isPlaying }
 
-    // MARK: - Body
+    private let artworkSize: CGFloat = 38
 
     var body: some View {
         if song == nil {
@@ -50,107 +31,89 @@ struct MiniPlayerView: View {
         }
     }
 
-    // MARK: - Active player
+    // MARK: - Active Player
 
     private var activePlayer: some View {
-        HStack(spacing: isInline ? 6 : 12) {
+        HStack(spacing: 12) {
 
             artworkView
-            songInformation
+                .frame(width: artworkSize, height: artworkSize)
+                .aspectRatio(contentMode: .fill)
+                .clipShape(.rect(cornerRadius: 5))
+                .matchedGeometryEffect(id: "artwork", in: namespace)
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(song?.title ?? "Unknown Title")
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundStyle(.primary)
+                    .lineLimit(1)
+                    .matchedGeometryEffect(id: "title", in: namespace)
+
+                Text(song?.artist ?? "Unknown Artist")
+                    .font(.system(size: 13))
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+                    .matchedGeometryEffect(id: "artist", in: namespace)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
 
             Spacer(minLength: 0)
 
             playbackButton(
                 systemName: isPlaying ? "pause.fill" : "play.fill",
-                size: isInline ? 13 : 18,
+                size: 18,
                 accessibilityLabel: isPlaying ? "Pause" : "Play"
             ) {
                 HapticManager.shared.light()
                 libraryViewModel.togglePlayPause()
             }
+            .matchedGeometryEffect(id: "playButton", in: namespace)
 
-            if !isInline {
-                playbackButton(
-                    systemName: "forward.fill",
-                    size: 16,
-                    accessibilityLabel: "Next Track"
-                ) {
-                    HapticManager.shared.light()
-                    libraryViewModel.playNext()
-                }
+            playbackButton(
+                systemName: "forward.fill",
+                size: 16,
+                accessibilityLabel: "Next Track"
+            ) {
+                HapticManager.shared.light()
+                libraryViewModel.playNext()
             }
         }
-        .padding(.horizontal, isInline ? 4 : 12)
+        .padding(.horizontal, 12)
         .frame(maxWidth: .infinity)
-        .frame(height: isInline ? 38 : 64)
-        .background(activeBackground)
-        .contentShape(Rectangle())
-        .onTapGesture {
-            onOpen()
-        }
-        .accessibilityElement(children: .contain)
-        .accessibilityAction(named: "Open Now Playing", onOpen)
     }
 
-    // MARK: - Empty state (nothing playing)
+    // MARK: - Empty State
 
     private var emptyState: some View {
-        HStack(spacing: isInline ? 6 : 12) {
+        HStack(spacing: 12) {
 
-            // Placeholder artwork
             ZStack {
-                RoundedRectangle(cornerRadius: isInline ? 5 : 8, style: .continuous)
+                RoundedRectangle(cornerRadius: 8, style: .continuous)
                     .fill(Color.secondary.opacity(0.15))
-
                 Image(systemName: "music.note")
-                    .font(.system(size: isInline ? 11 : 17, weight: .medium))
+                    .font(.system(size: 17, weight: .medium))
                     .foregroundStyle(.tertiary)
             }
             .frame(width: artworkSize, height: artworkSize)
 
             VStack(alignment: .leading, spacing: 2) {
                 Text("Nothing Playing")
-                    .font(.system(size: isInline ? 12 : 15, weight: .semibold))
+                    .font(.system(size: 15, weight: .semibold))
                     .foregroundStyle(.secondary)
-                    .lineLimit(1)
-
-                if !isInline {
-                    Text("Pick a song to start")
-                        .font(.system(size: 13))
-                        .foregroundStyle(.tertiary)
-                        .lineLimit(1)
-                }
+                Text("Pick a song to start")
+                    .font(.system(size: 13))
+                    .foregroundStyle(.tertiary)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
 
-            // Disabled play button — greyed out
             Image(systemName: "play.fill")
-                .font(.system(size: isInline ? 13 : 18, weight: .semibold))
+                .font(.system(size: 18, weight: .semibold))
                 .foregroundStyle(.tertiary)
-                .frame(
-                    width: isInline ? 28 : 40,
-                    height: isInline ? 28 : 40
-                )
+                .frame(width: 40, height: 40)
                 .opacity(0.5)
-
-            if !isInline {
-                Image(systemName: "forward.fill")
-                    .font(.system(size: 16, weight: .semibold))
-                    .foregroundStyle(.tertiary)
-                    .frame(width: 40, height: 40)
-                    .opacity(0.5)
-            }
         }
-        .padding(.horizontal, isInline ? 4 : 12)
+        .padding(.horizontal, 12)
         .frame(maxWidth: .infinity)
-        .frame(height: isInline ? 38 : 64)
-        .background(emptyBackground)
-        .contentShape(Rectangle())
-        .onTapGesture {
-            
-        }
-        .accessibilityElement(children: .combine)
-        .accessibilityLabel("Nothing playing")
     }
 
     // MARK: - Artwork
@@ -163,19 +126,13 @@ struct MiniPlayerView: View {
                     .resizable()
                     .scaledToFill()
                     .frame(width: artworkSize, height: artworkSize)
-                    .clipShape(
-                        RoundedRectangle(
-                            cornerRadius: isInline ? 5 : 8,
-                            style: .continuous
-                        )
-                    )
+                    .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
             } else {
                 ZStack {
-                    RoundedRectangle(cornerRadius: isInline ? 5 : 8, style: .continuous)
+                    RoundedRectangle(cornerRadius: 8, style: .continuous)
                         .fill(Color.secondary.opacity(0.16))
-                    
                     Image(systemName: "music.note")
-                        .font(.system(size: isInline ? 11 : 19, weight: .medium))
+                        .font(.system(size: 19, weight: .medium))
                         .foregroundStyle(.secondary)
                 }
                 .frame(width: artworkSize, height: artworkSize)
@@ -184,79 +141,7 @@ struct MiniPlayerView: View {
         .accessibilityHidden(true)
     }
 
-    // MARK: - Song info
-
-    @ViewBuilder
-    private var songInformation: some View {
-        if isInline {
-            VStack(alignment: .leading, spacing: 0) {
-                Text(song?.title ?? "Unknown Title")
-                    .font(.system(size: 13, weight: .semibold))
-                    .foregroundStyle(.primary)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.75)
-                    .allowsTightening(true)
-
-                Text(song?.artist ?? "Unknown Artist")
-                    .font(.system(size: 11))
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.75)
-                    .allowsTightening(true)
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-        } else {
-            VStack(alignment: .leading, spacing: 2) {
-                Text(song?.title ?? "Unknown Title")
-                    .font(.system(size: 15, weight: .semibold))
-                    .foregroundStyle(.primary)
-                    .lineLimit(1)
-
-                Text(song?.artist ?? "Unknown Artist")
-                    .font(.system(size: 13))
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .accessibilityElement(children: .combine)
-        }
-    }
-
-    // MARK: - Backgrounds
-
-    @ViewBuilder
-    private var activeBackground: some View {
-        switch style {
-        case .legacy:
-            RoundedRectangle(cornerRadius: 14, style: .continuous)
-                .fill(.ultraThinMaterial)
-                .overlay {
-                    RoundedRectangle(cornerRadius: 14, style: .continuous)
-                        .strokeBorder(.white.opacity(0.12), lineWidth: 0.5)
-                }
-                .shadow(color: .black.opacity(0.18), radius: 12, y: 5)
-        case .accessoryExpanded, .accessoryInline:
-            Color.clear
-        }
-    }
-
-    @ViewBuilder
-    private var emptyBackground: some View {
-        switch style {
-        case .legacy:
-            RoundedRectangle(cornerRadius: 14, style: .continuous)
-                .fill(.ultraThinMaterial)
-                .opacity(0.6)
-                .overlay {
-                    RoundedRectangle(cornerRadius: 14, style: .continuous)
-                        .strokeBorder(.white.opacity(0.08), lineWidth: 0.5)
-                }
-        case .accessoryExpanded, .accessoryInline:
-            Color.clear
-        }
-    }
-
-    // MARK: - Button builder
+    // MARK: - Playback Button
 
     private func playbackButton(
         systemName: String,
@@ -269,34 +154,10 @@ struct MiniPlayerView: View {
                 .font(.system(size: size, weight: .semibold))
                 .foregroundStyle(.primary)
                 .contentTransition(.symbolEffect(.replace))
-                .frame(
-                    width: isInline ? 28 : 40,
-                    height: isInline ? 28 : 40
-                )
+                .frame(width: 40, height: 40)
                 .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
         .accessibilityLabel(accessibilityLabel)
-    }
-}
-
-// MARK: - iOS 26 tab accessory wrapper
-
-@available(iOS 26.0, *)
-struct IOS26MiniPlayerAccessory: View {
-
-    @Environment(\.tabViewBottomAccessoryPlacement) private var placement
-
-    let onOpen: () -> Void
-
-    private var style: MiniPlayerStyle {
-        placement == .inline ? .accessoryInline : .accessoryExpanded
-    }
-
-    var body: some View {
-        MiniPlayerView(
-            style: style,
-            onOpen: onOpen
-        )
     }
 }

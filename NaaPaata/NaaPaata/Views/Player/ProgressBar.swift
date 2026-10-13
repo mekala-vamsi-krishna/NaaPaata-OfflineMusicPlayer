@@ -41,6 +41,7 @@ struct ProgressBar: View {
                         .animation(.linear(duration: 0.1), value: displayTime)
                 }
                 .frame(height: max(barHeight, 30))
+                .animation(.spring(response: 0.3, dampingFraction: 0.6), value: isDragging)
                 .contentShape(Rectangle())
                 .gesture(
                     DragGesture(minimumDistance: 0)
@@ -63,10 +64,11 @@ struct ProgressBar: View {
                             // Update currentTime and trigger seek
                             currentTime = finalTime
                             onDragChanged(finalTime)
-
-                            // Reset dragging state
-                            isDragging = false
-                            dragTime = 0
+                            
+                            DispatchQueue.main.async {
+                                isDragging = false
+                                dragTime = 0
+                            }
                         }
                 )
             }

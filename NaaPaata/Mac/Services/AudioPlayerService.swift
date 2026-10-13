@@ -72,15 +72,7 @@ final class AudioPlayerService: AudioPlayerServiceProtocol, ObservableObject {
 
         let format = audioEngine.mainMixerNode.outputFormat(forBus: 0)
 
-        do {
-            try audioEngine.connectNode(
-                playerNode,
-                to: audioEngine.mainMixerNode,
-                format: format
-            )
-        } catch {
-            print("AudioPlayerService: connectNode failed: \(error)")
-        }
+        audioEngine.connect(playerNode, to: audioEngine.mainMixerNode, format: format)
 
         audioEngine.prepare()
 
@@ -115,13 +107,9 @@ final class AudioPlayerService: AudioPlayerServiceProtocol, ObservableObject {
         guard audioFile != nil else { return }
         if !audioEngine.isRunning { try? audioEngine.start() }
 
-        do {
-            try playerNode.playAudio()
-            isPlayingSubject.send(true)
-            startTimer()
-        } catch {
-            print("AudioPlayerService: playAudio failed: \(error)")
-        }
+        playerNode.play()
+        isPlayingSubject.send(true)
+        startTimer()
     }
 
     func pause() {
@@ -178,7 +166,7 @@ final class AudioPlayerService: AudioPlayerServiceProtocol, ObservableObject {
         progressSubject.send(duration > 0 ? seconds / duration : 0)
 
         if wasPlaying {
-            do { try playerNode.playAudio() } catch { /* ignored */ }
+            playerNode.play()
             startTimer()
         }
     }
@@ -215,7 +203,7 @@ final class AudioPlayerService: AudioPlayerServiceProtocol, ObservableObject {
     private func handleFileFinished() {
         if isLooping {
             scheduleCurrentSegment()
-            do { try playerNode.playAudio() } catch { /* ignored */ }
+            playerNode.play()
         } else {
             isPlayingSubject.send(false)
             stopTimer()

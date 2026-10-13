@@ -9,7 +9,24 @@ import SwiftUI
 
 // MARK: - Tab Enum
 enum AppTab: String, Hashable, CaseIterable {
-    case home, playlists, settings, search
+    case home = "Home"
+    case playlists = "Playlists"
+    case settings = "Settings"
+    case search = "Search"
+
+    var symbol: String {
+        switch self {
+        case .home:      return "house"
+        case .playlists: return "music.note.list"
+        case .settings:  return "gearshape.fill"
+        case .search:    return "magnifyingglass"
+        }
+    }
+
+    @ViewBuilder
+    var tabLabel: some View {
+        Label(self.rawValue, systemImage: self.symbol)
+    }
 }
 
 // MARK: - Tab State
@@ -20,105 +37,51 @@ final class TabState: ObservableObject {
 // MARK: - Main Tab View
 struct MainTabView: View {
 
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
-
     @EnvironmentObject var tabState: TabState
     @EnvironmentObject var libraryViewModel: MusicLibraryViewModel
     @EnvironmentObject var sleepTimerManager: SleepTimerManager
     @EnvironmentObject private var progressStore: PlaybackProgressStore
     @EnvironmentObject private var folderService: DocumentFolderService
-    
+
     @StateObject private var homeRouter = AppRouter()
     @StateObject private var playlistsRouter = AppRouter()
     @StateObject private var searchRouter = AppRouter()
 
-    @State private var showFullPlayer = false
-    @State private var playerDismissalProgress: CGFloat = 0
-
-    @StateObject private var uiState = UIState()
-
-    private var playerAnimation: Animation {
-        reduceMotion
-        ? .easeInOut(duration: 0.2)
-        : .spring(response: 0.44, dampingFraction: 0.88, blendDuration: 0.08)
-    }
+    @State private var config = PlayerContainerConfig()
 
     var body: some View {
         ZStack {
             Color(.systemBackground)
                 .ignoresSafeArea()
 
-            adaptiveTabView
-                .accessibilityHidden(showFullPlayer)
-
-            if libraryViewModel.currentSong != nil, showFullPlayer {
-                MusicPlayerView(
-                    dismissAction: dismissPlayer,
-                    onDismissalProgressChanged: { progress in
-                        playerDismissalProgress = progress
-                    },
-                    onGoToAlbum: { album in
-                        // Dismiss the player, switch to Home tab, then push the album.
-                        withAnimation(playerAnimation) {
-                            showFullPlayer = false
-                        }
-                        tabState.selectedTab = .home
-
-                        // Wait a beat for the Home tab to appear, then push.
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
-                            homeRouter.push(album)
-                        }
-                    }
-                )
-                .environmentObject(libraryViewModel)
-                .environmentObject(sleepTimerManager)
-                .environmentObject(progressStore)
-                .environmentObject(folderService)
-                .zIndex(10)
-            }
-        }
-        .environmentObject(uiState)
-        .onReceive(libraryViewModel.$currentSong) { song in
-            guard song == nil, showFullPlayer else { return }
-            withAnimation(playerAnimation) {
-                showFullPlayer = false
-            }
-        }
-    }
-
-    // MARK: - Adaptive tab layout
-
-    @ViewBuilder
-    private var adaptiveTabView: some View {
-        if #available(iOS 26.0, *) {
             tabs
-                .tabViewBottomAccessory {
-                    IOS26MiniPlayerAccessory(onOpen: presentPlayer)
-                        .accessibilityHidden(showFullPlayer)
+                .overlay(alignment: .topLeading, content: {
+                    if config.attachExpandedPlayer {
+                        PlayerContainer(config: $config)
+                            .environmentObject(libraryViewModel)
+                            .environmentObject(sleepTimerManager)
+                            .environmentObject(progressStore)
+                            .environmentObject(folderService)
+                            .transition(.identity)
+                    }
+                })
+                .tabViewBottomAccessory(isEnabled: !config.attachExpandedPlayer) {
+                    PlayerContainer(config: $config)
+                        .environmentObject(libraryViewModel)
+                        .environmentObject(sleepTimerManager)
+                        .environmentObject(progressStore)
+                        .environmentObject(folderService)
                 }
                 .tabBarMinimizeBehavior(.onScrollDown)
-        } else {
-            ZStack(alignment: .bottom) {
-                tabs
-
-                MiniPlayerView(
-                    style: .legacy,
-                    onOpen: presentPlayer
-                )
-                .padding(.horizontal, 8)
-                .padding(.bottom, 58)
-                .accessibilityHidden(showFullPlayer)
-                .zIndex(1)
-            }
-            .ignoresSafeArea(.keyboard, edges: .bottom)
         }
     }
+
+    // MARK: - Tabs
 
     private var tabs: some View {
         TabView(selection: $tabState.selectedTab) {
 
-            // MARK: Home
-            Tab("Home", systemImage: "house.fill", value: .home) {
+            Tab(value: .home) {
                 NavigationStack(path: $homeRouter.path) {
                     HomeView()
                         .navigationDestination(for: LibraryRoute.self) { route in
@@ -128,62 +91,50 @@ struct MainTabView: View {
                             AlbumDetailView(album: album)
                         }
                         .navigationDestination(for: Artist.self) { artist in
-                            ArtistDetailView(
-                                artist: artist,
-                                viewModel: libraryViewModel
-                            )
+                            ArtistDetailView(artist: artist, viewModel: libraryViewModel)
                         }
                         .navigationDestination(for: Genre.self) { genre in
-                            GenreDetailView(
-                                genre: genre,
-                                viewModel: libraryViewModel
-                            )
+                            GenreDetailView(genre: genre, viewModel: libraryViewModel)
                         }
                         .navigationDestination(for: SmartPlaylistRoute.self) { route in
-                            SmartPlaylistDetailView(
-                                kind: route.kind,
-                                viewModel: libraryViewModel
-                            )
+                            SmartPlaylistDetailView(kind: route.kind, viewModel: libraryViewModel)
                         }
                         .navigationDestination(for: Playlist.self) { playlist in
                             PlaylistDetailsView(playlist: playlist)
                         }
                 }
                 .environmentObject(homeRouter)
+            } label: {
+                AppTab.home.tabLabel
             }
 
-            // MARK: Playlists
-            Tab("Playlists", systemImage: "music.note.list", value: .playlists) {
+            Tab(value: .playlists) {
                 NavigationStack(path: $playlistsRouter.path) {
                     PlaylistsView()
-
                         .navigationDestination(for: Playlist.self) { playlist in
                             PlaylistDetailsView(playlist: playlist)
                         }
-
                         .navigationDestination(for: SmartPlaylistRoute.self) { route in
-                            SmartPlaylistDetailView(
-                                kind: route.kind,
-                                viewModel: libraryViewModel
-                            )
+                            SmartPlaylistDetailView(kind: route.kind, viewModel: libraryViewModel)
                         }
-
                         .navigationDestination(for: Album.self) { album in
                             AlbumDetailView(album: album)
                         }
                 }
                 .environmentObject(playlistsRouter)
+            } label: {
+                AppTab.playlists.tabLabel
             }
 
-            // MARK: Settings
-            Tab("Settings", systemImage: "gearshape.fill", value: .settings) {
+            Tab(value: .settings) {
                 NavigationStack {
                     SettingsView()
                 }
+            } label: {
+                AppTab.settings.tabLabel
             }
 
-            // MARK: Search
-            Tab("Search", systemImage: "magnifyingglass", value: .search, role: .search) {
+            Tab(value: .search, role: .search) {
                 NavigationStack(path: $searchRouter.path) {
                     SearchView()
                         .navigationDestination(for: Album.self) { album in
@@ -191,55 +142,22 @@ struct MainTabView: View {
                         }
                 }
                 .environmentObject(searchRouter)
+            } label: {
+                AppTab.search.tabLabel
             }
         }
     }
 
-    // MARK: - Library destinations
+    // MARK: - Library Destinations
 
     @ViewBuilder
     private func libraryDestination(for route: LibraryRoute) -> some View {
         switch route {
-        case .songs:
-            SongsView()
-        case .albums:
-            AlbumsView()
-        case .artists:
-            ArtistsView(viewModel: libraryViewModel)
-        case .genres:
-            GenresView()
-        case .favourites:
-            FavouritesView()
-        }
-    }
-
-    private func placeholderView(title: String, symbol: String) -> some View {
-        VStack(spacing: 12) {
-            Image(systemName: symbol)
-                .font(.system(size: 44, weight: .light))
-                .foregroundStyle(.tertiary)
-            Text("\(title) — coming soon")
-                .font(.headline)
-                .foregroundStyle(.secondary)
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .navigationTitle(title)
-        .navigationBarTitleDisplayMode(.inline)
-    }
-
-    // MARK: - Presentation
-
-    private func presentPlayer() {
-        guard libraryViewModel.currentSong != nil else { return }
-        HapticManager.shared.light()
-        withAnimation(playerAnimation) {
-            showFullPlayer = true
-        }
-    }
-
-    private func dismissPlayer() {
-        withAnimation(playerAnimation) {
-            showFullPlayer = false
+        case .songs:      SongsView()
+        case .albums:     AlbumsView()
+        case .artists:    ArtistsView(viewModel: libraryViewModel)
+        case .genres:     GenresView()
+        case .favourites: FavouritesView()
         }
     }
 }

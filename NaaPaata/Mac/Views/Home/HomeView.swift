@@ -45,7 +45,11 @@ struct HomeView: View {
                 viewModel: viewModel,
                 showPlayer: $showPlayer
             )
-            .inspectorColumnWidth(min: 320, ideal: 320, max: 320)
+            .inspectorColumnWidth(
+                min: 240,
+                ideal: 340,
+                max: 480
+            )
         }
         .navigationSplitViewStyle(.balanced)
         .toolbarBackground(.hidden, for: .windowToolbar)
