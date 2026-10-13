@@ -106,19 +106,15 @@ struct PlayerContainer: View {
                 .ignoresSafeArea()
             }
         } else {
-            MiniPlayerView(namespace: namespace)
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .contentShape(.rect)
-                .onTapGesture {
-                    toggleExpandedPlayer(status: true)
-                }
-                // Extracting Mini player rect
-                .onGeometryChange(for: CGRect.self) {
-                    $0.frame(in: .global)
-                } action: { newValue in
-                    guard !config.attachExpandedPlayer else { return }
-                    config.minimisedPlayerRect = newValue
-                }
+            GeometryReader { proxy in
+                MiniPlayerView(namespace: namespace)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .contentShape(.rect)
+                    .onTapGesture {
+                        config.minimisedPlayerRect = proxy.frame(in: .global)
+                        toggleExpandedPlayer(status: true)
+                    }
+            }
         }
     }
 
