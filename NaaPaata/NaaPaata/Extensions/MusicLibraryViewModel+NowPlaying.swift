@@ -78,15 +78,14 @@ extension MusicLibraryViewModel {
             MPMediaItemPropertyTitle: song.title,
             MPMediaItemPropertyArtist: song.artist,
             MPMediaItemPropertyAlbumTitle: song.album,
-            MPMediaItemPropertyPlaybackDuration: song.duration ?? 0,
-            MPNowPlayingInfoPropertyElapsedPlaybackTime: progressStore.$elapsed,
-            MPNowPlayingInfoPropertyPlaybackRate: isPlaying ? 1.0 : 0.0
+
+            MPMediaItemPropertyPlaybackDuration: NSNumber(value: song.duration ?? 0),
+            MPNowPlayingInfoPropertyElapsedPlaybackTime: NSNumber(value: progressStore.elapsed),
+            MPNowPlayingInfoPropertyPlaybackRate: NSNumber(value: isPlaying ? 1.0 : 0.0),
         ]
 
         if let data = song.artworkData, let image = UIImage(data: data) {
-            info[MPMediaItemPropertyArtwork] = MPMediaItemArtwork(
-                boundsSize: image.size
-            ) { _ in image }
+            info[MPMediaItemPropertyArtwork] = MPMediaItemArtwork(boundsSize: image.size) { _ in image }
         }
 
         MPNowPlayingInfoCenter.default().nowPlayingInfo = info
