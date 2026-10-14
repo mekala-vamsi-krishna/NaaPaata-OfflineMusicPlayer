@@ -33,6 +33,9 @@ struct MusicPlayerView: View {
     @State private var infoSong: Song?
     @State private var showDeleteAlert = false
     @State private var fadeIn = false
+    
+    // Added for the volume slider
+    @State private var volume: Double = 0.5
 
     // MARK: - Derived
 
@@ -57,26 +60,26 @@ struct MusicPlayerView: View {
         return UIImage(data: data)
     }
 
-    /// Artwork size, matching the video's `size.width - 120`.
     private var artworkSize: CGFloat {
-        max(size.width - 120, 200)
+        max(size.width - 48, 200)
     }
 
     // MARK: - Body
 
     var body: some View {
-        VStack(spacing: 15) {
+        VStack(spacing: 0) {
 
             // ── Grabber ─────────────────────────────────────────
             Capsule()
                 .fill(.white.secondary)
-                .frame(width: 50, height: 4)
+                .frame(width: 36, height: 5)
+                .padding(.top, 8)
                 .animation(config.animation.speed(2)) {
                     $0.opacity(config.expandPlayer ? 1 : 0)
                 }
                 .opacity(fadeIn ? 1 : 0)
 
-            Spacer(minLength: 0)
+            Spacer(minLength: 20)
 
             // ── Artwork ─────────────────────────────────────────
             artwork
@@ -85,47 +88,127 @@ struct MusicPlayerView: View {
                 .matchedGeometryEffect(id: "artwork", in: namespace)
                 .shadow(color: .black.opacity(0.4), radius: 20, y: 10)
 
-            // ── Track info ──────────────────────────────────────
-            VStack(spacing: 6) {
-                Text(song?.title ?? "Not Playing")
-                    .font(.system(size: 20, weight: .semibold))
-                    .foregroundStyle(.white)
-                    .lineLimit(1)
-                    .matchedGeometryEffect(id: "title", in: namespace)
+            Spacer(minLength: 30)
 
-                Text(song?.artist ?? "Unknown Artist")
-                    .font(.system(size: 14))
-                    .foregroundStyle(.white.opacity(0.65))
-                    .lineLimit(1)
-                    .matchedGeometryEffect(id: "artist", in: namespace)
+            // ── Track Info & Action Buttons ──────────────────────
+            HStack(alignment: .top, spacing: 16) {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(song?.title ?? "Not Playing")
+                        .font(.system(size: 22, weight: .bold))
+                        .foregroundStyle(.white)
+                        .lineLimit(1)
+                        .matchedGeometryEffect(id: "title", in: namespace)
+
+                    Text(song?.artist ?? "Unknown Artist")
+                        .font(.system(size: 18))
+                        .foregroundStyle(.white.opacity(0.7))
+                        .lineLimit(1)
+                        .matchedGeometryEffect(id: "artist", in: namespace)
+                }
+                
+                Spacer()
+                
+                // Action Buttons (Favourite & Ellipses)
+                // Circular backgrounds to match the image exactly
+                HStack(spacing: 12) {
+                    Button {
+                        toggleFavourite()
+                    } label: {
+                        Image(systemName: isCurrentSongFavourite ? "heart.fill" : "heart")
+                            .font(.system(size: 16, weight: .semibold))
+                            .foregroundStyle(isCurrentSongFavourite ? .pink : .white.opacity(0.8))
+                            .contentTransition(.symbolEffect(.replace))
+                            .frame(width: 36, height: 36)
+                            .background(Circle().fill(.white.opacity(0.15)))
+                            .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+
+                    Menu {
+                        Button { infoSong = song } label: {
+                            Label("Info", systemImage: "info.circle")
+                        }
+                        Button { showAddToPlaylist = true } label: {
+                            Label("Add to Playlist", systemImage: "music.note.list")
+                        }
+                        Button { showSleepTimerSheet = true } label: {
+                            if sleepTimerManager.isTimerActive {
+                                Label(
+                                    "Timer · \(sleepTimerManager.formattedTimeRemaining)",
+                                    systemImage: "moon.fill"
+                                )
+                            } else {
+                                Label("Set Timer", systemImage: "moon.stars")
+                            }
+                        }
+                        Divider()
+                        Button(role: .destructive) { showDeleteAlert = true } label: {
+                            Label("Delete", systemImage: "trash").tint(.red)
+                        }
+                    } label: {
+                        Image(systemName: "ellipsis")
+                            .rotationEffect(.degrees(90))
+                            .font(.system(size: 16, weight: .semibold))
+                            .foregroundStyle(.white.opacity(0.8))
+                            .frame(width: 36, height: 36)
+                            .background(Circle().fill(.white.opacity(0.15)))
+                            .contentShape(Rectangle())
+                    }
+                    .menuStyle(.borderlessButton)
+                    .menuIndicator(.hidden)
+                    .fixedSize()
+                }
             }
             .padding(.horizontal, 24)
             .animation(config.animation.speed(2)) {
                 $0.opacity(config.expandPlayer ? 1 : 0)
             }
+            .opacity(fadeIn ? 1 : 0)
 
-            // ── Controls ────────────────────────────────────────
-            VStack(spacing: 20) {
+            Spacer(minLength: 20)
 
-                actionRow
-                    .padding(.horizontal, 24)
-
+            // ── Progress Section ─────────────────────────────────
+            VStack(spacing: 8) {
                 PlayerProgressSection(
                     currentTime: currentTime,
                     duration: duration,
                     onSeek: { seek(to: $0) }
                 )
-                .padding(.horizontal, 24)
-
-                playbackControlsRow
-                    .padding(.horizontal, 24)
             }
+            .padding(.horizontal, 24)
             .animation(config.animation.speed(2)) {
                 $0.opacity(config.expandPlayer ? 1 : 0)
             }
             .opacity(fadeIn ? 1 : 0)
 
-            Spacer(minLength: 0)
+            Spacer(minLength: 24)
+
+            // ── Playback Controls ────────────────────────────────
+            // Includes Shuffle, Previous, Play/Pause, Next, Repeat
+            playbackControlsRow
+                .padding(.horizontal, 24)
+                .animation(config.animation.speed(2)) {
+                    $0.opacity(config.expandPlayer ? 1 : 0)
+                }
+                .opacity(fadeIn ? 1 : 0)
+
+            Spacer(minLength: 24)
+
+            // ── Volume Control ───────────────────────────────────
+            HStack(spacing: 12) {
+                
+                VolumeSliderView()
+                    .frame(height: 30)
+
+            }
+            .foregroundStyle(.white.opacity(0.6))
+            .padding(.horizontal, 24)
+            .animation(config.animation.speed(2)) {
+                $0.opacity(config.expandPlayer ? 1 : 0)
+            }
+            .opacity(fadeIn ? 1 : 0)
+
+            Spacer(minLength: 20)
         }
         .padding(.top, safeArea.top)
         .padding(.bottom, safeArea.bottom + 10)
@@ -134,11 +217,43 @@ struct MusicPlayerView: View {
             playerBackground
         }
         .onAppear {
+            // Lock the orientation policy
+            AppDelegate.orientationLock = .portrait
+
+            // Force the current window to rotate to portrait
+            DispatchQueue.main.async {
+                if let windowScene = UIApplication.shared.connectedScenes
+                    .compactMap({ $0 as? UIWindowScene })
+                    .first(where: { $0.activationState == .foregroundActive }) {
+                    
+                    // Tell iOS to rotate the window NOW
+                    windowScene.requestGeometryUpdate(.iOS(interfaceOrientations: .portrait))
+                    
+                    // Tell the root VC to re-check its supported orientations
+                    if let rootVC = windowScene.keyWindow?.rootViewController {
+                        rootVC.setNeedsUpdateOfSupportedInterfaceOrientations()
+                    }
+                }
+            }
+
             withAnimation(config.animation.delay(0.1)) {
                 fadeIn = true
             }
         }
         .onDisappear {
+            // Unlock when dismissed
+            AppDelegate.orientationLock = .allButUpsideDown
+
+            DispatchQueue.main.async {
+                if let windowScene = UIApplication.shared.connectedScenes
+                    .compactMap({ $0 as? UIWindowScene })
+                    .first(where: { $0.activationState == .foregroundActive }),
+                   let rootVC = windowScene.keyWindow?.rootViewController {
+                    
+                    rootVC.setNeedsUpdateOfSupportedInterfaceOrientations()
+                }
+            }
+
             fadeIn = false
         }
         .preferredColorScheme(.dark)
@@ -262,60 +377,6 @@ struct MusicPlayerView: View {
         }
     }
 
-    // MARK: - Action row
-
-    private var actionRow: some View {
-        // FIX: Spacer at the beginning pushes the buttons to the trailing side
-        HStack(spacing: 16) {
-            Spacer()
-
-            Button {
-                toggleFavourite()
-            } label: {
-                Image(systemName: isCurrentSongFavourite ? "heart.fill" : "heart")
-                    .font(.system(size: 20, weight: .medium))
-                    .foregroundStyle(isCurrentSongFavourite ? .pink : .white)
-                    .contentTransition(.symbolEffect(.replace))
-                    .frame(width: 44, height: 44)
-                    .contentShape(Rectangle())
-            }
-            .buttonStyle(.plain)
-
-            Menu {
-                Button { infoSong = song } label: {
-                    Label("Info", systemImage: "info.circle")
-                }
-                Button { showAddToPlaylist = true } label: {
-                    Label("Add to Playlist", systemImage: "music.note.list")
-                }
-                Button { showSleepTimerSheet = true } label: {
-                    if sleepTimerManager.isTimerActive {
-                        Label(
-                            "Timer · \(sleepTimerManager.formattedTimeRemaining)",
-                            systemImage: "moon.fill"
-                        )
-                    } else {
-                        Label("Set Timer", systemImage: "moon.stars")
-                    }
-                }
-                Divider()
-                Button(role: .destructive) { showDeleteAlert = true } label: {
-                    Label("Delete", systemImage: "trash").tint(.red)
-                }
-            } label: {
-                Image(systemName: "ellipsis")
-                    .rotationEffect(.degrees(90))
-                    .font(.system(size: 20, weight: .medium))
-                    .foregroundStyle(.white)
-                    .frame(width: 44, height: 44)
-                    .contentShape(Rectangle())
-            }
-            .menuStyle(.borderlessButton)
-            .menuIndicator(.hidden)
-            .fixedSize()
-        }
-    }
-
     // MARK: - Background
 
     @ViewBuilder
@@ -372,6 +433,14 @@ struct MusicPlayerView: View {
     private func seek(to time: TimeInterval) {
         guard duration > 0 else { return }
         libraryViewModel.seek(toProgress: time / duration)
+    }
+    
+    // MARK: - Helpers
+    private func formatTime(_ time: TimeInterval) -> String {
+        guard time.isFinite && !time.isNaN && time >= 0 else { return "0:00" }
+        let mins = Int(time) / 60
+        let secs = Int(time) % 60
+        return String(format: "%d:%02d", mins, secs)
     }
 }
 

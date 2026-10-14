@@ -101,6 +101,7 @@
 				Services/PlaylistService.swift,
 				Services/SharedDataManager.swift,
 				Services/SmartPlaylistService.swift,
+				Services/SystemVolumeManager.swift,
 				ViewModels/MusicLibraryViewModel.swift,
 				"Views/Extensions/Color+Ext/AppColors.swift",
 			);
