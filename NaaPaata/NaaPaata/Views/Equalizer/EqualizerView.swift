@@ -30,7 +30,6 @@ struct EqualizerView: View {
         .animation(.easeInOut(duration: 0.25), value: store.isPremimumUser)
         .navigationTitle(store.isPremimumUser ? "Equalizer" : "Premium")
         .navigationBarTitleDisplayMode(.inline)
-        .toolbar(store.isPremimumUser ? .visible : .hidden, for: .tabBar)
     }
 
     // MARK: - Premium content

@@ -32,99 +32,147 @@ struct PlayerContainer: View {
     @EnvironmentObject private var sleepTimerManager: SleepTimerManager
     @EnvironmentObject private var progressStore: PlaybackProgressStore
     @EnvironmentObject private var folderService: DocumentFolderService
-    
-    private var artworkStep: CGFloat {
-        let artworkSize = max(UIScreen.main.bounds.width - 48, 200)
+
+    private func artworkStep(screenWidth: CGFloat) -> CGFloat {
+        let artworkSize = max(screenWidth - 48, 200)
         return artworkSize + 24
     }
 
     var body: some View {
         if config.attachExpandedPlayer {
-            let expandPlayer = config.expandPlayer
-            let minimisedRect = config.minimisedPlayerRect
-            let minimumRadius = minimisedRect.height / 2
-            let shape = ConcentricRectangle(
-                corners: .concentric(minimum: .fixed(minimumRadius)),
-                isUniform: true
-            )
-
-            GeometryReader {
-                let safeArea = $0.safeAreaInsets
-                let size = CGSize(
-                    width: $0.size.width + safeArea.leading + safeArea.trailing,
-                    height: $0.size.height + safeArea.top + safeArea.bottom
-                )
-
-                ZStack {
-                    if expandPlayer {
-                        MusicPlayerView(
-                            size: size,
-                            safeArea: safeArea,
-                            namespace: namespace,
-                            config: $config
-                        )
-                        .geometryGroup()
-                        .transition(.opacity)
-                    }
-                }
-                .frame(
-                    width: expandPlayer ? size.width : minimisedRect.width,
-                    height: expandPlayer ? size.height : minimisedRect.height
-                )
-                .overlay(alignment: .top) {
-                    if !expandPlayer {
-                        MiniPlayerView(namespace: namespace)
-                            .frame(height: minimisedRect.height)
-                            .geometryGroup()
-                            .transition(.opacity)
-                    }
-                }
-                .contentShape(shape)
-                .clipShape(shape)
-                .glassEffect(.regular, in: shape)
-                // Making sure that it placed properly!
-                .visualEffect { [config] content, proxy in
-                    let globalRect = proxy.frame(in: .global)
-
-                    return content
-                        .offset(y: config.dragOffset)
-                        .offset(
-                            x: expandPlayer ? 0 : (minimisedRect.minX - globalRect.minX),
-                            y: expandPlayer ? 0 : (minimisedRect.minY - globalRect.minY)
-                        )
-                }
-                .gesture(
-                    DismissGesture { translation in
-                        handleDragChanged(translation: translation)
-                    } onEnded: { velocity in
-                        handleDragEnded(velocity: velocity, size: size)
-                    }
-                )
-                .ignoresSafeArea()
-            }
+            expandedPlayerView
         } else {
-            GeometryReader { proxy in
-                MiniPlayerView(namespace: namespace)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    .contentShape(.rect)
-                    .onTapGesture {
-                        config.minimisedPlayerRect = proxy.frame(in: .global)
-                        toggleExpandedPlayer(status: true)
-                    }
-            }
+            miniPlayerView
         }
     }
-    
-    // MARK: - Unified Drag Routing
 
-    private func handleDragChanged(translation: CGPoint) {
+    // MARK: - Expanded Player
+
+    private var expandedPlayerView: some View {
+        let isExpandedPlayer = config.expandPlayer
+        let minimisedRect = config.minimisedPlayerRect
+        let minimumRadius = minimisedRect.height / 2
+        let shape = playerShape(
+            minimumRadius: minimumRadius,
+            isExpanded: isExpandedPlayer
+        )
+
+        return GeometryReader { proxy in
+            let safeArea = proxy.safeAreaInsets
+            let size = CGSize(
+                width: proxy.size.width + safeArea.leading + safeArea.trailing,
+                height: proxy.size.height + safeArea.top + safeArea.bottom
+            )
+
+            ZStack {
+                if isExpandedPlayer {
+                    MusicPlayerView(
+                        size: size,
+                        safeArea: safeArea,
+                        namespace: namespace,
+                        config: $config
+                    )
+                    .geometryGroup()
+                    .transition(.opacity)
+                }
+            }
+            .frame(
+                width: isExpandedPlayer ? size.width : minimisedRect.width,
+                height: isExpandedPlayer ? size.height : minimisedRect.height
+            )
+            .overlay(alignment: .top) {
+                if !isExpandedPlayer {
+                    MiniPlayerView(namespace: namespace)
+                        .frame(height: minimisedRect.height)
+                        .geometryGroup()
+                        .transition(.opacity)
+                }
+            }
+            .contentShape(shape)
+            .clipShape(shape)
+            .applyGlassEffect(in: shape)
+            .visualEffect { [config] content, proxy in
+                let globalRect = proxy.frame(in: .global)
+
+                return content
+                    .offset(y: config.dragOffset)
+                    .offset(
+                        x: isExpandedPlayer ? 0 : (minimisedRect.minX - globalRect.minX),
+                        y: isExpandedPlayer ? 0 : (minimisedRect.minY - globalRect.minY)
+                    )
+            }
+            .gesture(
+                DismissGesture { translation in
+                    handleDragChanged(
+                        translation: translation,
+                        screenWidth: size.width
+                    )
+                } onEnded: { velocity in
+                    handleDragEnded(velocity: velocity, size: size)
+                }
+            )
+            .ignoresSafeArea()
+        }
+    }
+
+    // MARK: - Mini Player
+
+    private var miniPlayerView: some View {
+        GeometryReader { proxy in
+            MiniPlayerView(namespace: namespace)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .contentShape(.rect)
+                .onTapGesture {
+                    config.minimisedPlayerRect = proxy.frame(in: .global)
+                    toggleExpandedPlayer(status: true)
+                }
+        }
+    }
+
+    // MARK: - Shape
+
+    private func playerShape(
+        minimumRadius: CGFloat,
+        isExpanded: Bool
+    ) -> AnyShape {
+        if #available(iOS 26.0, *) {
+            return AnyShape(
+                ConcentricRectangle(
+                    corners: .concentric(minimum: .fixed(minimumRadius)),
+                    isUniform: true
+                )
+            )
+        } else if isExpanded {
+            return AnyShape(
+                UnevenRoundedRectangle(
+                    topLeadingRadius: 0,
+                    bottomLeadingRadius: 0,
+                    bottomTrailingRadius: 0,
+                    topTrailingRadius: 0,
+                    style: .continuous
+                )
+            )
+        } else {
+            return AnyShape(
+                RoundedRectangle(
+                    cornerRadius: 0,
+                    style: .continuous
+                )
+            )
+        }
+    }
+
+    // MARK: - Drag Handling
+
+    private func handleDragChanged(translation: CGPoint, screenWidth: CGFloat) {
         let h = translation.x
         let v = translation.y
+        let step = artworkStep(screenWidth: screenWidth)
 
         if abs(h) > abs(v) {
             // Horizontal — to change the track by swiping
             config.dragOffset = 0
-            config.artworkDragOffset = max(-artworkStep, min(artworkStep, h))
+            config.artworkDragOffset = max(-step, min(step, h))
         } else {
             // Vertical — to close the player
             config.artworkDragOffset = 0
@@ -137,8 +185,9 @@ struct PlayerContainer: View {
         let v = velocity.y
 
         if abs(h) > abs(v) {
+            let step = artworkStep(screenWidth: size.width)
             let offset = config.artworkDragOffset
-            let threshold = artworkStep * 0.22
+            let threshold = step * 0.22
 
             let shouldAdvance = offset < -threshold || h < -500
             let shouldGoBack  = offset >  threshold || h >  500
@@ -146,7 +195,7 @@ struct PlayerContainer: View {
             if shouldAdvance {
                 HapticManager.shared.light()
                 withAnimation(.spring(response: 0.28, dampingFraction: 0.88)) {
-                    config.artworkDragOffset = -artworkStep
+                    config.artworkDragOffset = -step
                 } completion: {
                     var t = Transaction(); t.disablesAnimations = true
                     withTransaction(t) {
@@ -157,7 +206,7 @@ struct PlayerContainer: View {
             } else if shouldGoBack {
                 HapticManager.shared.light()
                 withAnimation(.spring(response: 0.28, dampingFraction: 0.88)) {
-                    config.artworkDragOffset = artworkStep
+                    config.artworkDragOffset = step
                 } completion: {
                     var t = Transaction(); t.disablesAnimations = true
                     withTransaction(t) {
@@ -188,7 +237,7 @@ struct PlayerContainer: View {
 
     private func toggleExpandedPlayer(status: Bool) {
         if status {
-            // Optional Delay to let the glass effect to complete
+            // Optional delay to let the glass effect complete
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.06) {
                 config.attachExpandedPlayer = true
                 withAnimation(config.animation) {
@@ -203,6 +252,20 @@ struct PlayerContainer: View {
                 config.attachExpandedPlayer = false
                 config.dragOffset = 0
             }
+        }
+    }
+}
+
+// MARK: - Glass Effect Helper
+
+extension View {
+
+    @ViewBuilder
+    func applyGlassEffect<S: Shape>(in shape: S) -> some View {
+        if #available(iOS 26.0, *) {
+            self.glassEffect(.regular, in: shape)
+        } else {
+            self.background(.ultraThinMaterial, in: shape)
         }
     }
 }

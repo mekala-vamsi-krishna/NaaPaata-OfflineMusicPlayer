@@ -54,26 +54,62 @@ struct MainTabView: View {
             Color(.systemBackground)
                 .ignoresSafeArea()
 
-            tabs
-                .overlay(alignment: .topLeading, content: {
+            if #available(iOS 26.0, *) {
+                tabs
+                    .overlay(alignment: .topLeading) {
+                        if config.attachExpandedPlayer {
+                            expandedPlayer
+                                .transition(.identity)
+                        }
+                    }
+                    .tabViewBottomAccessory {
+                        if !config.attachExpandedPlayer {
+                            collapsedPlayer
+                        }
+                    }
+                    .tabBarMinimizeBehavior(.onScrollDown)
+
+            } else {
+                ZStack(alignment: .bottom) {
+                    tabs
+
+                    if !config.attachExpandedPlayer,
+                       libraryViewModel.currentSong != nil {
+                        collapsedPlayer
+                            .frame(height: 58)
+                            .background(.ultraThinMaterial)
+                            .padding(.bottom, 49)
+                    }
+                }
+                .overlay {
                     if config.attachExpandedPlayer {
-                        PlayerContainer(config: $config)
-                            .environmentObject(libraryViewModel)
-                            .environmentObject(sleepTimerManager)
-                            .environmentObject(progressStore)
-                            .environmentObject(folderService)
+                        expandedPlayer
                             .transition(.identity)
                     }
-                })
-                .tabViewBottomAccessory(isEnabled: !config.attachExpandedPlayer) {
-                    PlayerContainer(config: $config)
-                        .environmentObject(libraryViewModel)
-                        .environmentObject(sleepTimerManager)
-                        .environmentObject(progressStore)
-                        .environmentObject(folderService)
                 }
-                .tabBarMinimizeBehavior(.onScrollDown)
+            }
         }
+    }
+
+    // MARK: - Player Slots
+
+    /// Collapsed mini player. Reused by both iOS paths so behaviour and
+    /// animations stay identical across OS versions.
+    private var collapsedPlayer: some View {
+        PlayerContainer(config: $config)
+            .environmentObject(libraryViewModel)
+            .environmentObject(sleepTimerManager)
+            .environmentObject(progressStore)
+            .environmentObject(folderService)
+    }
+
+    /// Expanded full-screen player. Reused by both iOS paths.
+    private var expandedPlayer: some View {
+        PlayerContainer(config: $config)
+            .environmentObject(libraryViewModel)
+            .environmentObject(sleepTimerManager)
+            .environmentObject(progressStore)
+            .environmentObject(folderService)
     }
 
     // MARK: - Tabs
