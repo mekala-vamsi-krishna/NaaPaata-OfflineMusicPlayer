@@ -67,7 +67,7 @@ struct MiniPlayerView: View {
 
             playbackButton(
                 systemName: isPlaying ? "pause.fill" : "play.fill",
-                size: 18,
+                size: 22,
                 accessibilityLabel: isPlaying ? "Pause" : "Play"
             ) {
                 HapticManager.shared.light()
@@ -77,7 +77,7 @@ struct MiniPlayerView: View {
 
             playbackButton(
                 systemName: "forward.fill",
-                size: 16,
+                size: 20,
                 accessibilityLabel: "Next Track"
             ) {
                 HapticManager.shared.light()
@@ -86,6 +86,25 @@ struct MiniPlayerView: View {
         }
         .padding(.horizontal, 12)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+        // Swipe left/right to change the track
+        .gesture(
+            DragGesture(minimumDistance: 30)
+                .onEnded { value in
+                    let horizontal = value.translation.width
+                    let vertical = value.translation.height
+
+                    // if the swipe is mostly horizontal then swipe it or else return
+                    guard abs(horizontal) > abs(vertical) else { return }
+
+                    if horizontal < -50 {
+                        HapticManager.shared.light()
+                        libraryViewModel.playNext()
+                    } else if horizontal > 50 {
+                        HapticManager.shared.light()
+                        libraryViewModel.playPrevious()
+                    }
+                }
+        )
         .overlay(alignment: .bottom) {
             GeometryReader { geo in
                 ZStack(alignment: .leading) {
@@ -135,7 +154,7 @@ struct MiniPlayerView: View {
             Image(systemName: "play.fill")
                 .font(.system(size: 18, weight: .semibold))
                 .foregroundStyle(.tertiary)
-                .frame(width: 40, height: 40)
+                .frame(width: 48, height: 48)
                 .opacity(0.5)
         }
         .padding(.horizontal, 12)
@@ -180,7 +199,7 @@ struct MiniPlayerView: View {
                 .font(.system(size: size, weight: .semibold))
                 .foregroundStyle(.primary)
                 .contentTransition(.symbolEffect(.replace))
-                .frame(width: 40, height: 40)
+                .frame(width: 48, height: 48)
                 .contentShape(Rectangle())
         }
         .buttonStyle(.plain)

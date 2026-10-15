@@ -81,12 +81,14 @@ struct MusicPlayerView: View {
 
             Spacer(minLength: 20)
 
-            // ── Artwork ─────────────────────────────────────────
-            artwork
-                .frame(width: artworkSize, height: artworkSize)
-                .clipShape(.rect(cornerRadius: 10))
-                .matchedGeometryEffect(id: "artwork", in: namespace)
-                .shadow(color: .black.opacity(0.4), radius: 20, y: 10)
+            // MARK: Artwork Carousel
+
+            Artwork(
+                namespace: namespace,
+                artworkSize: artworkSize,
+                dragOffset: config.artworkDragOffset
+            )
+            .frame(width: artworkSize, height: artworkSize)
 
             Spacer(minLength: 30)
 

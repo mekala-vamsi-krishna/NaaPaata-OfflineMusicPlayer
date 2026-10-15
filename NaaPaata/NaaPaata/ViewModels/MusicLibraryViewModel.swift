@@ -47,6 +47,9 @@ class MusicLibraryViewModel: ObservableObject {
     private var hasRestoredSession = false
     private var lastPersistDate: Date = .distantPast
     private let persistInterval: TimeInterval = 5
+    
+    var queueSnapshot: [Song] { queue }
+    var currentQueueIndex: Int? { currentIndex }
 
     init(
         libraryService: MusicLibraryServiceProtocol,

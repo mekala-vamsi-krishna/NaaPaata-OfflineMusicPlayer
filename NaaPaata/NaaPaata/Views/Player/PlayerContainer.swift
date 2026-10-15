@@ -13,6 +13,7 @@ struct PlayerContainerConfig {
     var attachExpandedPlayer: Bool = false
     var expandPlayer: Bool = false
     var dragOffset: CGFloat = 0
+    var artworkDragOffset: CGFloat = 0 // Horizontal drag for changing track by swiping
     var animation: Animation = .interpolatingSpring(
         duration: 0.3,
         bounce: 0,
@@ -31,6 +32,11 @@ struct PlayerContainer: View {
     @EnvironmentObject private var sleepTimerManager: SleepTimerManager
     @EnvironmentObject private var progressStore: PlaybackProgressStore
     @EnvironmentObject private var folderService: DocumentFolderService
+    
+    private var artworkStep: CGFloat {
+        let artworkSize = max(UIScreen.main.bounds.width - 48, 200)
+        return artworkSize + 24
+    }
 
     var body: some View {
         if config.attachExpandedPlayer {
@@ -89,18 +95,9 @@ struct PlayerContainer: View {
                 }
                 .gesture(
                     DismissGesture { translation in
-                        config.dragOffset = max(0, translation.y)
+                        handleDragChanged(translation: translation)
                     } onEnded: { velocity in
-                        let velocity = max(velocity.y / 5, 0)
-                        let end = config.dragOffset + velocity
-
-                        if end > (size.height / 2) {
-                            toggleExpandedPlayer(status: false)
-                        } else {
-                            withAnimation(config.animation) {
-                                config.dragOffset = 0
-                            }
-                        }
+                        handleDragEnded(velocity: velocity, size: size)
                     }
                 )
                 .ignoresSafeArea()
@@ -114,6 +111,75 @@ struct PlayerContainer: View {
                         config.minimisedPlayerRect = proxy.frame(in: .global)
                         toggleExpandedPlayer(status: true)
                     }
+            }
+        }
+    }
+    
+    // MARK: - Unified Drag Routing
+
+    private func handleDragChanged(translation: CGPoint) {
+        let h = translation.x
+        let v = translation.y
+
+        if abs(h) > abs(v) {
+            // Horizontal — to change the track by swiping
+            config.dragOffset = 0
+            config.artworkDragOffset = max(-artworkStep, min(artworkStep, h))
+        } else {
+            // Vertical — to close the player
+            config.artworkDragOffset = 0
+            config.dragOffset = max(0, v)
+        }
+    }
+
+    private func handleDragEnded(velocity: CGPoint, size: CGSize) {
+        let h = velocity.x
+        let v = velocity.y
+
+        if abs(h) > abs(v) {
+            let offset = config.artworkDragOffset
+            let threshold = artworkStep * 0.22
+
+            let shouldAdvance = offset < -threshold || h < -500
+            let shouldGoBack  = offset >  threshold || h >  500
+
+            if shouldAdvance {
+                HapticManager.shared.light()
+                withAnimation(.spring(response: 0.28, dampingFraction: 0.88)) {
+                    config.artworkDragOffset = -artworkStep
+                } completion: {
+                    var t = Transaction(); t.disablesAnimations = true
+                    withTransaction(t) {
+                        libraryViewModel.playNext()
+                        config.artworkDragOffset = 0
+                    }
+                }
+            } else if shouldGoBack {
+                HapticManager.shared.light()
+                withAnimation(.spring(response: 0.28, dampingFraction: 0.88)) {
+                    config.artworkDragOffset = artworkStep
+                } completion: {
+                    var t = Transaction(); t.disablesAnimations = true
+                    withTransaction(t) {
+                        libraryViewModel.playPrevious()
+                        config.artworkDragOffset = 0
+                    }
+                }
+            } else {
+                withAnimation(.spring(response: 0.35, dampingFraction: 0.8)) {
+                    config.artworkDragOffset = 0
+                }
+            }
+        } else {
+            let velocityY = max(v / 5, 0)
+            let end = config.dragOffset + velocityY
+
+            if end > (size.height / 2) {
+                toggleExpandedPlayer(status: false)
+            } else {
+                withAnimation(config.animation) {
+                    config.dragOffset = 0
+                }
             }
         }
     }
