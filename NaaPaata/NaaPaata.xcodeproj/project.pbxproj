@@ -73,9 +73,11 @@
 		ACD60D54306901BA0015005E /* Exceptions for "NaaPaata" folder in "MusicPlayerWidgetExtension" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
+				"Extensions/Color+Ext.swift",
 				"Extensions/MusicLibraryViewModel+NowPlaying.swift",
+				Managers/AppearanceManager.swift,
 				Managers/SettingsManager.swift,
-				Managers/ThemeManager.swift,
+				Managers/SystemVolumeManager.swift,
 				Model/AlbumModel.swift,
 				Model/AlbumsSortOption.swift,
 				Model/Artist.swift,
@@ -101,7 +103,6 @@
 				Services/PlaylistService.swift,
 				Services/SharedDataManager.swift,
 				Services/SmartPlaylistService.swift,
-				Services/SystemVolumeManager.swift,
 				ViewModels/MusicLibraryViewModel.swift,
 				"Views/Extensions/Color+Ext/AppColors.swift",
 			);

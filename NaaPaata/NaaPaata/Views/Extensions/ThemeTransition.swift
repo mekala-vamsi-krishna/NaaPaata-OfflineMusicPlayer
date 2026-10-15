@@ -8,7 +8,7 @@ import UIKit
 
 @MainActor
 func performThemeTransition(
-    to scheme: AppColorScheme,
+    to mode: AppearanceMode,
     from sourceView: UIView? = nil
 ) {
     guard let window = UIApplication.shared
@@ -25,8 +25,8 @@ func performThemeTransition(
         window.drawHierarchy(in: window.bounds, afterScreenUpdates: false)
     }
 
-    // 2. Apply the new color scheme immediately — happens under the snapshot.
-    ThemeManager.shared.set(scheme)          // ← was .select(scheme)
+    // 2. Apply the new appearance mode immediately — happens under the snapshot.
+    AppearanceManager.shared.set(mode)
 
     // 3. Overlay the snapshot on top of the window.
     let snapshotView = UIImageView(image: snapshot)
@@ -39,7 +39,7 @@ func performThemeTransition(
     let maxRadius = hypot(window.bounds.width, window.bounds.height)
 
     // 5. Mask starts as a full circle (snapshot fully visible) and
-    //    collapses to zero (new theme revealed underneath).
+    //    collapses to zero (new appearance revealed underneath).
     let maskLayer = CAShapeLayer()
 
     let startPath = UIBezierPath(

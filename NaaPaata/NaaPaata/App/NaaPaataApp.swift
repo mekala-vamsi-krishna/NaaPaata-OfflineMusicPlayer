@@ -20,7 +20,7 @@ struct NaaPaataApp: App {
     @StateObject private var folderService = DocumentFolderService()
 
     @StateObject private var sleepTimerManager = SleepTimerManager.shared
-    @StateObject private var themeManager = ThemeManager.shared
+    @StateObject private var appearanceManager = AppearanceManager.shared
     
     let container: ModelContainer
 
@@ -80,12 +80,12 @@ struct NaaPaataApp: App {
                 .environmentObject(equalizerViewModel)
                 .environmentObject(tabState)
                 .environmentObject(sleepTimerManager)
-                .environmentObject(themeManager)
+                .environmentObject(appearanceManager)
                 .environmentObject(storeManager)
                 .environmentObject(folderService)
                 .environmentObject(progressStore)
-                .tint(themeManager.accent)
-                .preferredColorScheme(themeManager.colorScheme.swiftUIScheme)
+                .tint(Color.appAccent)
+                .preferredColorScheme(appearanceManager.mode.swiftUIScheme)
                 .task {
                     await libraryViewModel.restoreLastSession()
                 }

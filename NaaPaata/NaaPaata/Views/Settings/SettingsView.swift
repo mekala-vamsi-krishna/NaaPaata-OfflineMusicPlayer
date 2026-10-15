@@ -9,7 +9,7 @@ import UniformTypeIdentifiers
 struct SettingsView: View {
 
     @EnvironmentObject private var store: StoreManager
-    @EnvironmentObject private var themeManager: ThemeManager
+    @EnvironmentObject private var appearanceManager: AppearanceManager
     @EnvironmentObject private var libraryViewModel: MusicLibraryViewModel
 
     @StateObject var settings = SettingsManager.shared
@@ -25,98 +25,68 @@ struct SettingsView: View {
         UTType(filenameExtension: "wav") ?? .audio,
         UTType(filenameExtension: "aiff") ?? .audio,
         UTType(filenameExtension: "opus") ?? .audio,
-        UTType(filenameExtension: "ogg") ?? .audio,
+        UTType(filenameExtension: "ogg") ?? .audio
     ]
 
+    
     var body: some View {
         List {
-            // MARK: - Import
+
+            // MARK: - Music Library
             Section {
                 Button {
-                    AudioDocumentPicker.present(allowedTypes: audioTypes) { urls in
+                    AudioDocumentPicker.present(
+                        allowedTypes: audioTypes
+                    ) { urls in
                         guard !urls.isEmpty else { return }
+
                         isImporting = true
+
                         Task {
                             await libraryViewModel.importSongs(from: urls)
+
                             await MainActor.run {
                                 isImporting = false
                             }
                         }
                     }
                 } label: {
-                    HStack(spacing: 14) {
-                        iconTile(systemName: "folder.fill", tint: .accentColor)
-
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text("Import from Files")
-                                .font(.system(size: 16, weight: .medium))
-                                .foregroundStyle(.primary)
-
-                            Text("Copy audio files into Naa Paata")
-                                .font(.system(size: 13))
-                                .foregroundStyle(.secondary)
-                        }
-
-                        Spacer()
-
+                    SettingsRow(
+                        icon: "folder.fill",
+                        title: "Import from Files",
+                        iconColor: .blue
+                    ) {
                         if isImporting {
                             ProgressView()
-                        } else {
-                            Image(systemName: "chevron.right")
-                                .font(.system(size: 13, weight: .semibold))
-                                .foregroundStyle(.tertiary)
                         }
                     }
-                    .contentShape(Rectangle())
-                    .padding(.vertical, 2)
                 }
                 .buttonStyle(.plain)
                 .disabled(isImporting)
             } header: {
-                sectionHeader("Import")
-            } footer: {
-                Text("Selected files will be copied into the Naa Paata sandbox folder and added to your library automatically.")
-                    .font(.system(size: 11))
-                    .foregroundStyle(.secondary)
+                Text("Music Library")
             }
 
             // MARK: - Appearance
             Section {
                 NavigationLink {
-                    AppThemePickerView()
+                    AppearanceModePickerView()
                 } label: {
                     SettingsRow(
                         icon: "sun.max.fill",
                         title: "App Theme",
-                        subtitle: "Light, Dark, or System",
-                        tintColor: themeManager.accent
+                        iconColor: .purple
                     ) {
-                        Text(themeManager.colorScheme.label)
-                            .font(.system(size: 13, weight: .medium))
+                        Text(appearanceManager.mode.label)
+                            .font(.system(size: 15))
                             .foregroundStyle(.secondary)
                     }
                 }
-
-                NavigationLink {
-                    AppColourPickerView()
-                } label: {
-                    SettingsRow(
-                        icon: "paintpalette.fill",
-                        title: "App Colour",
-                        subtitle: "Choose your app accent colour",
-                        tintColor: themeManager.accent
-                    ) {
-                        Circle()
-                            .fill(themeManager.accent)
-                            .frame(width: 16, height: 16)
-                            .shadow(color: themeManager.accent.opacity(0.4), radius: 3)
-                    }
-                }
             } header: {
-                sectionHeader("Appearance & Customisation")
+                Text("Appearance")
             }
 
-            // MARK: - Support & Feedback
+            // MARK: - Support
             Section {
                 Button {
                     rateApp()
@@ -124,10 +94,10 @@ struct SettingsView: View {
                     SettingsRow(
                         icon: "star.fill",
                         title: "Rate on App Store",
-                        tintColor: .accentColor
+                        iconColor: .orange
                     ) {
                         Image(systemName: "arrow.up.right")
-                            .font(.system(size: 13, weight: .semibold))
+                            .font(.system(size: 12, weight: .semibold))
                             .foregroundStyle(.tertiary)
                     }
                 }
@@ -137,18 +107,18 @@ struct SettingsView: View {
                     sendFeedback()
                 } label: {
                     SettingsRow(
-                        icon: "envelope.open.fill",
+                        icon: "envelope.fill",
                         title: "Provide your feedback",
-                        tintColor: .accentColor
+                        iconColor: .green
                     ) {
                         Image(systemName: "arrow.up.right")
-                            .font(.system(size: 13, weight: .semibold))
+                            .font(.system(size: 12, weight: .semibold))
                             .foregroundStyle(.tertiary)
                     }
                 }
                 .buttonStyle(.plain)
             } header: {
-                sectionHeader("Support & Feedback")
+                Text("Support")
             }
 
             // MARK: - About
@@ -159,7 +129,7 @@ struct SettingsView: View {
                     SettingsRow(
                         icon: "clock.arrow.circlepath",
                         title: "Version History",
-                        tintColor: .accentColor
+                        iconColor: .gray
                     ) {
                         EmptyView()
                     }
@@ -169,15 +139,15 @@ struct SettingsView: View {
                     AboutView()
                 } label: {
                     SettingsRow(
-                        icon: "info.circle",
+                        icon: "info.circle.fill",
                         title: "About Naa Paata",
-                        tintColor: .accentColor
+                        iconColor: .cyan
                     ) {
                         EmptyView()
                     }
                 }
             } header: {
-                sectionHeader("About")
+                Text("About")
             } footer: {
                 Text("Carved Naa Paata with ♥")
                     .font(.subheadline)
@@ -193,34 +163,19 @@ struct SettingsView: View {
                     Button {
                         showPaywall = true
                     } label: {
-                        HStack(spacing: 14) {
-                            iconTile(systemName: "crown.fill", tint: .yellow)
-
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text("Unlock Premium")
-                                    .font(.system(size: 16, weight: .medium))
-                                    .foregroundStyle(.primary)
-
-                                Text("Equalizer, enhanced audio & more")
-                                    .font(.system(size: 13))
-                                    .foregroundStyle(.secondary)
-                            }
-
-                            Spacer()
-
+                        SettingsRow(
+                            icon: "crown.fill",
+                            title: "Unlock Premium",
+                            iconColor: .pink
+                        ) {
                             Image(systemName: "chevron.right")
                                 .font(.system(size: 13, weight: .semibold))
                                 .foregroundStyle(.tertiary)
                         }
-                        .padding(.vertical, 4)
-                        .contentShape(Rectangle())
                     }
                     .buttonStyle(.plain)
                 } header: {
                     Text("Premium")
-                        .font(.system(size: 13, weight: .semibold))
-                        .foregroundStyle(.secondary)
-                        .textCase(nil)
                 }
             }
         }
@@ -233,51 +188,44 @@ struct SettingsView: View {
         }
     }
 
-    // MARK: - Section header
-
-    private func sectionHeader(_ title: String) -> some View {
-        Text(title)
-            .font(.system(size: 16, weight: .bold))
-            .foregroundStyle(.secondary)
-            .textCase(.uppercase)
-    }
-
-    // MARK: - Icon tile
-
-    private func iconTile(systemName: String, tint: Color) -> some View {
-        ZStack {
-            RoundedRectangle(cornerRadius: 10)
-                .fill(tint.opacity(0.15))
-                .frame(width: 40, height: 40)
-
-            Image(systemName: systemName)
-                .font(.system(size: 18, weight: .medium))
-                .foregroundStyle(tint)
-        }
-    }
-
     // MARK: - Actions
 
     private func rateApp() {
         let appID = "6755621058"
-        guard let url = URL(string: "https://apps.apple.com/sa/app/naa-paata-music-player/id\(appID)") else {
+
+        guard let url = URL(
+            string: "https://apps.apple.com/sa/app/naa-paata-music-player/id\(appID)"
+        ) else {
             return
         }
+
         UIApplication.shared.open(url)
     }
 
     private func sendFeedback() {
         let email = "techpalle2026@gmail.com"
         let subject = "Feedback about Naa Paata"
-        let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "Unknown"
+
+        let version = Bundle.main.infoDictionary?[
+            "CFBundleShortVersionString"
+        ] as? String ?? "Unknown"
+
         let body = "App Version: \(version)\n\n\n"
 
-        let subjectEncoded = subject.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? ""
-        let bodyEncoded = body.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? ""
+        let subjectEncoded = subject.addingPercentEncoding(
+            withAllowedCharacters: .urlQueryAllowed
+        ) ?? ""
 
-        guard let url = URL(string: "mailto:\(email)?subject=\(subjectEncoded)&body=\(bodyEncoded)") else {
+        let bodyEncoded = body.addingPercentEncoding(
+            withAllowedCharacters: .urlQueryAllowed
+        ) ?? ""
+
+        guard let url = URL(
+            string: "mailto:\(email)?subject=\(subjectEncoded)&body=\(bodyEncoded)"
+        ) else {
             return
         }
+
         UIApplication.shared.open(url)
     }
 }

@@ -89,8 +89,8 @@ struct MiniPlayerView: View {
         .overlay(alignment: .bottom) {
             GeometryReader { geo in
                 ZStack(alignment: .leading) {
-                    Color.accentColor.opacity(0.15)
-                    Color.accentColor
+                    Color.appAccent.opacity(0.15)
+                    Color.appAccent
                         .frame(width: geo.size.width * progress)
                 }
                 .clipShape(

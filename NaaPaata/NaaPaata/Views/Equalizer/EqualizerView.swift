@@ -11,11 +11,10 @@ struct EqualizerView: View {
 
     @EnvironmentObject private var viewModel: EqualizerViewModel
     @EnvironmentObject private var store: StoreManager
-    @EnvironmentObject private var themeManager: ThemeManager
 
     @Environment(\.colorScheme) private var colorScheme
 
-    private var accent: Color { themeManager.accent }
+    private var accent: Color { .appAccent }
 
     var body: some View {
         Group {

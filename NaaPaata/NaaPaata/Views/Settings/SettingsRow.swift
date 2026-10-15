@@ -7,45 +7,39 @@
 
 import SwiftUI
 
-struct SettingsRow<Content: View>: View {
+struct SettingsRow<Trailing: View>: View {
     let icon: String
     let title: String
-    let subtitle: String?
-    let tintColor: Color
-    let content: Content
+    let iconColor: Color
 
-    init(icon: String, title: String, subtitle: String? = nil, tintColor: Color = AppColors.primary, @ViewBuilder content: () -> Content) {
-        self.icon = icon
-        self.title = title
-        self.subtitle = subtitle
-        self.tintColor = tintColor
-        self.content = content()
-    }
+    @ViewBuilder var trailing: () -> Trailing
 
     var body: some View {
-        HStack(spacing: 14) {
+        HStack(spacing: 12) {
             ZStack {
-                RoundedRectangle(cornerRadius: 10)
-                    .fill(tintColor.opacity(0.15))
-                    .frame(width: 40, height: 40)
+                RoundedRectangle(
+                    cornerRadius: 6,
+                    style: .continuous
+                )
+                .fill(iconColor.gradient)
+                .frame(width: 29, height: 29)
+
                 Image(systemName: icon)
-                    .font(.system(size: 18, weight: .medium))
-                    .foregroundColor(tintColor)
+                    .font(.system(size: 14, weight: .semibold))
+                    .symbolRenderingMode(.hierarchical)
+                    .foregroundStyle(.white)
             }
-            VStack(alignment: .leading, spacing: 2) {
-                Text(title)
-                    .font(.system(size: 16, weight: .medium))
-                    .foregroundColor(AppColors.textPrimary)
-                if let subtitle = subtitle {
-                    Text(subtitle)
-                        .font(.system(size: 13))
-                        .foregroundColor(AppColors.textSecondary)
-                        .lineLimit(2)
-                }
-            }
-            Spacer()
-            content
+
+            Text(title)
+                .font(.system(size: 17))
+                .foregroundStyle(.primary)
+
+            Spacer(minLength: 8)
+
+            trailing()
         }
-        .padding(.vertical, 4)
+        .padding(.vertical, 1)
+        .contentShape(Rectangle())
     }
 }
+

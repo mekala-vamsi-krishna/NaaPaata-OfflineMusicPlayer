@@ -19,13 +19,13 @@ struct LibraryCard: Identifiable {
 struct HomeView: View {
 
     @EnvironmentObject private var libraryViewModel: MusicLibraryViewModel
-    @EnvironmentObject private var themeManager: ThemeManager
+    @EnvironmentObject private var appearanceManager: AppearanceManager
     @EnvironmentObject private var folderService: DocumentFolderService
     @Environment(\.modelContext) private var modelContext
 
     @Query private var favourites: [FavouriteSong]
 
-    private var accent: Color { themeManager.accent }
+    private var accent: Color { .appAccent }
 
     // MARK: - Navigation state
 
