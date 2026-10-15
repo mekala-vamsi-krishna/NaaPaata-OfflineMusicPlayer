@@ -28,6 +28,11 @@ struct NaaPaataApp: App {
         let container = Self.makeContainer()
         self.container = container
 
+//        if let documentsURL = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first {
+//            print("Content Directory Path: \(documentsURL.path)")
+//        }
+
+
         let folderService = DocumentFolderService()
         let playerService = AudioPlayerService()
         let playbackStateService = PlaybackStateService()

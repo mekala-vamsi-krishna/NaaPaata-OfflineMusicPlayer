@@ -9,7 +9,8 @@ import UIKit
 struct MiniPlayerView: View {
 
     @EnvironmentObject private var libraryViewModel: MusicLibraryViewModel
-
+    @EnvironmentObject private var progressStore: PlaybackProgressStore
+    
     var namespace: Namespace.ID
 
     private var song: Song? { libraryViewModel.currentSong }
@@ -22,6 +23,11 @@ struct MiniPlayerView: View {
     private var isPlaying: Bool { libraryViewModel.isPlaying }
 
     private let artworkSize: CGFloat = 38
+    
+    private var progress: Double {
+        guard let song = song, let duration = song.duration, duration > 0 else { return 0 }
+        return min(max(progressStore.elapsed / duration, 0), 1)
+    }
 
     var body: some View {
         if song == nil {
@@ -79,7 +85,27 @@ struct MiniPlayerView: View {
             }
         }
         .padding(.horizontal, 12)
-        .frame(maxWidth: .infinity)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .overlay(alignment: .bottom) {
+            GeometryReader { geo in
+                ZStack(alignment: .leading) {
+                    Color.accentColor.opacity(0.15)
+                    Color.accentColor
+                        .frame(width: geo.size.width * progress)
+                }
+                .clipShape(
+                    .rect(
+                        topLeadingRadius: 2,
+                        bottomLeadingRadius: 0,
+                        bottomTrailingRadius: 0,
+                        topTrailingRadius: 2
+                    )
+                )
+            }
+            .frame(height: 3)
+            .allowsHitTesting(false)
+            .animation(.linear(duration: 0.25), value: progress)
+        }
     }
 
     // MARK: - Empty State
