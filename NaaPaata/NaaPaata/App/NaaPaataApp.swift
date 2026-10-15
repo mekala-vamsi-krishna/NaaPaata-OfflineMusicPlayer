@@ -84,7 +84,7 @@ struct NaaPaataApp: App {
                 .environmentObject(storeManager)
                 .environmentObject(folderService)
                 .environmentObject(progressStore)
-                .tint(Color.appAccent)
+                .tint(Color.accentColor)
                 .preferredColorScheme(appearanceManager.mode.swiftUIScheme)
                 .task {
                     await libraryViewModel.restoreLastSession()

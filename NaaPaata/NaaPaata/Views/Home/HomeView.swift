@@ -25,7 +25,7 @@ struct HomeView: View {
 
     @Query private var favourites: [FavouriteSong]
 
-    private var accent: Color { .appAccent }
+    private var accent: Color { .accentColor }
 
     // MARK: - Navigation state
 

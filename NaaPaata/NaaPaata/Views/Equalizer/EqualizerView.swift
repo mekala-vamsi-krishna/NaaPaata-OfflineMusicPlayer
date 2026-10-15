@@ -14,7 +14,7 @@ struct EqualizerView: View {
 
     @Environment(\.colorScheme) private var colorScheme
 
-    private var accent: Color { .appAccent }
+    private var accent: Color { .accentColor }
 
     var body: some View {
         Group {
