@@ -95,7 +95,6 @@
 				Services/DocumentFolderService.swift,
 				Services/FavouritesService.swift,
 				Services/MusicLibraryService.swift,
-				Services/NetworkService.swift,
 				Services/PlaybackProgressStore.swift,
 				Services/PlaybackStateService.swift,
 				Services/PlayHistoryService.swift,

@@ -43,6 +43,13 @@ struct NaaPaataApp: App {
         guard let folderURL = folderService.naaPaataFolderURL else {
             fatalError("Could not resolve Documents directory.")
         }
+        
+        if let bundleID = Bundle.main.bundleIdentifier {
+            UserDefaults.standard.removePersistentDomain(forName: bundleID)
+        }
+        
+        UserDefaults.standard.removeObject(forKey: "dismissedAppUpdateVersions")
+        UserDefaults.standard.removeObject(forKey: "lastAppUpdateCheckDate")
 
         let libraryService = MusicLibraryService(rootFolder: folderURL)
 
@@ -72,6 +79,31 @@ struct NaaPaataApp: App {
         WidgetCommandHandler.shared.libraryViewModel = library
         WidgetCommandHandler.shared.start()
     }
+    
+    @StateObject private var appUpdateViewModel: AppUpdateViewModel = {
+        let repository = AppUpdateRepository(
+            remote: VersionHistoryRemoteDataSource(
+                url: AppUpdateConfiguration.remoteVersionHistoryURL
+            ),
+            local: VersionHistoryLocalDataSource(),
+            cache: VersionHistoryCache()
+        )
+        
+        let useCase = CheckForAppUpdateUseCase(
+            repository: repository,
+            currentVersionProvider: BundleCurrentVersionProvider()
+        )
+        
+        return AppUpdateViewModel(
+            useCase: useCase,
+            repository: repository,
+            dismissedStore: UserDefaultsDismissedVersionsStore(),
+            appStoreOpener: DefaultAppStoreOpener(
+                appStoreID: AppUpdateConfiguration.appStoreID
+            ),
+            checkGate: AppUpdateCheckGate()
+        )
+    }()
 
     var body: some Scene {
         WindowGroup {
@@ -84,10 +116,26 @@ struct NaaPaataApp: App {
                 .environmentObject(storeManager)
                 .environmentObject(folderService)
                 .environmentObject(progressStore)
-                .tint(Color.accentColor)
+                .environmentObject(appUpdateViewModel)
+            
                 .preferredColorScheme(appearanceManager.mode.swiftUIScheme)
+                .tint(Color.accentColor)
+            
                 .task {
                     await libraryViewModel.restoreLastSession()
+                }
+                
+                .task {
+                    await appUpdateViewModel.checkForUpdateIfNeeded()
+                }
+                .sheet(isPresented: $appUpdateViewModel.isSheetPresented) {
+                    if case .updateAvailable(let info) = appUpdateViewModel.state {
+                        AppUpdateSheet(
+                            info: info,
+                            onDismiss: { appUpdateViewModel.dismiss() },
+                            onUpdate: { appUpdateViewModel.openAppStore() }
+                        )
+                    }
                 }
         }
         .modelContainer(container)
