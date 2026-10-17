@@ -1,5 +1,31 @@
 [
   {
+    "version": "5.0.1",
+    "date": "August 2026",
+    "sections": {
+      "newFeatures": [
+        "Genres module",
+        "Artists module",
+        "New HomeView",
+        "Mini Player has progressbar",
+        "Volume control in Music Player View",
+        "Smart Playlists",
+        "Favourites module added, now you can favourite your songs"
+      ],
+      "enhancements": [
+        "Music Player View closing and opening animation added with smooth transition from mini player to expanded player",
+        "Albums Details View UI refurbished",
+        "Tab Accessory View is available for tab bar to fall down while scrolling"
+      ],
+      "bugFixes": [
+          "Widgets related bugs has been fixed"
+      ],
+      "patches": [
+          "Naa Paata app supports iOS 18 and above"
+      ]
+    }
+  },
+  {
     "version": "5.0.0",
     "date": "August 2026",
     "sections": {
@@ -98,7 +124,7 @@
     }
   },
   {
-    "version": "2.0",
+    "version": "1.0",
     "date": "February 2026",
     "sections": {
       "newFeatures": [

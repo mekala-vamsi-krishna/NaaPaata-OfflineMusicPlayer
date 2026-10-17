@@ -11,11 +11,10 @@ struct EqualizerView: View {
 
     @EnvironmentObject private var viewModel: EqualizerViewModel
     @EnvironmentObject private var store: StoreManager
-    @EnvironmentObject private var themeManager: ThemeManager
 
     @Environment(\.colorScheme) private var colorScheme
 
-    private var accent: Color { themeManager.accent }
+    private var accent: Color { .accentColor }
 
     var body: some View {
         Group {
@@ -31,7 +30,6 @@ struct EqualizerView: View {
         .animation(.easeInOut(duration: 0.25), value: store.isPremimumUser)
         .navigationTitle(store.isPremimumUser ? "Equalizer" : "Premium")
         .navigationBarTitleDisplayMode(.inline)
-        .toolbar(store.isPremimumUser ? .visible : .hidden, for: .tabBar)
     }
 
     // MARK: - Premium content

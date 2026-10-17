@@ -20,13 +20,18 @@ struct NaaPaataApp: App {
     @StateObject private var folderService = DocumentFolderService()
 
     @StateObject private var sleepTimerManager = SleepTimerManager.shared
-    @StateObject private var themeManager = ThemeManager.shared
+    @StateObject private var appearanceManager = AppearanceManager.shared
     
     let container: ModelContainer
 
     init() {
         let container = Self.makeContainer()
         self.container = container
+
+//        if let documentsURL = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first {
+//            print("Content Directory Path: \(documentsURL.path)")
+//        }
+
 
         let folderService = DocumentFolderService()
         let playerService = AudioPlayerService()
@@ -38,6 +43,13 @@ struct NaaPaataApp: App {
         guard let folderURL = folderService.naaPaataFolderURL else {
             fatalError("Could not resolve Documents directory.")
         }
+        
+        if let bundleID = Bundle.main.bundleIdentifier {
+            UserDefaults.standard.removePersistentDomain(forName: bundleID)
+        }
+        
+        UserDefaults.standard.removeObject(forKey: "dismissedAppUpdateVersions")
+        UserDefaults.standard.removeObject(forKey: "lastAppUpdateCheckDate")
 
         let libraryService = MusicLibraryService(rootFolder: folderURL)
 
@@ -67,6 +79,31 @@ struct NaaPaataApp: App {
         WidgetCommandHandler.shared.libraryViewModel = library
         WidgetCommandHandler.shared.start()
     }
+    
+    @StateObject private var appUpdateViewModel: AppUpdateViewModel = {
+        let repository = AppUpdateRepository(
+            remote: VersionHistoryRemoteDataSource(
+                url: AppUpdateConfiguration.remoteVersionHistoryURL
+            ),
+            local: VersionHistoryLocalDataSource(),
+            cache: VersionHistoryCache()
+        )
+        
+        let useCase = CheckForAppUpdateUseCase(
+            repository: repository,
+            currentVersionProvider: BundleCurrentVersionProvider()
+        )
+        
+        return AppUpdateViewModel(
+            useCase: useCase,
+            repository: repository,
+            dismissedStore: UserDefaultsDismissedVersionsStore(),
+            appStoreOpener: DefaultAppStoreOpener(
+                appStoreID: AppUpdateConfiguration.appStoreID
+            ),
+            checkGate: AppUpdateCheckGate()
+        )
+    }()
 
     var body: some Scene {
         WindowGroup {
@@ -75,14 +112,30 @@ struct NaaPaataApp: App {
                 .environmentObject(equalizerViewModel)
                 .environmentObject(tabState)
                 .environmentObject(sleepTimerManager)
-                .environmentObject(themeManager)
+                .environmentObject(appearanceManager)
                 .environmentObject(storeManager)
                 .environmentObject(folderService)
                 .environmentObject(progressStore)
-                .tint(themeManager.accent)
-                .preferredColorScheme(themeManager.colorScheme.swiftUIScheme)
+                .environmentObject(appUpdateViewModel)
+            
+                .preferredColorScheme(appearanceManager.mode.swiftUIScheme)
+                .tint(Color.accentColor)
+            
                 .task {
                     await libraryViewModel.restoreLastSession()
+                }
+                
+                .task {
+                    await appUpdateViewModel.checkForUpdateIfNeeded()
+                }
+                .sheet(isPresented: $appUpdateViewModel.isSheetPresented) {
+                    if case .updateAvailable(let info) = appUpdateViewModel.state {
+                        AppUpdateSheet(
+                            info: info,
+                            onDismiss: { appUpdateViewModel.dismiss() },
+                            onUpdate: { appUpdateViewModel.openAppStore() }
+                        )
+                    }
                 }
         }
         .modelContainer(container)

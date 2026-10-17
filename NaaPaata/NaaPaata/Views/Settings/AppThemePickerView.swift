@@ -1,20 +1,21 @@
 //
-//  AppearanceSettingsView.swift
+//  AppearanceModePickerView.swift
 //  NaaPaata
 //
 
 import SwiftUI
 
-struct AppThemePickerView: View {
-    @EnvironmentObject private var themeManager: ThemeManager
+struct AppearanceModePickerView: View {
+
+    @EnvironmentObject private var appearanceManager: AppearanceManager
 
     var body: some View {
         ZStack {
             LinearGradient(
                 colors: [
-                    AppColors.background,
-                    AppColors.background.opacity(0.95),
-                    AppColors.primary.opacity(0.05)
+                    Color(.systemGroupedBackground),
+                    Color(.systemGroupedBackground).opacity(0.95),
+                    Color.accentColor.opacity(0.05)
                 ],
                 startPoint: .topLeading,
                 endPoint: .bottomTrailing
@@ -23,31 +24,31 @@ struct AppThemePickerView: View {
 
             List {
                 Section {
-                    ForEach(AppColorScheme.allCases) { scheme in
+                    ForEach(AppearanceMode.allCases) { mode in
                         Button {
-                            guard scheme != themeManager.colorScheme else { return }
-                            performThemeTransition(to: scheme)
+                            guard mode != appearanceManager.mode else { return }
+                            performThemeTransition(to: mode)
                         } label: {
                             HStack(spacing: 14) {
                                 ZStack {
                                     RoundedRectangle(cornerRadius: 10)
-                                        .fill(schemeColor(scheme).opacity(0.15))
+                                        .fill(modeColor(mode).opacity(0.15))
                                         .frame(width: 40, height: 40)
-                                    Image(systemName: scheme.icon)
+                                    Image(systemName: mode.icon)
                                         .font(.system(size: 18, weight: .medium))
-                                        .foregroundColor(schemeColor(scheme))
+                                        .foregroundStyle(modeColor(mode))
                                 }
 
-                                Text(scheme.label)
+                                Text(mode.label)
                                     .font(.system(size: 16, weight: .medium))
-                                    .foregroundColor(AppColors.textPrimary)
+                                    .foregroundStyle(.primary)
 
                                 Spacer()
 
-                                if themeManager.colorScheme == scheme {
+                                if appearanceManager.mode == mode {
                                     Image(systemName: "checkmark")
                                         .font(.system(size: 14, weight: .semibold))
-                                        .foregroundColor(AppColors.primary)
+                                        .foregroundStyle(Color.accentColor)
                                 }
                             }
                             .padding(.vertical, 4)
@@ -60,7 +61,7 @@ struct AppThemePickerView: View {
                 } footer: {
                     Text("Light and Dark override the system setting. System follows your device's appearance automatically.")
                         .font(.system(size: 11))
-                        .foregroundColor(.secondary)
+                        .foregroundStyle(.secondary)
                 }
             }
             .listStyle(.insetGrouped)
@@ -70,9 +71,9 @@ struct AppThemePickerView: View {
         .navigationBarTitleDisplayMode(.inline)
     }
 
-    private func schemeColor(_ scheme: AppColorScheme) -> Color {
-        switch scheme {
-        case .system: return AppColors.primary
+    private func modeColor(_ mode: AppearanceMode) -> Color {
+        switch mode {
+        case .system: return Color.accentColor
         case .light:  return Color.orange
         case .dark:   return Color.indigo
         }
