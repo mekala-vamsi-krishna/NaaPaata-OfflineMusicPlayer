@@ -44,13 +44,6 @@ struct NaaPaataApp: App {
             fatalError("Could not resolve Documents directory.")
         }
         
-        if let bundleID = Bundle.main.bundleIdentifier {
-            UserDefaults.standard.removePersistentDomain(forName: bundleID)
-        }
-        
-        UserDefaults.standard.removeObject(forKey: "dismissedAppUpdateVersions")
-        UserDefaults.standard.removeObject(forKey: "lastAppUpdateCheckDate")
-
         let libraryService = MusicLibraryService(rootFolder: folderURL)
 
         let library = MusicLibraryViewModel(
