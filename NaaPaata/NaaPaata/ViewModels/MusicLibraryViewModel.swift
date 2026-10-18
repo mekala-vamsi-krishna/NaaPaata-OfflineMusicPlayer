@@ -348,26 +348,38 @@ class MusicLibraryViewModel: ObservableObject {
         self.currentIndex = adjustedIndex
     }
 
+    // MARK: - Restore Session
+
     func restoreLastSession() async {
         guard !hasRestoredSession else { return }
-        hasRestoredSession = true
 
         if songs.isEmpty {
             await loadLibrary()
         }
 
+        // If the library is still empty, we can't restore a song yet.
+        // Don't set hasRestoredSession = true here so it can try again later.
+        guard !songs.isEmpty else { return }
+
         guard
             let state = playbackStateService.load(),
             let relativePath = state.currentSongPath,
-            let absoluteURL = folderService.absoluteURL(for: relativePath),
-            let song = songs.first(where: { $0.url.path == absoluteURL.path })
+            let absoluteURL = folderService.absoluteURL(for: relativePath)
         else {
+            // No saved state exists, mark as restored so we don't keep trying
+            hasRestoredSession = true
+            return
+        }
+
+        let targetURL = absoluteURL.standardizedFileURL
+        guard let song = songs.first(where: { $0.url.standardizedFileURL == targetURL }) else {
+            hasRestoredSession = true
             return
         }
 
         let restoredQueue: [Song] = state.queuePaths.compactMap { path in
-            guard let url = folderService.absoluteURL(for: path) else { return nil }
-            return songs.first { $0.url.path == url.path }
+            guard let url = folderService.absoluteURL(for: path)?.standardizedFileURL else { return nil }
+            return songs.first { $0.url.standardizedFileURL == url }
         }
 
         self.queue = restoredQueue.isEmpty ? songs : restoredQueue
@@ -382,7 +394,7 @@ class MusicLibraryViewModel: ObservableObject {
             playerService.seek(toTime: state.elapsed)
         } catch {
             errorMessage = "Could not restore last song."
-            return
+            return // If loading fails, don't set hasRestoredSession = true
         }
 
         self.progressStore.elapsed = state.elapsed
@@ -390,17 +402,23 @@ class MusicLibraryViewModel: ObservableObject {
             ? state.elapsed / (song.duration ?? 0)
             : 0
 
+        hasRestoredSession = true
+
         updateNowPlayingInfo()
     }
 
+    // MARK: - Persistence
+
     private func persistState() {
+        let currentSongPath = currentSong.flatMap {
+            folderService.relativePath(for: $0.url.standardizedFileURL)
+        }
+
         let state = PlaybackState(
-            currentSongPath: currentSong.flatMap {
-                folderService.relativePath(for: $0.url)
-            },
+            currentSongPath: currentSongPath,
             elapsed: progressStore.elapsed,
             queuePaths: queue.compactMap {
-                folderService.relativePath(for: $0.url)
+                folderService.relativePath(for: $0.url.standardizedFileURL)
             },
             currentIndex: currentIndex,
             isShuffled: isShuffled,
@@ -411,9 +429,21 @@ class MusicLibraryViewModel: ObservableObject {
         lastPersistDate = Date()
     }
 
+    // MARK: - Lifecycle
+
     private func observeAppLifecycle() {
         NotificationCenter.default.addObserver(
             forName: UIApplication.didEnterBackgroundNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            Task { @MainActor [weak self] in
+                self?.persistState()
+            }
+        }
+        
+        NotificationCenter.default.addObserver(
+            forName: UIApplication.willTerminateNotification,
             object: nil,
             queue: .main
         ) { [weak self] _ in

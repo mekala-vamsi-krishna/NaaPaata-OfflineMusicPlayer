@@ -69,6 +69,11 @@ struct PlaylistsView: View {
         .background(Color(.systemBackground))
         .navigationTitle("Playlists")
         .navigationBarTitleDisplayMode(.large)
+        .task {
+            if libraryViewModel.songs.isEmpty && !libraryViewModel.isLoading {
+                await libraryViewModel.loadLibrary()
+            }
+        }
         .searchable(
             text: $searchText,
             placement: .navigationBarDrawer(displayMode: .always),
@@ -105,8 +110,9 @@ struct PlaylistsView: View {
         }
     }
 
+    // ... (Rest of the view remains exactly the same)
+    
     // MARK: - Smart section
-
     private var smartSection: some View {
         VStack(alignment: .leading, spacing: 16) {
             Text("Smart Playlists")
@@ -127,7 +133,6 @@ struct PlaylistsView: View {
     }
 
     // MARK: - User section
-
     private var userSection: some View {
         VStack(alignment: .leading, spacing: 16) {
 
@@ -136,7 +141,6 @@ struct PlaylistsView: View {
                 .foregroundStyle(.primary)
                 .padding(.horizontal, 20)
             
-
             if filteredPlaylists.isEmpty {
                 emptyUserState
             } else {
@@ -179,7 +183,6 @@ struct PlaylistsView: View {
     }
 
     // MARK: - Actions
-
     private func createPlaylist(coverImage: UIImage?) {
         let trimmed = newPlaylistName.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return }

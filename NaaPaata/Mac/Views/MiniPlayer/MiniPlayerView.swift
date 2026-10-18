@@ -72,8 +72,19 @@ struct MiniPlayerView: View {
                 if let song { AddToPlaylistSheet(song: song) }
             }
         }
+        // ✅ FIX: Wait for the library to load before restoring
         .task {
+            // Give the app a moment to load the initial library state
+            if viewModel.songs.isEmpty {
+                try? await Task.sleep(nanoseconds: 500_000_000) // 0.5 seconds
+            }
             await viewModel.restoreLastSession()
+        }
+        .onChange(of: viewModel.songs.isEmpty) { _, isEmpty in
+            // If the library loads *after* this view appears, trigger restore
+            if !isEmpty {
+                Task { await viewModel.restoreLastSession() }
+            }
         }
     }
 
@@ -90,7 +101,6 @@ struct MiniPlayerView: View {
                         .frame(width: geo.size.width, height: geo.size.height)
                         .clipped()
                 } else {
-                    // Solid gray, not transparent.
                     ZStack {
                         Color(white: 0.18)
 
@@ -138,7 +148,6 @@ struct MiniPlayerView: View {
 
     private var bottomScrim: some View {
         ZStack {
-            // Blur layer
             Rectangle()
                 .fill(.ultraThinMaterial)
                 .environment(\.colorScheme, .dark)
@@ -154,7 +163,6 @@ struct MiniPlayerView: View {
                     )
                 )
 
-            // Darkening gradient
             LinearGradient(
                 stops: [
                     .init(color: .black.opacity(0.0),  location: 0.35),
@@ -172,7 +180,6 @@ struct MiniPlayerView: View {
     private var bottomControls: some View {
         VStack(alignment: .leading, spacing: 10) {
 
-            // title/artist + heart + menu
             HStack(alignment: .center, spacing: 10) {
                 VStack(alignment: .leading, spacing: 2) {
                     if let song {
@@ -190,7 +197,6 @@ struct MiniPlayerView: View {
                         )
                         .frame(height: 16)
                     } else {
-                        // Reserve the same space — no text rendered.
                         Color.clear.frame(height: 20)
                         Color.clear.frame(height: 16)
                     }
@@ -217,7 +223,6 @@ struct MiniPlayerView: View {
                     .disabled(!hasSong)
             }
 
-            // Progress bar
             ThickSlider(
                 value: hasSong ? viewModel.progress : 0,
                 trackHeight: 3,
@@ -230,7 +235,6 @@ struct MiniPlayerView: View {
             .frame(height: 12)
             .opacity(hasSong ? 1 : 0.3)
 
-            // ─── Transport + shuffle/repeat ───
             HStack(spacing: 18) {
                 Spacer(minLength: 0)
 

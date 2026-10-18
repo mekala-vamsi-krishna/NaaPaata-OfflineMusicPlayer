@@ -18,18 +18,22 @@ final class DocumentFolderService: ObservableObject {
         ).first
     }
 
-    /// Converts an absolute file URL into a path relative to Documents.
-    /// Returns `nil` if the URL is not inside Documents.
     func relativePath(for url: URL) -> String? {
-        guard let docs = naaPaataFolderURL else { return nil }
-        let prefix = docs.path.hasSuffix("/") ? docs.path : docs.path + "/"
-        guard url.path.hasPrefix(prefix) else { return nil }
-        return String(url.path.dropFirst(prefix.count))
+        let fileManager = FileManager.default
+        guard let docsURL = fileManager.urls(for: .documentDirectory, in: .userDomainMask).first else { return nil }
+        
+        let standardizedUrlPath = url.standardizedFileURL.path
+        let standardizedDocsPath = docsURL.standardizedFileURL.path
+        
+        guard standardizedUrlPath.hasPrefix(standardizedDocsPath) else { return nil }
+        
+        var relative = standardizedUrlPath.replacingOccurrences(of: standardizedDocsPath, with: "")
+        if relative.hasPrefix("/") { relative.removeFirst() }
+        return relative
     }
 
-    /// Rebuilds an absolute file URL from a relative path.
     func absoluteURL(for relativePath: String) -> URL? {
-        guard let docs = naaPaataFolderURL else { return nil }
-        return docs.appendingPathComponent(relativePath)
+        guard let docsURL = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first else { return nil }
+        return docsURL.appendingPathComponent(relativePath).standardizedFileURL
     }
 }
