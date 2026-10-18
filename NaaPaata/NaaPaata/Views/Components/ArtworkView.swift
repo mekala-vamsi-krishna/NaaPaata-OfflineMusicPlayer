@@ -33,26 +33,16 @@ struct ArtworkView: View {
         )
     }
 
+    // MARK: - Placeholder
+
     private var placeholder: some View {
         ZStack {
-            brandGradient
+            Color(uiColor: .secondarySystemFill)
+            
             Image(systemName: "music.note")
-                .font(.system(size: size * 0.42, weight: .light))
-                .foregroundStyle(.white.opacity(0.9))
+                .font(.system(size: size * 0.42, weight: .medium))
+                .foregroundStyle(Color.secondary)
         }
-    }
-
-    /// The app's brand gradient — matches the macOS `AppColor.brandGradient`.
-    private var brandGradient: LinearGradient {
-        LinearGradient(
-            colors: [
-                Color(hex: 0x4B0B7E),
-                Color(hex: 0x9C1BA8),
-                Color(hex: 0xC21AA9)
-            ],
-            startPoint: .top,
-            endPoint: .bottom
-        )
     }
 }
 

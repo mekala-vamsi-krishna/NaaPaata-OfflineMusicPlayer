@@ -12,11 +12,11 @@ import UIKit
 
 final class BundleCurrentVersionProvider: CurrentVersionProviderProtocol {
     var currentVersion: String {
-        #if DEBUG
-        if AppUpdateConfiguration.forceShowUpdate {
-            return AppUpdateConfiguration.fakeCurrentVersion
-        }
-        #endif
+//        #if DEBUG
+//        if AppUpdateConfiguration.forceShowUpdate {
+//            return AppUpdateConfiguration.fakeCurrentVersion
+//        }
+//        #endif
         return Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "0.0.0"
     }
 }
@@ -33,9 +33,9 @@ final class UserDefaultsDismissedVersionsStore: DismissedVersionsStoreProtocol, 
     }
 
     func isDismissed(_ version: String) -> Bool {
-        #if DEBUG
-        if AppUpdateConfiguration.forceShowUpdate { return false }
-        #endif
+//        #if DEBUG
+//        if AppUpdateConfiguration.forceShowUpdate { return false }
+//        #endif
         return (defaults.stringArray(forKey: key) ?? []).contains(version)
     }
 
@@ -87,9 +87,9 @@ final class AppUpdateCheckGate: AppUpdateCheckGateProtocol, @unchecked Sendable 
     }
 
     var shouldCheck: Bool {
-        #if DEBUG
-        if AppUpdateConfiguration.forceShowUpdate { return true }
-        #endif
+//        #if DEBUG
+//        if AppUpdateConfiguration.forceShowUpdate { return true }
+//        #endif
         guard let last = defaults.object(forKey: key) as? Date else { return true }
         return Date().timeIntervalSince(last) >= minimumInterval
     }

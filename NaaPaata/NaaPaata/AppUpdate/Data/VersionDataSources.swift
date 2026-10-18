@@ -18,10 +18,10 @@ enum AppUpdateConfiguration {
 
     static let appStoreID = "6755621058"
     
-    #if DEBUG
-    static let forceShowUpdate = true
-    static let fakeCurrentVersion = "1.0.0"
-    #endif
+//    #if DEBUG
+//    static let forceShowUpdate = true
+//    static let fakeCurrentVersion = "1.0.0"
+//    #endif
 }
 
 // MARK: - Remote
