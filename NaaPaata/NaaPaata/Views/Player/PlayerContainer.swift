@@ -14,6 +14,7 @@ struct PlayerContainerConfig {
     var expandPlayer: Bool = false
     var dragOffset: CGFloat = 0
     var artworkDragOffset: CGFloat = 0 // Horizontal drag for changing track by swiping
+    var isQueueOpen: Bool = false
     var animation: Animation = .interpolatingSpring(
         duration: 0.3,
         bounce: 0,
@@ -102,7 +103,7 @@ struct PlayerContainer: View {
                     )
             }
             .gesture(
-                DismissGesture { translation in
+                DismissGesture(isEnabled: !config.isQueueOpen) { translation in
                     handleDragChanged(
                         translation: translation,
                         screenWidth: size.width
@@ -273,7 +274,7 @@ extension View {
 // MARK: - Dismiss Gesture
 
 fileprivate struct DismissGesture: UIGestureRecognizerRepresentable {
-
+    var isEnabled: Bool
     var onChanged: (_ translation: CGPoint) -> ()
     var onEnded: (_ velocity: CGPoint) -> ()
 
@@ -285,7 +286,9 @@ fileprivate struct DismissGesture: UIGestureRecognizerRepresentable {
     func updateUIGestureRecognizer(
         _ recognizer: UIPanGestureRecognizer,
         context: Context
-    ) { }
+    ) {
+        recognizer.isEnabled = isEnabled
+    }
 
     func handleUIGestureRecognizerAction(
         _ recognizer: UIPanGestureRecognizer,

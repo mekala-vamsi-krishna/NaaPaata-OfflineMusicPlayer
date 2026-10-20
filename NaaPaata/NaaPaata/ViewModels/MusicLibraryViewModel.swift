@@ -348,6 +348,23 @@ class MusicLibraryViewModel: ObservableObject {
         queue.insert(song, at: insertAt)
         self.currentIndex = adjustedIndex
     }
+    
+    // MARK: - Lyrics
+    
+    func saveLyrics(_ text: String, for song: Song) throws {
+        // Save to disk
+        try libraryService.saveLyrics(text, for: song)
+        
+        // Update the in-memory array
+        if let index = songs.firstIndex(where: { $0.id == song.id }) {
+            songs[index].lyrics = text
+            
+            // Update currentSong if it's the one playing
+            if currentSong?.id == song.id {
+                currentSong = songs[index]
+            }
+        }
+    }
 
     // MARK: - Restore Session
     func restoreLastSession() async {
