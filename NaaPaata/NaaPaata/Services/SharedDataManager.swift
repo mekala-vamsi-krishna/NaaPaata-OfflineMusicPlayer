@@ -47,25 +47,28 @@ final class SharedDataManager {
     ) {
         if let title {
             userDefaults.set(title, forKey: songTitleKey)
+            userDefaults.set(artist ?? "", forKey: artistKey)
+            
+            if let artworkData = artworkData {
+                userDefaults.set(artworkData, forKey: artworkDataKey)
+            } else {
+                userDefaults.removeObject(forKey: artworkDataKey)
+            }
         } else {
             userDefaults.removeObject(forKey: songTitleKey)
         }
-
-        if let artist {
-            userDefaults.set(artist, forKey: artistKey)
-        } else {
-            userDefaults.removeObject(forKey: artistKey)
-        }
-
-        if let artworkData {
-            userDefaults.set(artworkData, forKey: artworkDataKey)
-        } else {
-            userDefaults.removeObject(forKey: artworkDataKey)
-        }
-
+        
         userDefaults.set(isPlaying, forKey: isPlayingKey)
         userDefaults.set(Date().timeIntervalSince1970, forKey: timestampKey)
-
+        
+        userDefaults.synchronize()
+    }
+    
+    func clearWidgetData() {
+        userDefaults.removeObject(forKey: songTitleKey)
+        userDefaults.removeObject(forKey: artistKey)
+        userDefaults.removeObject(forKey: artworkDataKey)
+        userDefaults.set(false, forKey: isPlayingKey)
         userDefaults.synchronize()
     }
 

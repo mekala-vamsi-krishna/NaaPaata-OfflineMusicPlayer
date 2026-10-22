@@ -106,7 +106,8 @@ class MusicLibraryViewModel: ObservableObject {
                 currentSong = nil
                 queue = []
                 currentIndex = nil
-                syncWidget()
+                SharedDataManager.shared.clearWidgetData()
+                WidgetCenter.shared.reloadTimelines(ofKind: "MusicPlayerWidget")
             }
         } catch {
             errorMessage = error.localizedDescription
@@ -147,7 +148,6 @@ class MusicLibraryViewModel: ObservableObject {
     func togglePlayPause() {
         guard currentSong != nil else { return }
         
-        // ✅ Let the player service handle the toggle natively
         if isPlaying {
             playerService.pause()
         } else {
@@ -407,6 +407,7 @@ class MusicLibraryViewModel: ObservableObject {
         self.progressStore.progress = (song.duration ?? 0) > 0 ? state.elapsed / (song.duration ?? 1) : 0
         hasRestoredSession = true
         updateNowPlayingInfo()
+        syncWidget()
     }
 
     // MARK: - Persistence & Lifecycle
