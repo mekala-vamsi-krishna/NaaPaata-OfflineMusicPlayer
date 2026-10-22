@@ -69,21 +69,11 @@ struct Artwork: View {
                 .scaledToFill()
         } else {
             RoundedRectangle(cornerRadius: 5)
-                .fill(
-                    LinearGradient(
-                        colors: [
-                            Color(hex: 0x4B0B7E),
-                            Color(hex: 0x9C1BA8),
-                            Color(hex: 0xC21AA9)
-                        ],
-                        startPoint: .top,
-                        endPoint: .bottom
-                    )
-                )
+                .fill(Color(uiColor: .secondarySystemFill))
                 .overlay {
                     Image(systemName: "music.note")
-                        .font(.system(size: 64, weight: .light))
-                        .foregroundStyle(.white.opacity(0.35))
+                        .font(.system(size: 64, weight: .medium))
+                        .foregroundStyle(Color.secondary)
                 }
         }
     }

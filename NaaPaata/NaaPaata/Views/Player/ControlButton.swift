@@ -26,13 +26,14 @@ struct ControlButton: View {
             action()
         }) {
             Image(systemName: icon)
-                .font(.system(size: 22, weight: .medium))
-                .foregroundColor(isActive ? .white : .gray)
+                .font(.system(size: 20, weight: .semibold))
+                .foregroundStyle(isActive ? Color.white : Color.white.opacity(0.5))
                 .frame(width: 44, height: 44)
                 .background(
                     Circle()
-                        .fill(isActive ? Color.white.opacity(0.12) : Color.clear)
+                        .fill(isActive ? Color.white.opacity(0.15) : Color.white.opacity(0.05))
                 )
+                .shadow(color: isActive ? Color.white.opacity(0.2) : .clear, radius: 4)
                 .scaleEffect(isPressed ? 0.9 : 1.0)
                 .animation(.spring(response: 0.3, dampingFraction: 0.6), value: isActive)
         }

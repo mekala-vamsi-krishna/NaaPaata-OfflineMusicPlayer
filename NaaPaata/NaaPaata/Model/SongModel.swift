@@ -8,6 +8,7 @@
 import Foundation
 
 struct Song: Identifiable {
+    var id: URL { url }
     let url: URL
     let title: String
     let artist: String
@@ -16,8 +17,8 @@ struct Song: Identifiable {
     let duration: TimeInterval?
     let artworkData: Data?
     let dateAdded: Date
+    var lyrics: String?
 
-    var id: URL { url }
 
     var formattedDuration: String {
         guard let duration, duration.isFinite, duration > 0 else { return "--:--" }

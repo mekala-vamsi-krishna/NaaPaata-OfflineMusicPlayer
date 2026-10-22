@@ -332,18 +332,11 @@ struct RecentSongCard: View {
                         .scaledToFill()
                 } else {
                     ZStack {
-                        LinearGradient(
-                            colors: [
-                                Color.accentColor.opacity(0.55),
-                                Color.accentColor.opacity(0.25)
-                            ],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        )
+                        Color(uiColor: .secondarySystemFill)
 
                         Image(systemName: "music.note")
-                            .font(.system(size: 40, weight: .light))
-                            .foregroundStyle(.white.opacity(0.85))
+                            .font(.system(size: 40, weight: .medium))
+                            .foregroundStyle(Color.secondary)
                     }
                 }
             }

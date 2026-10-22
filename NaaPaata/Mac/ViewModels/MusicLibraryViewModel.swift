@@ -560,7 +560,6 @@ final class MusicLibraryViewModel: ObservableObject {
 
     func restoreLastSession() async {
         guard !hasRestoredSession else { return }
-        hasRestoredSession = true
 
         if songs.isEmpty {
             await loadLibrary()
@@ -568,16 +567,17 @@ final class MusicLibraryViewModel: ObservableObject {
 
         guard let state = playbackStateService.load(),
               let currentPath = state.currentSongPath,
-              let song = songs.first(where: { $0.url.path == currentPath })
+              let song = songs.first(where: { $0.url.standardizedFileURL.path == URL(fileURLWithPath: currentPath).standardizedFileURL.path })
         else {
             return
         }
 
         let queue = state.queuePaths.compactMap { path in
-            songs.first { $0.url.path == path }
+            songs.first { $0.url.standardizedFileURL.path == URL(fileURLWithPath: path).standardizedFileURL.path }
         }
+        
         let originalQueue = state.originalQueuePaths.compactMap { path in
-            songs.first { $0.url.path == path }
+            songs.first { $0.url.standardizedFileURL.path == URL(fileURLWithPath: path).standardizedFileURL.path }
         }
 
         self.queue = queue.isEmpty ? songs : queue
@@ -600,6 +600,8 @@ final class MusicLibraryViewModel: ObservableObject {
         self.progress = (song.duration ?? 0) > 0
             ? state.elapsed / (song.duration ?? 1)
             : 0
+            
+        hasRestoredSession = true
     }
     
     private func persistState() {

@@ -10,14 +10,12 @@ import SwiftData
 struct MusicPlayerView: View {
 
     // MARK: - Dependencies
-
     var size: CGSize
     var safeArea: EdgeInsets
     var namespace: Namespace.ID
     @Binding var config: PlayerContainerConfig
 
     // MARK: - Environment
-
     @Environment(\.modelContext) private var modelContext
     @EnvironmentObject private var folderService: DocumentFolderService
     @EnvironmentObject private var libraryViewModel: MusicLibraryViewModel
@@ -27,16 +25,21 @@ struct MusicPlayerView: View {
     @Query private var favourites: [FavouriteSong]
 
     // MARK: - State
-
     @State private var showSleepTimerSheet = false
     @State private var showAddToPlaylist = false
     @State private var infoSong: Song?
     @State private var showDeleteAlert = false
     @State private var fadeIn = false
     
-    // Added for the volume slider
-    @State private var volume: Double = 0.5
-
+    // View States
+    @State private var isShowingQueue = false
+    @State private var isShowingLyrics = false
+    
+    // Lyrics States
+    @State private var pastedLyrics: String = ""
+    @State private var isEditingLyrics = false // ✅ Single source of truth for Edit Mode
+    @FocusState private var isLyricsFocused: Bool
+    
     // MARK: - Derived
 
     private var song: Song? { libraryViewModel.currentSong }
@@ -68,7 +71,6 @@ struct MusicPlayerView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-
             // ── Grabber ─────────────────────────────────────────
             Capsule()
                 .fill(.white.secondary)
@@ -79,9 +81,131 @@ struct MusicPlayerView: View {
                 }
                 .opacity(fadeIn ? 1 : 0)
 
-            Spacer(minLength: 20)
+            // ── Main Content Switch ─────────────────────────────
+            if isShowingQueue {
+                compactHeader
+                queueList
+            } else if isShowingLyrics {
+                compactHeader
+                lyricsView
+            } else {
+                mainPlayerView
+            }
 
-            // MARK: Artwork Carousel
+            // ✅ Hide bottom controls when typing lyrics to give the editor space
+            if !isLyricsFocused {
+                Spacer(minLength: 16)
+
+                // ── Playback Controls (Shared) ──────────────────────
+                playbackControlsRow
+                    .padding(.horizontal, 24)
+                    .animation(config.animation.speed(2)) {
+                        $0.opacity(config.expandPlayer ? 1 : 0)
+                    }
+                    .opacity(fadeIn ? 1 : 0)
+
+                Spacer(minLength: 20)
+
+                // ── Volume Control (Shared) ─────────────────────────
+                HStack(spacing: 12) {
+                    VolumeSliderView()
+                        .frame(height: 30)
+                }
+                .foregroundStyle(.white.opacity(0.6))
+                .padding(.horizontal, 24)
+                .animation(config.animation.speed(2)) {
+                    $0.opacity(config.expandPlayer ? 1 : 0)
+                }
+                .opacity(fadeIn ? 1 : 0)
+
+                Spacer(minLength: 16)
+
+                // ── Bottom Bar: Audio Route, Lyrics, Queue ──────────
+                bottomBar
+                    .animation(config.animation.speed(2)) {
+                        $0.opacity(config.expandPlayer ? 1 : 0)
+                    }
+                    .opacity(fadeIn ? 1 : 0)
+                    
+                Spacer(minLength: 10)
+            }
+        }
+        .padding(.top, safeArea.top)
+        .padding(.bottom, safeArea.bottom + 10)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background {
+            playerBackground
+        }
+        .onAppear {
+            AppDelegate.orientationLock = .portrait
+            DispatchQueue.main.async {
+                if let windowScene = UIApplication.shared.connectedScenes.compactMap({ $0 as? UIWindowScene }).first(where: { $0.activationState == .foregroundActive }) {
+                    windowScene.requestGeometryUpdate(.iOS(interfaceOrientations: .portrait))
+                    if let rootVC = windowScene.keyWindow?.rootViewController {
+                        rootVC.setNeedsUpdateOfSupportedInterfaceOrientations()
+                    }
+                }
+            }
+            withAnimation(config.animation.delay(0.1)) {
+                fadeIn = true
+            }
+        }
+        .onDisappear {
+            AppDelegate.orientationLock = .allButUpsideDown
+            DispatchQueue.main.async {
+                if let windowScene = UIApplication.shared.connectedScenes.compactMap({ $0 as? UIWindowScene }).first(where: { $0.activationState == .foregroundActive }),
+                   let rootVC = windowScene.keyWindow?.rootViewController {
+                    rootVC.setNeedsUpdateOfSupportedInterfaceOrientations()
+                }
+            }
+            fadeIn = false
+        }
+        .preferredColorScheme(.dark)
+        .onChange(of: libraryViewModel.currentSong?.id) { _, _ in
+            if isShowingLyrics {
+                let hasLyrics = !(song?.lyrics?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ?? true)
+                isEditingLyrics = !hasLyrics
+                pastedLyrics = song?.lyrics ?? ""
+            }
+        }
+
+        // MARK: - Sheets
+        .sheet(isPresented: $showSleepTimerSheet) {
+            SleepTimerPickerView()
+                .environmentObject(sleepTimerManager)
+        }
+        .sheet(item: $infoSong) { song in
+            NavigationStack {
+                SongInfoView(song: song)
+                    .toolbar {
+                        ToolbarItem(placement: .confirmationAction) {
+                            Button("Done") { infoSong = nil }
+                        }
+                    }
+            }
+        }
+        .sheet(isPresented: $showAddToPlaylist) {
+            if let song {
+                AddToPlaylistView(song: song)
+            }
+        }
+        .alert("Delete Song?", isPresented: $showDeleteAlert) {
+            Button("Delete", role: .destructive) {
+                if let song {
+                    libraryViewModel.deleteSong(song)
+                }
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("Are you sure you want to delete \"\(song?.title ?? "")\" from your device?")
+        }
+    }
+
+    // MARK: - Main Player View
+
+    private var mainPlayerView: some View {
+        VStack(spacing: 0) {
+            Spacer(minLength: 20)
 
             Artwork(
                 namespace: namespace,
@@ -92,7 +216,6 @@ struct MusicPlayerView: View {
 
             Spacer(minLength: 30)
 
-            // ── Track Info & Action Buttons ──────────────────────
             HStack(alignment: .top, spacing: 16) {
                 VStack(alignment: .leading, spacing: 4) {
                     Text(song?.title ?? "Not Playing")
@@ -110,8 +233,6 @@ struct MusicPlayerView: View {
                 
                 Spacer()
                 
-                // Action Buttons (Favourite & Ellipses)
-                // Circular backgrounds to match the image exactly
                 HStack(spacing: 12) {
                     Button {
                         toggleFavourite()
@@ -127,26 +248,17 @@ struct MusicPlayerView: View {
                     .buttonStyle(.plain)
 
                     Menu {
-                        Button { infoSong = song } label: {
-                            Label("Info", systemImage: "info.circle")
-                        }
-                        Button { showAddToPlaylist = true } label: {
-                            Label("Add to Playlist", systemImage: "music.note.list")
-                        }
+                        Button { infoSong = song } label: { Label("Info", systemImage: "info.circle") }
+                        Button { showAddToPlaylist = true } label: { Label("Add to Playlist", systemImage: "music.note.list") }
                         Button { showSleepTimerSheet = true } label: {
                             if sleepTimerManager.isTimerActive {
-                                Label(
-                                    "Timer · \(sleepTimerManager.formattedTimeRemaining)",
-                                    systemImage: "moon.fill"
-                                )
+                                Label("Timer · \(sleepTimerManager.formattedTimeRemaining)", systemImage: "moon.fill")
                             } else {
                                 Label("Set Timer", systemImage: "moon.stars")
                             }
                         }
                         Divider()
-                        Button(role: .destructive) { showDeleteAlert = true } label: {
-                            Label("Delete", systemImage: "trash").tint(.red)
-                        }
+                        Button(role: .destructive) { showDeleteAlert = true } label: { Label("Delete", systemImage: "trash").tint(.red) }
                     } label: {
                         Image(systemName: "ellipsis")
                             .rotationEffect(.degrees(90))
@@ -162,160 +274,333 @@ struct MusicPlayerView: View {
                 }
             }
             .padding(.horizontal, 24)
-            .animation(config.animation.speed(2)) {
-                $0.opacity(config.expandPlayer ? 1 : 0)
-            }
-            .opacity(fadeIn ? 1 : 0)
 
             Spacer(minLength: 20)
 
-            // ── Progress Section ─────────────────────────────────
-            VStack(spacing: 8) {
-                PlayerProgressSection(
-                    currentTime: currentTime,
-                    duration: duration,
-                    onSeek: { seek(to: $0) }
-                )
-            }
+            PlayerProgressSection(
+                currentTime: currentTime,
+                duration: duration,
+                onSeek: { seek(to: $0) }
+            )
             .padding(.horizontal, 24)
-            .animation(config.animation.speed(2)) {
-                $0.opacity(config.expandPlayer ? 1 : 0)
-            }
-            .opacity(fadeIn ? 1 : 0)
 
             Spacer(minLength: 24)
-
-            // ── Playback Controls ────────────────────────────────
-            // Includes Shuffle, Previous, Play/Pause, Next, Repeat
-            playbackControlsRow
-                .padding(.horizontal, 24)
-                .animation(config.animation.speed(2)) {
-                    $0.opacity(config.expandPlayer ? 1 : 0)
-                }
-                .opacity(fadeIn ? 1 : 0)
-
-            Spacer(minLength: 24)
-
-            // ── Volume Control ───────────────────────────────────
-            HStack(spacing: 12) {
-                
-                VolumeSliderView()
-                    .frame(height: 30)
-
-            }
-            .foregroundStyle(.white.opacity(0.6))
-            .padding(.horizontal, 24)
-            .animation(config.animation.speed(2)) {
-                $0.opacity(config.expandPlayer ? 1 : 0)
-            }
-            .opacity(fadeIn ? 1 : 0)
-
-            Spacer(minLength: 20)
         }
-        .padding(.top, safeArea.top)
-        .padding(.bottom, safeArea.bottom + 10)
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background {
-            playerBackground
-        }
-        .onAppear {
-            // Lock the orientation policy
-            AppDelegate.orientationLock = .portrait
+    }
 
-            // Force the current window to rotate to portrait
-            DispatchQueue.main.async {
-                if let windowScene = UIApplication.shared.connectedScenes
-                    .compactMap({ $0 as? UIWindowScene })
-                    .first(where: { $0.activationState == .foregroundActive }) {
-                    
-                    // Tell iOS to rotate the window NOW
-                    windowScene.requestGeometryUpdate(.iOS(interfaceOrientations: .portrait))
-                    
-                    // Tell the root VC to re-check its supported orientations
-                    if let rootVC = windowScene.keyWindow?.rootViewController {
-                        rootVC.setNeedsUpdateOfSupportedInterfaceOrientations()
-                    }
+    // MARK: - Compact Header
+
+    private var compactHeader: some View {
+        HStack(spacing: 16) {
+            Group {
+                if let artworkImage {
+                    Image(uiImage: artworkImage)
+                        .resizable()
+                        .scaledToFill()
+                } else {
+                    RoundedRectangle(cornerRadius: 8)
+                        .fill(brandGradient)
+                        .overlay(
+                            Image(systemName: "music.note")
+                                .font(.system(size: 24, weight: .light))
+                                .foregroundStyle(.white.opacity(0.35))
+                        )
                 }
             }
+            .frame(width: 60, height: 60)
+            .clipShape(RoundedRectangle(cornerRadius: 8))
+            .matchedGeometryEffect(id: "artwork", in: namespace)
 
-            withAnimation(config.animation.delay(0.1)) {
-                fadeIn = true
+            VStack(alignment: .leading, spacing: 2) {
+                Text(song?.title ?? "Not Playing")
+                    .font(.system(size: 16, weight: .bold))
+                    .foregroundStyle(.white)
+                    .lineLimit(1)
+                    .matchedGeometryEffect(id: "title", in: namespace)
+
+                Text(song?.artist ?? "Unknown Artist")
+                    .font(.system(size: 14))
+                    .foregroundStyle(.white.opacity(0.7))
+                    .lineLimit(1)
+                    .matchedGeometryEffect(id: "artist", in: namespace)
+            }
+
+            Spacer()
+        }
+        .padding(.horizontal, 24)
+        .padding(.top, 20)
+        .padding(.bottom, 10)
+        .contentShape(Rectangle())
+        .onTapGesture {
+            withAnimation(.spring(response: 0.5, dampingFraction: 0.8)) {
+                isShowingQueue = false
+                isShowingLyrics = false
+                config.isQueueOpen = false
+                hideKeyboard()
             }
         }
-        .onDisappear {
-            // Unlock when dismissed
-            AppDelegate.orientationLock = .allButUpsideDown
+    }
 
-            DispatchQueue.main.async {
-                if let windowScene = UIApplication.shared.connectedScenes
-                    .compactMap({ $0 as? UIWindowScene })
-                    .first(where: { $0.activationState == .foregroundActive }),
-                   let rootVC = windowScene.keyWindow?.rootViewController {
+    // MARK: - Queue List
+
+    private var queueList: some View {
+        ScrollView(showsIndicators: false) {
+            LazyVStack(spacing: 16) {
+                ForEach(libraryViewModel.queueSnapshot, id: \.id) { queueSong in
+                    let isCurrent = libraryViewModel.currentSong?.id == queueSong.id
                     
-                    rootVC.setNeedsUpdateOfSupportedInterfaceOrientations()
-                }
-            }
+                    HStack(spacing: 12) {
+                        if let data = queueSong.artworkData, let image = UIImage(data: data) {
+                            Image(uiImage: image)
+                                .resizable()
+                                .scaledToFill()
+                                .frame(width: 44, height: 44)
+                                .clipShape(RoundedRectangle(cornerRadius: 6))
+                        } else {
+                            RoundedRectangle(cornerRadius: 6)
+                                .fill(Color(uiColor: .secondarySystemFill))
+                                .frame(width: 44, height: 44)
+                                .overlay(Image(systemName: "music.note").foregroundStyle(.secondary))
+                        }
 
-            fadeIn = false
-        }
-        .preferredColorScheme(.dark)
-
-        // MARK: - Sheets
-
-        .sheet(isPresented: $showSleepTimerSheet) {
-            SleepTimerPickerView()
-                .environmentObject(sleepTimerManager)
-        }
-
-        .sheet(item: $infoSong) { song in
-            NavigationStack {
-                SongInfoView(song: song)
-                    .toolbar {
-                        ToolbarItem(placement: .confirmationAction) {
-                            Button("Done") { infoSong = nil }
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(queueSong.title)
+                                .font(.system(size: 15, weight: isCurrent ? .bold : .medium))
+                                .foregroundStyle(isCurrent ? .accentColor : .white)
+                                .lineLimit(1)
+                            Text(queueSong.artist)
+                                .font(.system(size: 13))
+                                .foregroundStyle(.white.opacity(0.6))
+                                .lineLimit(1)
+                        }
+                        
+                        Spacer()
+                        
+                        if let lyrics = queueSong.lyrics, !lyrics.isEmpty {
+                            Image(systemName: "quote.bubble.fill")
+                                .font(.system(size: 12))
+                                .foregroundStyle(.white.opacity(0.4))
+                        }
+                        
+                        if isCurrent && libraryViewModel.isPlaying {
+                            Image(systemName: "waveform")
+                                .foregroundStyle(Color.accentColor)
+                                .symbolEffect(.variableColor.iterative)
                         }
                     }
-            }
-        }
-
-        .sheet(isPresented: $showAddToPlaylist) {
-            if let song {
-                AddToPlaylistView(song: song)
-            }
-        }
-
-        .alert("Delete Song?", isPresented: $showDeleteAlert) {
-            Button("Delete", role: .destructive) {
-                if let song {
-                    libraryViewModel.deleteSong(song)
+                    .contentShape(Rectangle())
+                    .onTapGesture {
+                        libraryViewModel.play(queueSong, in: libraryViewModel.queueSnapshot)
+                    }
                 }
             }
-            Button("Cancel", role: .cancel) {}
-        } message: {
-            Text("Are you sure you want to delete \"\(song?.title ?? "")\" from your device?")
+            .padding(.horizontal, 24)
+            .padding(.top, 10)
+            .padding(.bottom, 20)
         }
     }
 
-    // MARK: - Artwork
+    // MARK: - Lyrics View
 
-    @ViewBuilder
-    private var artwork: some View {
-        if let artworkImage {
-            Image(uiImage: artworkImage)
-                .resizable()
-                .scaledToFill()
-        } else {
-            RoundedRectangle(cornerRadius: 5)
-                .fill(brandGradient)
-                .overlay {
-                    Image(systemName: "music.note")
-                        .font(.system(size: 64, weight: .light))
-                        .foregroundStyle(.white.opacity(0.35))
+    private var lyricsView: some View {
+        ZStack {
+            Color.clear
+                .contentShape(Rectangle())
+                .onTapGesture {
+                    hideKeyboard()
                 }
+
+            ScrollView(showsIndicators: false) {
+                VStack(spacing: 24) {
+                    
+                    if isEditingLyrics {
+                        VStack(spacing: 16) {
+                            TextEditor(text: $pastedLyrics)
+                                .focused($isLyricsFocused)
+                                .font(.system(size: 16))
+                                .foregroundColor(.white)
+                                .scrollContentBackground(.hidden)
+                                .padding(12)
+                                .background(Color.black.opacity(0.3))
+                                .cornerRadius(12)
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 12)
+                                        .stroke(Color.white.opacity(0.15), lineWidth: 1)
+                                )
+                                .frame(minHeight: 200)
+                                .overlay(alignment: .topLeading) {
+                                    if pastedLyrics.isEmpty {
+                                        Text("Paste lyrics here...")
+                                            .font(.system(size: 16))
+                                            .foregroundStyle(Color.white.opacity(0.5))
+                                            .padding(.horizontal, 16)
+                                            .padding(.vertical, 20)
+                                            .allowsHitTesting(false)
+                                    }
+                                }
+                                .padding(.horizontal, 24)
+                            
+                            // Action Buttons
+                            HStack(spacing: 16) {
+                                Button("Cancel") {
+                                    cancelEditing()
+                                }
+                                .buttonStyle(.bordered)
+                                .tint(.white.opacity(0.6))
+                                
+                                Button("Save Lyrics") {
+                                    saveLyrics()
+                                }
+                                .buttonStyle(.borderedProminent)
+                                .tint(Color.accentColor)
+                            }
+                        }
+                        .padding(.top, 20)
+                        .transition(.opacity)
+                        
+                    } else {
+                        if let lyrics = song?.lyrics, !lyrics.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                            Text(lyrics)
+                                .font(.system(size: 22, weight: .bold))
+                                .multilineTextAlignment(.center)
+                                .foregroundStyle(.white)
+                                .padding(.horizontal, 32)
+                                .padding(.top, 20)
+                                .lineSpacing(8)
+                            
+                            Button {
+                                startEditing(with: lyrics)
+                            } label: {
+                                Label("Edit Lyrics", systemImage: "pencil")
+                                    .font(.system(size: 15, weight: .semibold))
+                                    .foregroundStyle(.white)
+                                    .padding(.horizontal, 20)
+                                    .padding(.vertical, 10)
+                                    .background(Color.white.opacity(0.15))
+                                    .clipShape(Capsule())
+                            }
+                            .buttonStyle(.plain)
+                            
+                        } else {
+                            // No lyrics found
+                            Text("No lyrics found")
+                                .font(.title3)
+                                .foregroundStyle(.white.opacity(0.6))
+                                .padding(.top, 40)
+                            
+                            Button {
+                                startEditing(with: "")
+                            } label: {
+                                Label("Add Lyrics", systemImage: "plus")
+                                    .font(.system(size: 15, weight: .semibold))
+                                    .foregroundStyle(.white)
+                                    .padding(.horizontal, 20)
+                                    .padding(.vertical, 10)
+                                    .background(Color.white.opacity(0.15))
+                                    .clipShape(Capsule())
+                            }
+                            .buttonStyle(.plain)
+                        }
+                    }
+                }
+                .padding(.bottom, 40)
+            }
+        }
+        .onAppear {
+            let hasLyrics = !(song?.lyrics?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ?? true)
+            if hasLyrics {
+                isEditingLyrics = false
+            } else {
+                isEditingLyrics = true
+                pastedLyrics = ""
+            }
         }
     }
 
-    // MARK: - Playback controls
+    // MARK: - Lyrics Helpers
+
+    private func startEditing(with text: String) {
+        pastedLyrics = text
+        withAnimation(.easeInOut(duration: 0.25)) {
+            isEditingLyrics = true
+        }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+            isLyricsFocused = true
+        }
+    }
+    
+    private func cancelEditing() {
+        hideKeyboard()
+        pastedLyrics = song?.lyrics ?? ""
+        
+        withAnimation(.easeInOut(duration: 0.25)) {
+            isEditingLyrics = false
+        }
+    }
+
+    // MARK: - Bottom Bar
+
+    private var bottomBar: some View {
+        HStack {
+            
+            Button {
+                withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
+                    isShowingLyrics.toggle()
+                    isShowingQueue = false
+                    config.isQueueOpen = false
+                    if !isShowingLyrics { hideKeyboard() }
+                }
+            } label: {
+                ZStack {
+                    Circle()
+                        .fill(Color.white.opacity(isShowingLyrics ? 0.2 : 0.0))
+                        .frame(width: 40, height: 40)
+
+                    Image(systemName: "quote.bubble")
+                        .font(.system(size: 18, weight: .semibold))
+                        .foregroundStyle(.white)
+                }
+                .frame(width: 44, height: 44)
+                .contentShape(Circle())
+            }
+            .buttonStyle(.plain)
+
+            Spacer()
+
+            AudioRoutePickerView()
+                .frame(width: 44, height: 44)
+                .contentShape(Rectangle())
+
+            Spacer()
+
+            Button {
+                withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
+                    isShowingQueue.toggle()
+                    isShowingLyrics = false
+                    config.isQueueOpen = isShowingQueue
+                    if !isShowingQueue { hideKeyboard() }
+                }
+            } label: {
+                ZStack {
+                    Circle()
+                        .fill(Color.white.opacity(isShowingQueue ? 0.2 : 0.0))
+                        .frame(width: 40, height: 40)
+
+                    Image(systemName: isShowingQueue ? "xmark" : "music.note.list")
+                        .font(.system(size: 18, weight: .semibold))
+                        .foregroundStyle(.white)
+                        .contentTransition(.symbolEffect(.replace))
+                }
+                .frame(width: 44, height: 44)
+                .contentShape(Circle())
+            }
+            .buttonStyle(.plain)
+        }
+        .padding(.horizontal, 24)
+        .padding(.bottom, 10)
+    }
+
+    // MARK: - Playback Controls
 
     private var playbackControlsRow: some View {
         HStack(spacing: 0) {
@@ -437,12 +722,22 @@ struct MusicPlayerView: View {
         libraryViewModel.seek(toProgress: time / duration)
     }
     
-    // MARK: - Helpers
-    private func formatTime(_ time: TimeInterval) -> String {
-        guard time.isFinite && !time.isNaN && time >= 0 else { return "0:00" }
-        let mins = Int(time) / 60
-        let secs = Int(time) % 60
-        return String(format: "%d:%02d", mins, secs)
+    private func saveLyrics() {
+        if let song = song {
+            do {
+                try libraryViewModel.saveLyrics(pastedLyrics, for: song)
+                hideKeyboard()
+                withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
+                    isEditingLyrics = false
+                }
+            } catch {
+                print("Error saving lyrics: \(error)")
+            }
+        }
+    }
+    
+    private func hideKeyboard() {
+        UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
     }
 }
 

@@ -12,10 +12,9 @@ protocol MusicLibraryServiceProtocol {
     var libraryFolderURL: URL { get }
     func loadLibrary() async throws -> [Song]
     func delete(_ song: Song) throws
+    func saveLyrics(_ text: String, for song: Song) throws
 }
 
-/// Scans the app's Documents directory for audio files and extracts
-/// metadata from each.
 final class MusicLibraryService: MusicLibraryServiceProtocol {
 
     private let rootFolder: URL
@@ -54,10 +53,18 @@ final class MusicLibraryService: MusicLibraryServiceProtocol {
         }
     }
 
-    // MARK: - Delete
+    // MARK: - Delete & Save
 
     func delete(_ song: Song) throws {
         try FileManager.default.removeItem(at: song.url)
+        // Also delete the .lrc file if it exists
+        let lrcURL = song.url.deletingPathExtension().appendingPathExtension("lrc")
+        try? FileManager.default.removeItem(at: lrcURL)
+    }
+    
+    func saveLyrics(_ text: String, for song: Song) throws {
+        let lrcURL = song.url.deletingPathExtension().appendingPathExtension("lrc")
+        try text.write(to: lrcURL, atomically: true, encoding: .utf8)
     }
 
     // MARK: - Discovery
@@ -95,6 +102,10 @@ final class MusicLibraryService: MusicLibraryServiceProtocol {
         var genre  = "Unknown Genre"
         var duration: TimeInterval?
         var artworkData: Data?
+        
+        // Read the .lrc file if it exists
+        let lrcURL = url.deletingPathExtension().appendingPathExtension("lrc")
+        let lyrics = try? String(contentsOf: lrcURL, encoding: .utf8)
 
         // Duration
         if let cmDuration = try? await asset.load(.duration), cmDuration.isNumeric {
@@ -161,7 +172,8 @@ final class MusicLibraryService: MusicLibraryServiceProtocol {
             genre: genre,
             duration: duration,
             artworkData: artworkData,
-            dateAdded: dateAdded
+            dateAdded: dateAdded,
+            lyrics: lyrics
         )
     }
 }
