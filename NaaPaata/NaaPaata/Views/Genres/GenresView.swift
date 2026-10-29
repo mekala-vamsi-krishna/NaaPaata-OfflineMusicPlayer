@@ -16,6 +16,7 @@ struct GenresView: View {
     @EnvironmentObject private var libraryViewModel: MusicLibraryViewModel
 
     @State private var searchText = ""
+    @State private var showHelpSheet = false
 
     private let columns = [
         GridItem(.adaptive(minimum: 160, maximum: 220), spacing: 16)
@@ -48,6 +49,11 @@ struct GenresView: View {
             placement: .navigationBarDrawer(displayMode: .always),
             prompt: "Search genres"
         )
+        .sheet(isPresented: $showHelpSheet) {
+            UploadHelpSheet()
+                .presentationDetents([.large])
+                .presentationDragIndicator(.visible)
+        }
     }
 
     // MARK: - Grid
@@ -79,12 +85,42 @@ struct GenresView: View {
     }
 
     // MARK: - Empty state
-
+    
     private var emptyState: some View {
-        ContentUnavailableView {
-            Label("No Genres Yet", systemImage: "guitars")
-        } description: {
+        VStack(spacing: 16) {
+            Image(systemName: "guitars")
+                .font(.system(size: 44, weight: .light))
+                .foregroundStyle(.secondary)
+
+            Text("No Genres Yet")
+                .font(.title3.weight(.semibold))
+
             Text("Genres are created automatically from your songs' genre metadata.")
+                .font(.callout)
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
+                .frame(maxWidth: 320)
+            
+            // Help Button
+            Button {
+                showHelpSheet = true
+            } label: {
+                HStack(spacing: 8) {
+                    Image(systemName: "questionmark.circle")
+                        .font(.system(size: 16, weight: .semibold))
+                    Text("How to upload songs?")
+                        .font(.system(size: 14, weight: .semibold))
+                }
+                .foregroundStyle(Color.accentColor)
+                .padding(.horizontal, 16)
+                .padding(.vertical, 10)
+                .background(Color.accentColor.opacity(0.12))
+                .clipShape(Capsule())
+            }
+            .buttonStyle(.plain)
+            .padding(.top, 8)
         }
+        .padding(40)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 }
