@@ -63,6 +63,13 @@
 			);
 			target = AC3A0F2E2E7538B9000CFC19 /* NaaPaata */;
 		};
+		ACD3A43C3093DAF8006E6629 /* Exceptions for "Mac" folder in "MusicPlayerWidgetExtension" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Services/LibraryCacheManager.swift,
+			);
+			target = AC6FFBBF2FEE7D950017897E /* MusicPlayerWidgetExtension */;
+		};
 		ACD60D53306901BA0015005E /* Exceptions for "NaaPaata" folder in "NaaPaata" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
@@ -135,6 +142,7 @@
 			isa = PBXFileSystemSynchronizedRootGroup;
 			exceptions = (
 				ACB13D753076ACF500932085 /* Exceptions for "Mac" folder in "NaaPaata" target */,
+				ACD3A43C3093DAF8006E6629 /* Exceptions for "Mac" folder in "MusicPlayerWidgetExtension" target */,
 			);
 			path = Mac;
 			sourceTree = "<group>";

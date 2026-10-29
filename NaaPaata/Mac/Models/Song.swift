@@ -7,7 +7,7 @@
 
 import Foundation
 
-struct Song: Identifiable, Hashable {
+struct Song: Identifiable, Hashable, Codable {
     let url: URL
     let title: String
     let artist: String

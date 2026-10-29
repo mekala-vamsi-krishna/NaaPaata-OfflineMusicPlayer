@@ -84,6 +84,15 @@ final class MusicLibraryViewModel: ObservableObject {
         self.libraryService = libraryService
         self.playerService = playerService
         self.playbackStateService = playbackStateService
+        
+        if let cachedSongs = LibraryCacheManager.shared.load() {
+            self.songs = cachedSongs
+            self.albums = Self.groupAlbums(from: cachedSongs)
+            self.artists = Self.groupArtists(from: cachedSongs)
+            self.genres = Self.groupGenres(from: cachedSongs)
+            self.isLoading = false
+        }
+        
         bindPlayer()
 //        startLibraryWatcher()
 
@@ -185,7 +194,10 @@ final class MusicLibraryViewModel: ObservableObject {
     // MARK: - Library
 
     func loadLibrary() async {
-        isLoading = true
+        if songs.isEmpty {
+            isLoading = true
+        }
+        
         defer { isLoading = false }
 
         do {
@@ -194,6 +206,8 @@ final class MusicLibraryViewModel: ObservableObject {
             self.albums = Self.groupAlbums(from: songs)
             self.artists = Self.groupArtists(from: songs)
             self.genres = Self.groupGenres(from: songs)
+            
+            LibraryCacheManager.shared.save(songs)
 
             // Compute total on-disk size off the main actor.
             await refreshLibrarySize()

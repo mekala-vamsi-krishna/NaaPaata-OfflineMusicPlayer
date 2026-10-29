@@ -67,6 +67,14 @@ class MusicLibraryViewModel: ObservableObject {
         self.folderService = folderService
         self.playHistoryService = playHistoryService
         self.progressStore = progressStore
+        
+        if let cachedSongs = LibraryCacheManager.shared.load() {
+            self.songs = cachedSongs
+            self.albums = Self.groupAlbums(from: cachedSongs)
+            self.artists = Self.groupArtists(from: cachedSongs)
+            self.genres = Self.groupGenres(from: cachedSongs)
+            self.isLoading = false
+        }
 
         bindPlayer()
         setupRemoteCommandCenter()
@@ -80,14 +88,20 @@ class MusicLibraryViewModel: ObservableObject {
 
     // MARK: - Library
     func loadLibrary() async {
-        isLoading = true
+        if songs.isEmpty {
+            isLoading = true
+        }
+        
         defer { isLoading = false }
+        
         do {
             let songs = try await libraryService.loadLibrary()
             self.songs = songs
             self.albums = Self.groupAlbums(from: songs)
             self.artists = Self.groupArtists(from: songs)
             self.genres = Self.groupGenres(from: songs)
+            
+            LibraryCacheManager.shared.save(songs)
         } catch {
             self.errorMessage = error.localizedDescription
         }
@@ -96,7 +110,11 @@ class MusicLibraryViewModel: ObservableObject {
     func refresh() async { await loadLibrary() }
 
     @MainActor
-    func syncLibrary() async { await loadLibrary() }
+    func syncLibrary() async {
+        if !isPlaying {
+            await loadLibrary()
+        }
+    }
 
     func deleteSong(_ song: Song) {
         do {
