@@ -1,11 +1,5 @@
 //
-//  FolderSetupView.swift
-//  NaaPaataForMac
-//
-//  Created by Mekala Vamsi Krishna on 9/11/26.
-//
-//
-//  FolderSetupView.swift
+//  HomeView.swift
 //  NaaPaataForMac
 //
 //  Created by Mekala Vamsi Krishna on 9/11/26.
@@ -112,7 +106,7 @@ struct HomeView: View {
         }
 
         .task {
-            await viewModel.restoreLastSession()
+            await viewModel.restorePlaybackState()
         }
 
         .alert(

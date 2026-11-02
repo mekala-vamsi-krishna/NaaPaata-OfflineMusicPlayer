@@ -16,6 +16,7 @@ struct SongsView: View {
     @AppStorage("songs.sortOption") private var storedSortRawValue = SongSortOption.titleAscending.rawValue
 
     @State private var navigateToEqualizer = false
+    @State private var showHelpSheet = false
 
     private var displayedSongs: [Song] {
         viewModel.songs.sorted(by: sortOption.areInIncreasingOrder)
@@ -56,6 +57,11 @@ struct SongsView: View {
                 }
             }
         }
+        .sheet(isPresented: $showHelpSheet) {
+            UploadHelpSheet()
+                .presentationDetents([.large])
+                .presentationDragIndicator(.visible)
+        }
     }
 
     // MARK: - List
@@ -95,7 +101,7 @@ struct SongsView: View {
     // MARK: - Empty state
 
     private var emptyState: some View {
-        VStack(spacing: 12) {
+        VStack(spacing: 16) {
             Image(systemName: "music.note.list")
                 .font(.system(size: 44, weight: .light))
                 .foregroundStyle(.secondary)
@@ -108,6 +114,25 @@ struct SongsView: View {
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
                 .frame(maxWidth: 320)
+            
+            // Help Button
+            Button {
+                showHelpSheet = true
+            } label: {
+                HStack(spacing: 8) {
+                    Image(systemName: "questionmark.circle")
+                        .font(.system(size: 16, weight: .semibold))
+                    Text("How to upload songs?")
+                        .font(.system(size: 14, weight: .semibold))
+                }
+                .foregroundStyle(Color.accentColor)
+                .padding(.horizontal, 16)
+                .padding(.vertical, 10)
+                .background(Color.accentColor.opacity(0.12))
+                .clipShape(Capsule())
+            }
+            .buttonStyle(.plain)
+            .padding(.top, 8)
         }
         .padding(40)
         .frame(maxWidth: .infinity, maxHeight: .infinity)

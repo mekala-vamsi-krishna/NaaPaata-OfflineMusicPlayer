@@ -37,7 +37,8 @@ class MusicLibraryViewModel: ObservableObject {
     let progressStore: PlaybackProgressStore
     private let playHistoryService: PlayHistoryService
 
-    private var cancellables = Set<AnyCancellable>()
+    private var playerTasks: [Task<Void, Never>] = []
+    private var pendingPauseTask: Task<Void, Never>?
 
     // MARK: - Queue
     private var queue: [Song] = []
@@ -66,22 +67,41 @@ class MusicLibraryViewModel: ObservableObject {
         self.folderService = folderService
         self.playHistoryService = playHistoryService
         self.progressStore = progressStore
+        
+        if let cachedSongs = LibraryCacheManager.shared.load() {
+            self.songs = cachedSongs
+            self.albums = Self.groupAlbums(from: cachedSongs)
+            self.artists = Self.groupArtists(from: cachedSongs)
+            self.genres = Self.groupGenres(from: cachedSongs)
+            self.isLoading = false
+        }
 
         bindPlayer()
         setupRemoteCommandCenter()
         observeAppLifecycle()
     }
 
+    deinit {
+        playerTasks.forEach { $0.cancel() }
+        pendingPauseTask?.cancel()
+    }
+
     // MARK: - Library
     func loadLibrary() async {
-        isLoading = true
+        if songs.isEmpty {
+            isLoading = true
+        }
+        
         defer { isLoading = false }
+        
         do {
             let songs = try await libraryService.loadLibrary()
             self.songs = songs
             self.albums = Self.groupAlbums(from: songs)
             self.artists = Self.groupArtists(from: songs)
             self.genres = Self.groupGenres(from: songs)
+            
+            LibraryCacheManager.shared.save(songs)
         } catch {
             self.errorMessage = error.localizedDescription
         }
@@ -90,7 +110,11 @@ class MusicLibraryViewModel: ObservableObject {
     func refresh() async { await loadLibrary() }
 
     @MainActor
-    func syncLibrary() async { await loadLibrary() }
+    func syncLibrary() async {
+        if !isPlaying {
+            await loadLibrary()
+        }
+    }
 
     func deleteSong(_ song: Song) {
         do {
@@ -197,7 +221,6 @@ class MusicLibraryViewModel: ObservableObject {
         if let duration = currentSong?.duration, duration > 0 {
             progressStore.elapsed = value * duration
             progressStore.progress = value
-            
             updateNowPlayingInfo()
         }
         persistState()
@@ -236,7 +259,7 @@ class MusicLibraryViewModel: ObservableObject {
               let context = AppDelegate.modelContainer?.mainContext else { return }
         
         let service = FavouritesService(context: context)
-        try? service.toggleFavourite(relativePath)
+        _ = try? service.toggleFavourite(relativePath)
         updateFavouriteState()
     }
 
@@ -264,63 +287,78 @@ class MusicLibraryViewModel: ObservableObject {
         syncWidget()
     }
 
+    // MARK: - Async/Await Observation
     private func bindPlayer() {
-        playerService.isPlayingPublisher
-            .receive(on: DispatchQueue.main)
-            .sink { [weak self] playing in
-                guard let self else { return }
-                self.isPlaying = playing
-                
-                Task.detached(priority: .userInitiated) {
-                    do {
-                        if playing {
-                            try AVAudioSession.sharedInstance().setActive(true)
-                        } else {
-                            try AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
+        // Observe isPlaying
+        playerTasks.append(Task { [weak self] in
+            guard let self = self else { return }
+            for await playing in self.playerService.isPlayingPublisher.values {
+                if playing {
+                    // Cancel pending pause updates if playback resumes/starts
+                    self.pendingPauseTask?.cancel()
+                    await MainActor.run {
+                        self.isPlaying = true
+                        self.updateNowPlayingInfo()
+                        self.syncWidget()
+                    }
+                } else {
+                    // Debounce: Wait 150ms before showing the Pause state
+                    self.pendingPauseTask?.cancel()
+                    self.pendingPauseTask = Task { [weak self] in
+                        try? await Task.sleep(nanoseconds: 150_000_000)
+                        guard !Task.isCancelled else { return }
+                        
+                        await MainActor.run {
+                            self?.isPlaying = false
+                            self?.updateNowPlayingInfo()
+                            self?.syncWidget()
                         }
-                    } catch {
-                        print("Failed to set audio session state: \(error)")
                     }
                 }
-                
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                    self.updateNowPlayingInfo()
+            }
+        })
+        
+        // Observe elapsed time
+        playerTasks.append(Task { [weak self] in
+            guard let self = self else { return }
+            for await newElapsed in self.playerService.elapsedPublisher.values {
+                await MainActor.run {
+                    self.progressStore.elapsed = newElapsed
                 }
-                
-                self.syncWidget()
             }
-            .store(in: &cancellables)
+        })
         
-        playerService.elapsedPublisher
-            .receive(on: DispatchQueue.main)
-            .sink { [weak self] newElapsed in
-                guard let self else { return }
-                self.progressStore.elapsed = newElapsed
+        // Observe progress
+        playerTasks.append(Task { [weak self] in
+            guard let self = self else { return }
+            for await newProgress in self.playerService.progressPublisher.values {
+                await MainActor.run {
+                    self.progressStore.progress = newProgress
+                    
+                    let now = Date()
+                    guard now.timeIntervalSince(self.lastPersistDate) >= self.persistInterval, self.isPlaying else { return }
+                    self.persistState()
+                }
             }
-            .store(in: &cancellables)
+        })
         
-        playerService.progressPublisher
-            .receive(on: DispatchQueue.main)
-            .sink { [weak self] newProgress in
-                guard let self else { return }
-                self.progressStore.progress = newProgress
-                
-                let now = Date()
-                guard now.timeIntervalSince(self.lastPersistDate) >= self.persistInterval, self.isPlaying else { return }
-                self.persistState()
+        // Observe track finished
+        playerTasks.append(Task { [weak self] in
+            guard let self = self else { return }
+            for await _ in self.playerService.trackDidFinishPublisher.values {
+                await MainActor.run {
+                    self.handleTrackFinished()
+                }
             }
-            .store(in: &cancellables)
-        
-        playerService.trackDidFinishPublisher
-            .receive(on: DispatchQueue.main)
-            .sink { [weak self] in self?.handleTrackFinished() }
-            .store(in: &cancellables)
+        })
     }
 
     private func handleTrackFinished() {
         switch repeatMode {
-        case .one: if let current = currentSong { startPlayback(of: current) }
-        case .all, .off: playNext()
+        case .one:
+            if let current = currentSong { startPlayback(of: current) }
+        case .all, .off:
+            playNext()
         }
     }
 
@@ -352,14 +390,10 @@ class MusicLibraryViewModel: ObservableObject {
     // MARK: - Lyrics
     
     func saveLyrics(_ text: String, for song: Song) throws {
-        // Save to disk
         try libraryService.saveLyrics(text, for: song)
         
-        // Update the in-memory array
         if let index = songs.firstIndex(where: { $0.id == song.id }) {
             songs[index].lyrics = text
-            
-            // Update currentSong if it's the one playing
             if currentSong?.id == song.id {
                 currentSong = songs[index]
             }

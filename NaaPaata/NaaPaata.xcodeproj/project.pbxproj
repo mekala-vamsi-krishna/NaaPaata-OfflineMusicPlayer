@@ -63,6 +63,13 @@
 			);
 			target = AC3A0F2E2E7538B9000CFC19 /* NaaPaata */;
 		};
+		ACD3A43C3093DAF8006E6629 /* Exceptions for "Mac" folder in "MusicPlayerWidgetExtension" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Services/LibraryCacheManager.swift,
+			);
+			target = AC6FFBBF2FEE7D950017897E /* MusicPlayerWidgetExtension */;
+		};
 		ACD60D53306901BA0015005E /* Exceptions for "NaaPaata" folder in "NaaPaata" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
@@ -135,6 +142,7 @@
 			isa = PBXFileSystemSynchronizedRootGroup;
 			exceptions = (
 				ACB13D753076ACF500932085 /* Exceptions for "Mac" folder in "NaaPaata" target */,
+				ACD3A43C3093DAF8006E6629 /* Exceptions for "Mac" folder in "MusicPlayerWidgetExtension" target */,
 			);
 			path = Mac;
 			sourceTree = "<group>";
@@ -604,7 +612,6 @@
 				CURRENT_PROJECT_VERSION = 1;
 				DEAD_CODE_STRIPPING = YES;
 				ENABLE_APP_SANDBOX = YES;
-				ENABLE_FILE_ACCESS_MUSIC_FOLDER = readwrite;
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_INCOMING_NETWORK_CONNECTIONS = NO;
 				ENABLE_OUTGOING_NETWORK_CONNECTIONS = NO;
@@ -617,7 +624,7 @@
 				ENABLE_RESOURCE_ACCESS_LOCATION = NO;
 				ENABLE_RESOURCE_ACCESS_PRINTING = NO;
 				ENABLE_RESOURCE_ACCESS_USB = NO;
-				ENABLE_USER_SELECTED_FILES = readonly;
+				ENABLE_USER_SELECTED_FILES = readwrite;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = "Naa Paata";
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.music";
@@ -651,7 +658,6 @@
 				CURRENT_PROJECT_VERSION = 1;
 				DEAD_CODE_STRIPPING = YES;
 				ENABLE_APP_SANDBOX = YES;
-				ENABLE_FILE_ACCESS_MUSIC_FOLDER = readwrite;
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_INCOMING_NETWORK_CONNECTIONS = NO;
 				ENABLE_OUTGOING_NETWORK_CONNECTIONS = NO;
@@ -664,7 +670,7 @@
 				ENABLE_RESOURCE_ACCESS_LOCATION = NO;
 				ENABLE_RESOURCE_ACCESS_PRINTING = NO;
 				ENABLE_RESOURCE_ACCESS_USB = NO;
-				ENABLE_USER_SELECTED_FILES = readonly;
+				ENABLE_USER_SELECTED_FILES = readwrite;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = "Naa Paata";
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.music";

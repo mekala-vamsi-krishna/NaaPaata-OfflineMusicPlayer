@@ -462,23 +462,32 @@ struct PaywallView: View {
     // MARK: - Legal
 
     private var legalSection: some View {
-        VStack(spacing: 10) {
+        VStack(spacing: 12) {
 
             Text("Subscription automatically renews unless cancelled at least 24 hours before the end of the current period. Manage or cancel anytime in System Settings.")
-                .font(.system(size: 10))
-                .foregroundStyle(.tertiary)
+                .font(.system(size: 11))
+                .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
                 .fixedSize(horizontal: false, vertical: true)
                 .padding(.horizontal, 20)
 
-            HStack(spacing: 10) {
-                Button("Terms of Use") { openURL("https://naapaata.app/terms") }
-                Text("·").foregroundStyle(.tertiary)
-                Button("Privacy Policy") { openURL("https://naapaata.app/privacy") }
+            HStack(spacing: 16) {
+                Button("Terms of Use") {
+                    openURL("https://doc-hosting.flycricket.io/naa-paata-terms-of-use/e91b4e23-3903-4bd3-a751-796f7fa41b75/terms")
+                }
+                .underline()
+                
+                Text("•")
+                    .foregroundStyle(.secondary)
+                
+                Button("Privacy Policy") {
+                    openURL("https://doc-hosting.flycricket.io/naa-paata-privacy-policy/18f4820c-07e6-431e-85ad-d228302f8335/privacy")
+                }
+                .underline()
             }
             .buttonStyle(.plain)
-            .font(.system(size: 10))
-            .foregroundStyle(.tertiary)
+            .font(.system(size: 12, weight: .medium)) // Increased size for reviewers
+            .foregroundStyle(.primary) // Changed to primary so it stands out
         }
     }
 

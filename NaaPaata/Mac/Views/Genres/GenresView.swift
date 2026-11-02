@@ -25,7 +25,7 @@ struct GenresView: View {
                     systemImage: "guitars",
                     message: "Add audio files with genre metadata to see them here.",
                     actionTitle: "Open Library Folder",
-                    action: viewModel.revealLibraryInFinder
+                    action: viewModel.revealLibraryFolder
                 )
             } else {
                 grid

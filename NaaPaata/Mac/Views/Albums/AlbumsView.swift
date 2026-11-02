@@ -24,7 +24,7 @@ struct AlbumsView: View {
                     systemImage: "square.stack",
                     message: "Albums are created automatically from your songs' album metadata.",
                     actionTitle: "Open Library Folder",
-                    action: viewModel.revealLibraryInFinder
+                    action: viewModel.revealLibraryFolder
                 )
             } else {
                 albumGrid

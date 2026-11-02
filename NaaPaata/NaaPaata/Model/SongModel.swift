@@ -7,7 +7,7 @@
 
 import Foundation
 
-struct Song: Identifiable {
+struct Song: Identifiable, Codable {
     var id: URL { url }
     let url: URL
     let title: String

@@ -19,7 +19,7 @@ struct ArtistsView: View {
                     systemImage: "music.mic",
                     message: "Add audio files with artist metadata to see them here.",
                     actionTitle: "Open Library Folder",
-                    action: viewModel.revealLibraryInFinder
+                    action: viewModel.revealLibraryFolder
                 )
             } else {
                 artistList

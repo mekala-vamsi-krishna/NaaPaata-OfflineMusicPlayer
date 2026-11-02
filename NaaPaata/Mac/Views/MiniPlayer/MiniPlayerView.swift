@@ -78,12 +78,12 @@ struct MiniPlayerView: View {
             if viewModel.songs.isEmpty {
                 try? await Task.sleep(nanoseconds: 500_000_000) // 0.5 seconds
             }
-            await viewModel.restoreLastSession()
+            await viewModel.restorePlaybackState()
         }
         .onChange(of: viewModel.songs.isEmpty) { _, isEmpty in
             // If the library loads *after* this view appears, trigger restore
             if !isEmpty {
-                Task { await viewModel.restoreLastSession() }
+                Task { await viewModel.restorePlaybackState() }
             }
         }
     }

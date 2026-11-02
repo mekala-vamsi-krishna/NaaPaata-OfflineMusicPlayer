@@ -13,6 +13,8 @@ struct AlbumsView: View {
 
     @State private var searchText = ""
     @State private var sortOption: AlbumSortOption = .titleAscending
+    @State private var showHelpSheet = false
+    
     @AppStorage("albums.sortOption") private var storedSortRawValue = AlbumSortOption.titleAscending.rawValue
 
     private let columns = [
@@ -50,6 +52,11 @@ struct AlbumsView: View {
         }
         .onChange(of: sortOption) { _, newValue in
             storedSortRawValue = newValue.rawValue
+        }
+        .sheet(isPresented: $showHelpSheet) {
+            UploadHelpSheet()
+                .presentationDetents([.large])
+                .presentationDragIndicator(.visible)
         }
     }
 
@@ -90,7 +97,7 @@ struct AlbumsView: View {
     // MARK: - Empty state
 
     private var emptyState: some View {
-        VStack(spacing: 12) {
+        VStack(spacing: 16) {
             Image(systemName: "square.stack")
                 .font(.system(size: 44, weight: .light))
                 .foregroundStyle(.secondary)
@@ -103,6 +110,25 @@ struct AlbumsView: View {
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
                 .frame(maxWidth: 320)
+            
+            // Help Button
+            Button {
+                showHelpSheet = true
+            } label: {
+                HStack(spacing: 8) {
+                    Image(systemName: "questionmark.circle")
+                        .font(.system(size: 16, weight: .semibold))
+                    Text("How to upload songs?")
+                        .font(.system(size: 14, weight: .semibold))
+                }
+                .foregroundStyle(Color.accentColor)
+                .padding(.horizontal, 16)
+                .padding(.vertical, 10)
+                .background(Color.accentColor.opacity(0.12))
+                .clipShape(Capsule())
+            }
+            .buttonStyle(.plain)
+            .padding(.top, 8)
         }
         .padding(40)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
