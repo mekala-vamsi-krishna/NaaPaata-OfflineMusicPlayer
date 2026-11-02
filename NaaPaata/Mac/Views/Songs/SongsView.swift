@@ -10,7 +10,6 @@ import SwiftData
 
 struct SongsView: View {
     @Environment(\.modelContext) private var modelContext
-    
     @EnvironmentObject private var router: AppRouter
 
     @ObservedObject var viewModel: MusicLibraryViewModel
@@ -33,12 +32,17 @@ struct SongsView: View {
             if viewModel.isLoading && viewModel.songs.isEmpty {
                 LoadingView()
             } else if viewModel.songs.isEmpty {
+                // MARK: - Updated Empty State
                 EmptyStateView(
                     title: "No Songs Yet",
                     systemImage: "music.note",
-                    message: "Add audio files to ~/Music/Naa Paata to see them here.",
-                    actionTitle: "Open Library Folder",
-                    action: viewModel.revealLibraryInFinder
+                    message: "Choose a folder on your Mac containing your music files to get started.",
+                    actionTitle: "Choose Folder",
+                    action: {
+                        Task {
+                            await viewModel.selectFolder()
+                        }
+                    }
                 )
             } else {
                 songList

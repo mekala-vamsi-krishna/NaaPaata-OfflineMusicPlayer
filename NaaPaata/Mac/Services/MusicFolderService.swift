@@ -10,112 +10,111 @@ import AppKit
 import UniformTypeIdentifiers
 
 enum MusicFolderError: LocalizedError {
-    case creationFailed(URL, Error)
+    case noFolderSelected
+    case accessDenied
 
     var errorDescription: String? {
         switch self {
-        case .creationFailed(let url, let error):
-            return "Failed to create \(url.path): \(error.localizedDescription)"
+        case .noFolderSelected:
+            return "No music folder selected. Please choose a folder."
+        case .accessDenied:
+            return "Could not access the selected folder. Please select it again."
         }
     }
 }
 
 final class MusicFolderService {
 
-    static let folderName = "Naa Paata"
+    private let bookmarkKey = "NaaPaataLibraryBookmark"
 
-    private let fileManager: FileManager
+    // MARK: - Folder Selection
 
-    init(fileManager: FileManager = .default) {
-        self.fileManager = fileManager
-    }
+    /// Prompts the user to pick a folder using async/await to prevent UI blocking.
+    @MainActor
+    func promptForFolderSelection() async -> URL? {
+        let panel = NSOpenPanel()
+        panel.canChooseDirectories = true
+        panel.canChooseFiles = false
+        panel.allowsMultipleSelection = false
+        panel.canCreateDirectories = true
+        panel.message = "Select or create a folder for your Naa Paata music library."
+        panel.prompt = "Select Folder"
 
-    var naaPaataFolderURL: URL {
-        fileManager.homeDirectoryForCurrentUser
-            .appendingPathComponent("Music", isDirectory: true)
-            .appendingPathComponent(Self.folderName, isDirectory: true)
-    }
-
-    @discardableResult
-    func ensureNaaPaataFolderExists() throws -> URL {
-        let folder = naaPaataFolderURL
-
-        if !fileManager.fileExists(atPath: folder.path) {
-            do {
-                try fileManager.createDirectory(
-                    at: folder,
-                    withIntermediateDirectories: true,
-                    attributes: nil
-                )
-            } catch {
-                throw MusicFolderError.creationFailed(folder, error)
-            }
+        // Use the async version of begin() instead of runModal()
+        let response = await panel.begin()
+        
+        guard response == .OK, let url = panel.url else {
+            return nil
         }
 
-        setFolderIcon(on: folder)
-        return folder
+        do {
+            try saveBookmark(for: url)
+            setFolderIcon(on: url)
+            return url
+        } catch {
+            print("⚠️ Failed to save bookmark: \(error)")
+            return nil
+        }
+    }
+
+    // MARK: - Bookmarks
+
+    func resolveBookmark() -> URL? {
+        guard let data = UserDefaults.standard.data(forKey: bookmarkKey) else { return nil }
+        
+        var isStale = false
+        do {
+            let url = try URL(
+                resolvingBookmarkData: data,
+                options: [.withSecurityScope],
+                relativeTo: nil,
+                bookmarkDataIsStale: &isStale
+            )
+            
+            if isStale {
+                try? saveBookmark(for: url)
+            }
+            return url
+        } catch {
+            print("⚠️ Failed to resolve bookmark: \(error)")
+            return nil
+        }
+    }
+
+    private func saveBookmark(for url: URL) throws {
+        let data = try url.bookmarkData(
+            options: [.withSecurityScope],
+            includingResourceValuesForKeys: nil,
+            relativeTo: nil
+        )
+        UserDefaults.standard.set(data, forKey: bookmarkKey)
+    }
+    
+    func clearBookmark() {
+        UserDefaults.standard.removeObject(forKey: bookmarkKey)
     }
 
     // MARK: - Folder icon
-
-    /// Builds a composite icon — the system folder shape with the app icon
-    /// overlaid in its centre — and applies it to `folder`.
     private func setFolderIcon(on folder: URL) {
         guard let appIcon = NSApp.applicationIconImage else { return }
         let folderIcon = NSWorkspace.shared.icon(for: .folder)
 
-        let composed = makeComposedIcon(
-            folder: folderIcon,
-            app: appIcon,
-            size: 512
-        )
-
-        let success = NSWorkspace.shared.setIcon(
-            composed,
-            forFile: folder.path,
-            options: []
-        )
-
+        let composed = makeComposedIcon(folder: folderIcon, app: appIcon, size: 512)
+        let success = NSWorkspace.shared.setIcon(composed, forFile: folder.path, options: [])
+        
         if !success {
             print("⚠️ Could not set folder icon at \(folder.path)")
         }
     }
 
-    /// Composites the folder icon as a base and the app icon on top.
-    ///
-    /// - `folder`  — the base image (macOS folder shape)
-    /// - `app`     — the overlay image (the app's icon)
-    /// - `size`    — canvas size in points; 512 matches modern macOS icons
-    private func makeComposedIcon(
-        folder: NSImage,
-        app: NSImage,
-        size: CGFloat
-    ) -> NSImage {
+    private func makeComposedIcon(folder: NSImage, app: NSImage, size: CGFloat) -> NSImage {
         let canvas = NSSize(width: size, height: size)
-
         return NSImage(size: canvas, flipped: false) { rect in
-            // MARK: Base — system folder
-            folder.draw(
-                in: rect,
-                from: .zero,
-                operation: .sourceOver,
-                fraction: 1.0
-            )
-
-            // MARK: Overlay — app icon, centred inside the folder body
+            folder.draw(in: rect, from: .zero, operation: .sourceOver, fraction: 1.0)
+            
             let appSide = rect.width * 0.55
-            let appOrigin = NSPoint(
-                x: rect.midX - appSide / 2,
-                y: rect.minY + rect.height * 0.18
-            )
-
-            app.draw(
-                in: NSRect(origin: appOrigin, size: NSSize(width: appSide, height: appSide)),
-                from: .zero,
-                operation: .sourceOver,
-                fraction: 1.0
-            )
-
+            let appOrigin = NSPoint(x: rect.midX - appSide / 2, y: rect.minY + rect.height * 0.18)
+            app.draw(in: NSRect(origin: appOrigin, size: NSSize(width: appSide, height: appSide)), from: .zero, operation: .sourceOver, fraction: 1.0)
             return true
         }
     }

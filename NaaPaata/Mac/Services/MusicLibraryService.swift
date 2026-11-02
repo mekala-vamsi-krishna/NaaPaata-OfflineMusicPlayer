@@ -12,32 +12,38 @@ protocol MusicLibraryServiceProtocol {
     /// Scans the library folder and returns a sorted list of songs.
     func loadLibrary() async throws -> [Song]
     func delete(_ song: Song) throws
-    var libraryFolderURL: URL { get }
+    var libraryFolderURL: URL? { get }
 }
 
 /// Scans `~/Music/Naa Paata`, reads ID3/metadata, and produces `Song` values.
 final class MusicLibraryService: MusicLibraryServiceProtocol {
 
     private let folderService: MusicFolderService
-
-    /// Extensions we treat as playable audio.
+    
     private static let supportedExtensions: Set<String> = [
         "mp3", "m4a", "aac", "wav", "aif", "aiff", "caf",
         "flac", "alac", "ogg", "oga", "opus"
     ]
-
+    
     init(folderService: MusicFolderService) {
         self.folderService = folderService
     }
-
-    var libraryFolderURL: URL { folderService.naaPaataFolderURL }
-
-    // MARK: - Public
-
+    
+    var libraryFolderURL: URL? {
+        folderService.resolveBookmark()
+    }
+    
     func loadLibrary() async throws -> [Song] {
-        let folder = try folderService.ensureNaaPaataFolderExists()
+        guard let folder = folderService.resolveBookmark() else {
+            throw MusicFolderError.noFolderSelected
+        }
+        
+        guard FileManager.default.isReadableFile(atPath: folder.path) else {
+            throw MusicFolderError.accessDenied
+        }
+        
         let urls = Self.audioFileURLs(in: folder)
-
+        
         return await withTaskGroup(of: Song?.self, returning: [Song].self) { group in
             for url in urls {
                 group.addTask { await Self.makeSong(from: url) }

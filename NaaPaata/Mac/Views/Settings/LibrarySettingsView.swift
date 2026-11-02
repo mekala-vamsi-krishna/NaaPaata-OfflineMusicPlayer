@@ -18,28 +18,41 @@ struct LibrarySettingsView: View {
 
             Section("Naa Paata Folder") {
                 LabeledContent("Location") {
-                    Text(viewModel.libraryFolderURL.path)
-                        .font(.callout.monospaced())
-                        .foregroundStyle(.secondary)
-                        .textSelection(.enabled)
-                        .lineLimit(2)
-                        .truncationMode(.middle)
-                        .multilineTextAlignment(.trailing)
+                    if let url = viewModel.libraryFolderURL {
+                        Text(url.path)
+                            .font(.callout.monospaced())
+                            .foregroundStyle(.secondary)
+                            .textSelection(.enabled)
+                            .lineLimit(2)
+                            .truncationMode(.middle)
+                            .multilineTextAlignment(.trailing)
+                    } else {
+                        Text("No folder selected")
+                            .foregroundStyle(.secondary)
+                    }
                 }
 
                 HStack(spacing: 10) {
+                    // Allow the user to change the folder they selected
                     Button {
-                        viewModel.revealLibraryInFinder()
+                        Task { await viewModel.selectFolder() }
+                    } label: {
+                        Label("Change Folder", systemImage: "folder.badge.gearshape")
+                    }
+
+                    Button {
+                        viewModel.revealLibraryFolder()
                     } label: {
                         Label("Reveal in Finder", systemImage: "finder")
                     }
+                    .disabled(viewModel.libraryFolderURL == nil)
 
                     Button {
                         Task { await viewModel.refresh() }
                     } label: {
                         Label("Rescan Library", systemImage: "arrow.clockwise")
                     }
-                    .disabled(viewModel.isLoading)
+                    .disabled(viewModel.isLoading || viewModel.libraryFolderURL == nil)
 
                     if viewModel.isLoading {
                         ProgressView()
