@@ -472,8 +472,8 @@ struct PaywallView: View {
                 .padding(.horizontal, 20)
 
             HStack(spacing: 16) {
-                Button("Terms of Use") {
-                    openURL("https://doc-hosting.flycricket.io/naa-paata-terms-of-use/e91b4e23-3903-4bd3-a751-796f7fa41b75/terms")
+                Button("Terms of Use (EULA)") {
+                    openURL("https://www.apple.com/legal/internet-services/itunes/dev/stdeula/")
                 }
                 .underline()
                 
