@@ -9,10 +9,10 @@
   <p>
     <img src="https://img.shields.io/badge/Platform-iOS%2026+-black?style=flat&logo=apple" />
     <img src="https://img.shields.io/badge/SwiftUI-Native-orange?style=flat&logo=swift" />
-    <img src="https://img.shields.io/github/license/mekala-vamsi-krishna/NaaPaata-OfflineMusicPlayer" />
-    <img src="https://img.shields.io/github/stars/mekala-vamsi-krishna/NaaPaata-OfflineMusicPlayer?style=flat&logo=github&cacheSeconds=3600" />
-    <img src="https://img.shields.io/github/forks/mekala-vamsi-krishna/NaaPaata-OfflineMusicPlayer?style=flat&logo=github" />
-    <img src="https://img.shields.io/github/v/release/mekala-vamsi-krishna/NaaPaata-OfflineMusicPlayer?include_prereleases&label=macOS%20release" />
+    <img src="https://img.shields.io/github/license/mekala-vamsi-krishna/NaaPaata-OfflineMusicPlayer?branch=master&cache_bust=1" />
+    <img src="https://img.shields.io/github/stars/mekala-vamsi-krishna/NaaPaata-OfflineMusicPlayer?branch=master&style=flat&logo=github&cache_bust=1" />
+    <img src="https://img.shields.io/github/forks/mekala-vamsi-krishna/NaaPaata-OfflineMusicPlayer?branch=master&style=flat&logo=github&cache_bust=1" />
+    <img src="https://img.shields.io/github/v/release/mekala-vamsi-krishna/NaaPaata-OfflineMusicPlayer?include_prereleases&label=macOS%20release&cache_bust=1" />
   </p>
 </div>
 
